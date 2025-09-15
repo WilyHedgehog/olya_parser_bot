@@ -1,0 +1,8 @@
+services:
+  bot:
+    build: .
+    container_name: mybot
+    env_file: .env
+    volumes:
+      - ./users.json:/app/users.json
+    restart: always
