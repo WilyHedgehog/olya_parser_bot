@@ -1,8 +1,34 @@
+version: '3.8'
+
 services:
-  bot:
-    build: .
-    container_name: mybot
-    env_file: .env
+
+  postgres:
+    image: postgres:15-alpine
+    restart: "no"  # избавляемся от автоматической перезагрузки
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      # Superuser username/password
+      POSTGRES_USER: superuser
+      POSTGRES_PASSWORD: superpassword
+      POSTGRES_DB: data
+    command: postgres -c timezone=Europe/Moscow
     volumes:
-      - ./users.json:/app/users.json
-    restart: always
+      - "01-simple-alchemy-postgres:/var/lib/postgresql/data"
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: "no"
+    ports:
+      - "127.0.0.1:5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: olpar@bot.com
+      PGADMIN_DEFAULT_PASSWORD: olpar1000
+    volumes:
+      - "01-simple-alchemy-pgadmin:/var/lib/ pgadmin"
+    depends_on:
+      - postgres
+
+volumes:
+  01-simple-alchemy-pgadmin:
+  01-simple-alchemy-postgres:

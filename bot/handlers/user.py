@@ -1,0 +1,553 @@
+import logging
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timedelta
+import zoneinfo
+from aiogram.fsm.context import FSMContext
+from aiogram import F, Router
+from aiogram.filters import CommandStart, Command
+from aiogram.types import Message, CallbackQuery, FSInputFile
+
+MOSCOW_TZ = zoneinfo.ZoneInfo("Europe/Moscow")
+
+from getcourse.gc_api import (
+    gc_request_auto_payment_link,
+    gc_request_no_auto_payment_link,
+)
+
+from db.requests import (
+    db_change_email,
+    update_delivery_mode,
+    update_users_profession,
+    get_all_professions,
+    update_all_users_professions,
+    get_user_subscription_until,
+    activate_promo,
+    get_user_by_telegram_id,
+    get_all_mails,
+    get_pricing_data,
+    update_user_pricing_data,
+    get_all_users_professions,
+)
+
+from find_job_process.job_dispatcher import send_vacancy_from_queue
+from bot.filters.filters import (
+    UserNoEmail,
+    UserHaveEmail,
+    UserHaveProfessions,
+    IsNewUser,
+)
+from bot.lexicon.lexicon import LEXICON_USER
+from bot.states.user import Main
+from bot.states.admin import Prof
+from bot.keyboards.user_keyboard import (
+    confirm_email_button_kb,
+    start_payment_process_kb,
+    back_to_main_kb,
+    is_auto_payment_kb,
+    get_all_professions_kb,
+    get_delivery_mode_kb,
+    get_main_reply_kb,
+    get_pay_subscription_kb,
+)
+
+# Инициализируем логгер модуля
+logger = logging.getLogger(__name__)
+
+# Инициализируем роутер уровня модуля
+router = Router(name="main router")
+
+
+async def try_delete_message(message: Message, state: FSMContext):
+    try:
+        await message.bot.delete_message(
+            chat_id=message.chat.id, message_id=await get_reply_id(state)
+        )
+    except Exception as e:
+        pass
+
+
+async def get_reply_id(state: FSMContext):
+    data = await state.get_data()
+    return data.get("reply_id")
+
+
+async def get_user_professions_list(user_id: int):
+    professions_list_name = []
+    professions = await get_all_professions()
+    for user_prof in await get_all_users_professions(user_id):
+        if user_prof.is_selected:
+            for prof in professions:
+                if str(prof.id) == str(user_prof.profession_id):
+                    professions_list_name.append(prof.name)
+    return professions_list_name
+
+
+@router.message(CommandStart(), IsNewUser())
+async def start_cmd_new_user(message: Message, state: FSMContext):
+    await _start_cmd_no_prof(message, state, is_new=True)
+
+
+@router.message(CommandStart(), ~IsNewUser(), ~UserHaveProfessions())
+async def start_cmd_no_prof(message: Message, state: FSMContext):
+    await _start_cmd_no_prof(message, state, is_new=False)
+
+
+async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
+    photo = FSInputFile("bot/assets/welcome.jpg")
+    await try_delete_message(message, state)
+
+    try:
+        await message.delete()
+    except Exception as e:
+        pass
+    
+    if is_new:
+        caption = LEXICON_USER["first_time_start_cmd"]
+    else:
+        caption = LEXICON_USER["no_professions_start_cmd"]
+        
+    reply = await message.answer_photo(
+        photo=photo,
+        caption=caption,
+        reply_markup=await get_all_professions_kb(user_id=message.from_user.id, page=1),
+    )
+    await state.update_data(reply_id=reply.message_id, current_page=1)
+    await state.set_state(Main.first_time_choose_prof)
+
+
+@router.message(CommandStart(), ~IsNewUser(), UserHaveProfessions())
+async def start_cmd_existing_user(message: Message, state: FSMContext):
+    photo = FSInputFile("bot/assets/welcome.jpg")
+    await try_delete_message(message, state)
+
+    try:
+        await message.delete()
+    except Exception as e:
+        pass
+
+    professions_list_name = await get_user_professions_list(message.from_user.id)
+
+    reply = await message.answer_photo(
+        photo=photo,
+        caption=LEXICON_USER["start_cmd"].format(
+            subscription_status=await get_user_subscription_until(message.from_user.id),
+            professions_list=", ".join(professions_list_name) if professions_list_name else "Не выбраны",
+        ),
+        reply_markup=await get_main_reply_kb(user_id=message.from_user.id),
+    )
+    await state.update_data(reply_id=reply.message_id)
+    await state.set_state(Main.main)
+
+
+@router.callback_query(F.data.startswith("dmode_"), Main.main)
+async def change_delivery_mode(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+):
+    data = await state.get_data()
+    user_mode = data.get("delivery_mode")  # текущий сохранённый режим
+
+    mode = callback.data.split("_", 1)[1]
+
+    # Если нажали на уже выбранный режим
+    if mode == user_mode:
+        return
+
+    # Сохраняем новый режим в базе
+    await update_delivery_mode(session, callback.from_user.id, mode)
+
+    # Обновляем стейт
+    await state.update_data(delivery_mode=mode)
+
+    # Обновляем клавиатуру
+    await callback.message.edit_reply_markup(
+        reply_markup=await get_delivery_mode_kb(user_id=callback.from_user.id)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("profession_"), Main.main)
+@router.callback_query(F.data.startswith("profession_"), Main.first_time_choose_prof)
+async def change_user_chosen_professions(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+):
+    profession_id = callback.data.split("_")[2]
+    check = callback.data.split("_")[1]  # chosen или unchosen
+
+    if check == "chosen":
+        # Снимаем выбор
+        await update_users_profession(
+            session, callback.from_user.id, profession_id, is_selected=False
+        )
+    else:
+        # Выбираем профессию
+        await update_users_profession(
+            session, callback.from_user.id, profession_id, is_selected=True
+        )
+
+    # Обновляем клавиатуру
+    data = await state.get_data()
+    page = data.get("current_page")
+    await callback.message.edit_reply_markup(
+        reply_markup=await get_all_professions_kb(
+            user_id=callback.from_user.id, page=page
+        )
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "back_to_main")
+@router.callback_query(F.data == "confirm_choice", Main.main)
+@router.callback_query(
+    F.data == "confirm_choice", Main.first_time_choose_prof, UserHaveProfessions()
+)
+async def confirm_choice(callback: CallbackQuery, state: FSMContext):
+    photo = FSInputFile("bot/assets/welcome.jpg")
+
+    professions_list_name = await get_user_professions_list(callback.from_user.id)
+
+    reply = await callback.message.answer_photo(
+        photo=photo,
+        caption=LEXICON_USER["start_cmd"].format(
+            subscription_status=await get_user_subscription_until(callback.from_user.id),
+            professions_list=", ".join(professions_list_name) if professions_list_name else "Не выбраны",
+        ),
+        reply_markup=await get_main_reply_kb(user_id=callback.from_user.id),
+    )
+    try:
+        await callback.message.bot.delete_message(
+            chat_id=callback.message.chat.id, message_id=await get_reply_id(state)
+        )
+    except Exception as e:
+        pass
+    await state.update_data(reply_id=reply.message_id)
+    await state.set_state(Main.main)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "confirm_choice", Main.first_time_choose_prof)
+async def confirm_choice(callback: CallbackQuery, state: FSMContext):
+    await callback.answer(LEXICON_USER["no_professions_chosen"], show_alert=True)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("all_professions_"), Main.main)
+@router.callback_query(
+    F.data.startswith("all_professions_"), Main.first_time_choose_prof
+)
+async def choose_all_professions(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+):
+    professions = await get_all_professions()
+    profession_ids = [str(prof.id) for prof in professions]
+    action = callback.data.split("_")[2]  # choose или dismiss
+
+    if action == "dismiss":
+        await update_all_users_professions(
+            session, callback.from_user.id, profession_ids, False
+        )
+    else:
+        await update_all_users_professions(
+            session, callback.from_user.id, profession_ids, True
+        )
+
+    data = await state.get_data()
+    page = data.get("current_page")
+
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await get_all_professions_kb(
+                user_id=callback.from_user.id, page=page
+            )
+        )
+    except Exception as e:
+        pass
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("uppage_"), Main.first_time_choose_prof)
+@router.callback_query(F.data.startswith("uppage_"), Main.main)
+async def change_page(callback: CallbackQuery, state: FSMContext):
+    page = int(callback.data.split("_")[1])
+    await callback.message.edit_reply_markup(
+        reply_markup=await get_all_professions_kb(
+            user_id=callback.from_user.id, page=page
+        )
+    )
+    await state.update_data({"current_page": page})
+    await callback.answer()
+
+
+@router.callback_query(F.data == "noop")
+async def noop(callback: CallbackQuery):
+    await callback.answer()
+
+
+@router.callback_query(F.data == "---")
+async def noop(callback: CallbackQuery):
+    await callback.answer()
+
+
+@router.message(F.text == "🛠️ Настройки профессий 🛠️", Main.main)
+async def settings_professions(message: Message, state: FSMContext):
+    await message.delete()
+    await try_delete_message(message, state)
+    reply = await message.answer(
+        LEXICON_USER["settings_professions"],
+        reply_markup=await get_all_professions_kb(user_id=message.from_user.id, page=1),
+    )
+    await state.update_data(reply_id=reply.message_id, current_page=1)
+
+
+@router.message(F.text == "📬 Настройки параметров доставки вакансий 📬", Main.main)
+async def settings_delivery(message: Message, state: FSMContext):
+    await message.delete()
+    await try_delete_message(message, state)
+    reply = await message.answer(
+        LEXICON_USER["settings_delivery"],
+        reply_markup=await get_delivery_mode_kb(user_id=message.from_user.id),
+    )
+    await state.update_data(reply_id=reply.message_id)
+
+
+@router.message(F.text == "💳 Купить подписку 💳", Main.main, UserNoEmail())
+@router.message(F.text == "🎟️ Активировать промокод 🎟️", Main.main, UserNoEmail())
+async def add_email_prompt(message: Message, state: FSMContext):
+    if F.text == "🎟️ Активировать промокод 🎟️":
+        await state.update_data(from_promo=True)
+    else:
+        await state.update_data(from_promo=False)
+    await message.delete()
+    await try_delete_message(message, state)
+    reply = await message.answer(
+        LEXICON_USER["no_email_prompt"],
+        reply_markup=back_to_main_kb,
+    )
+    await state.update_data(reply_id=reply.message_id)
+    await state.set_state(Main.add_email)  # Переходим в состояние ожидания email
+
+
+@router.message(Main.add_email, F.text)
+async def add_email(message: Message, state: FSMContext):
+    await try_delete_message(message, state)
+
+    if message.text.lower() in [mail.lower() for mail in await get_all_mails()]:
+        await message.delete()
+        reply = await message.answer(LEXICON_USER["add_email_exists"])
+        await state.update_data(reply_id=reply.message_id)
+        return
+
+    await message.delete()
+    email = message.text
+    await state.update_data(email=email)
+    reply = await message.answer(
+        LEXICON_USER["add_email_confirm"].format(email=email),
+        reply_markup=confirm_email_button_kb,
+    )
+    await state.update_data(reply_id=reply.message_id)
+
+
+@router.callback_query(F.data == "confirm_email", Main.add_email)
+async def confirm_email(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+):
+    user_data = await state.get_data()
+    email = user_data.get("email")
+    if not email:
+        await callback.message.edit_text(LEXICON_USER["add_email_fail"])
+        await state.set_state(Main.add_email)
+        await callback.answer()
+        return
+
+    result = await db_change_email(session, callback.from_user.id, email)
+    if result:
+        try:
+            await callback.message.bot.delete_message(
+                chat_id=callback.message.chat.id, message_id=await get_reply_id(state)
+            )
+        except Exception as e:
+            pass
+        await state.set_state(Main.main)
+        if user_data.get("from_promo"):
+            await activate_promo_code_from_callback(callback, state)
+        else:
+            await buy_subscription(callback, state)
+    await callback.answer()
+
+
+async def _start_activate_promo(message: Message, state: FSMContext):
+    await message.delete()
+    await try_delete_message(message, state)
+    reply = await message.answer(
+        "Пожалуйста, введите ваш промокод.", reply_markup=back_to_main_kb
+    )
+    await state.update_data(reply_id=reply.message_id)
+    await state.set_state(Main.activate_promo)
+
+
+@router.message(F.text == "🎟️ Активировать промокод 🎟️", Main.main, UserHaveEmail())
+async def activate_promo_code(message: Message, state: FSMContext):
+    await _start_activate_promo(message, state)
+
+
+async def activate_promo_code_from_callback(callback: CallbackQuery, state: FSMContext):
+    await _start_activate_promo(callback.message, state)
+
+
+@router.message(Main.activate_promo, F.text)
+async def process_promo_code(
+    message: Message, state: FSMContext, session: AsyncSession
+):
+    await message.bot.delete_message(
+        chat_id=message.chat.id, message_id=await get_reply_id(state)
+    )
+    await message.delete()
+    promo_code = message.text.strip()
+
+    text = await activate_promo(session, message.from_user.id, promo_code)
+
+    reply = await message.answer(text, reply_markup=back_to_main_kb)
+    await state.update_data(reply_id=reply.message_id)
+    await state.set_state(Main.main)  # Возвращаемся в основное состояние
+
+
+async def _start_buy_subscription(message: Message, state: FSMContext):
+    await message.delete()
+    await try_delete_message(message, state)
+    until_the_end_of_the_day = (
+        datetime.now(MOSCOW_TZ)
+        .replace(hour=23, minute=59, second=59)
+        .strftime("%H:%M %d.%m.%Y")
+    )
+    reply = await message.answer(
+        LEXICON_USER["buy_subscription_prompt"].format(
+            until_the_end_of_the_day=until_the_end_of_the_day
+        ),
+        reply_markup=start_payment_process_kb,
+    )
+    await state.update_data(reply_id=reply.message_id)
+    await state.set_state(Main.payment_link)
+
+
+@router.message(F.text == "💳 Купить подписку 💳", Main.main, UserHaveEmail())
+async def buy_subscription(message: Message, state: FSMContext):
+    await _start_buy_subscription(message, state)
+
+
+async def buy_subscription_from_callback(callback: CallbackQuery, state: FSMContext):
+    await _start_buy_subscription(callback.message, state)
+
+
+@router.callback_query(F.data == "start_payment_process_3_months", Main.payment_link)
+@router.callback_query(F.data == "start_payment_process_1_month", Main.payment_link)
+async def pay_subscription(callback: CallbackQuery, state: FSMContext):
+    if callback.data == "start_payment_process_1_month":
+        await state.update_data(chosen_plan="1_month")
+    else:
+        await state.update_data(chosen_plan="3_months")
+
+    reply = await callback.message.edit_text(
+        LEXICON_USER["buy_subscription_second_stage"], reply_markup=is_auto_payment_kb
+    )
+    await state.update_data(reply_id=reply.message_id)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "auto_payment_true", Main.payment_link)
+async def pay_subscription_auto(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    chosen_plan = data.get("chosen_plan")
+    if not chosen_plan:
+        await callback.answer("Произошла ошибка, попробуйте снова.")
+        return
+
+    user = await get_user_by_telegram_id(callback.from_user.id)
+
+    offer_code, offer_id = await get_pricing_data(
+        user_id=callback.from_user.id, chosen_plan=chosen_plan
+    )
+
+    payment_link = await gc_request_auto_payment_link(
+        email=user.mail,
+        offer_code=offer_code,
+        offer_id=offer_id,
+    )
+
+    await update_user_pricing_data(callback.from_user.id, offer_code)
+
+    reply = await callback.message.edit_text(
+        LEXICON_USER["buy_subscription_link"].format(payment_link=payment_link),
+        disable_web_page_preview=True,
+        reply_markup=await get_pay_subscription_kb(payment_link),
+    )
+    await state.set_state(Main.main)
+    await state.update_data(reply_id=reply.message_id)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "auto_payment_false", Main.payment_link)
+async def pay_subscription_no_auto(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    chosen_plan = data.get("chosen_plan")
+    if not chosen_plan:
+        await callback.answer("Произошла ошибка, попробуйте снова.")
+        return
+
+    user = await get_user_by_telegram_id(callback.from_user.id)
+
+    offer_code, offer_id = await get_pricing_data(
+        user_id=callback.from_user.id, chosen_plan=chosen_plan
+    )
+
+    payment_link = await gc_request_no_auto_payment_link(
+        email=user.mail,
+        offer_code=offer_code,
+        offer_id=offer_id,
+    )
+
+    await update_user_pricing_data(
+        telegram_id=callback.from_user.id, offer_code=offer_code, offer_id=offer_id
+    )
+
+    reply = await callback.message.edit_text(
+        LEXICON_USER["buy_subscription_link"].format(payment_link=payment_link),
+        disable_web_page_preview=True,
+        reply_markup=await get_pay_subscription_kb(payment_link),
+    )
+    await state.set_state(Main.main)
+    await state.update_data(reply_id=reply.message_id)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.bot.delete_message(
+            chat_id=callback.message.chat.id, message_id=await get_reply_id(state)
+        )
+    except Exception as e:
+        pass
+    await callback.answer()
+    await state.set_state(Main.main)
+
+
+@router.message(F.text == "Получить накопленные вакансии", Main.main)
+async def get_earned_vacancies(message: Message, state: FSMContext):
+    await try_delete_message(message, state)
+    message.delete()
+    await send_vacancy_from_queue(message.from_user.id)
+
+
+@router.message(
+    F.text == "Активировать новый промокод можно только после окончания имеющегося",
+    Main.main,
+)
+async def promo_no_active(message: Message):
+    await message.delete()
+
+
+@router.message(F.text, Prof.main)
+@router.message(F.text, Main.main)
+@router.message(F.text)
+async def handle_text_message(message: Message, state: FSMContext):
+    await message.delete()
