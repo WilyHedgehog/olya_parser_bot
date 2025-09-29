@@ -18,23 +18,13 @@ jobs:
           port: 22
           script: |
             cd /bot
-            # Проверяем, существует ли git-репозиторий
             if [ ! -d "parbot/olya_parser_bot/.git" ]; then
-                # Если папка есть, но не репозиторий — удаляем её
-                if [ -d "parbot/olya_parser_bot" ]; then
-                    rm -rf parbot/olya_parser_bot
-                fi
-                # Клонируем репозиторий заново
-                git clone https://github.com/WilyHedgehog/olya_parser_bot.git parbot/olya_parser_bot
+                rm -rf parbot/olya_parser_bot
+                git clone git@github.com:WilyHedgehog/olya_parser_bot.git parbot/olya_parser_bot
             fi
-
             cd parbot/olya_parser_bot
-
-            # Обновляем код до последнего коммита main
             git fetch --all
             git reset --hard origin/main
-
-            # Перезапуск docker-compose
             docker compose down
             docker compose up -d --build
             docker image prune -f
