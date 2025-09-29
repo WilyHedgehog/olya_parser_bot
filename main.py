@@ -1,6 +1,7 @@
 import logging
 import structlog
 import asyncio
+import asyncpg
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -58,6 +59,18 @@ def dispatcher_factory() -> Dispatcher:
 
 def create_app(config: Config) -> FastAPI:
 
+    async def wait_for_postgres(url: str, retries: int = 10, delay: int = 2):
+        for i in range(retries):
+            try:
+                conn = await asyncpg.connect(url)
+                await conn.close()
+                print("Postgres ready!")
+                return
+            except Exception:
+                print(f"Waiting for Postgres... attempt {i+1}")
+                await asyncio.sleep(delay)
+        raise RuntimeError("Postgres did not start in time!")
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # --- Startup ---
@@ -65,7 +78,10 @@ def create_app(config: Config) -> FastAPI:
             level=getattr(logging, config.log.level.upper(), logging.INFO),
             format=config.log.format,
         )
-        
+
+        # Ждем Postgres
+        await wait_for_postgres(config.database.url)
+
         dispatcher_factory()
         me = await bot.me()
         logger.info(f"Bot {me.first_name} starting with webhook: {WEBHOOK_PATH}")
@@ -77,11 +93,11 @@ def create_app(config: Config) -> FastAPI:
         # Запускаем парсер
         asyncio.create_task(parser_main())
         logger.info("Parser started")
-        
+
         # Загружаем профессии
         await load_professions()
         logger.info("Professions loaded")
-        
+
         # Запускаем планировщик задач
         start_scheduler(interval_seconds=10)
         logger.info("Scheduler started")
