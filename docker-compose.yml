@@ -1,56 +1,56 @@
 services:
-
   postgres:
     image: postgres:15-alpine
     restart: always
     ports:
-      - "127.0.0.1:5433:5432"
+      - "5432:5432"
     environment:
-      POSTGRES_USER: egikww
-      POSTGRES_PASSWORD: egikkotik2021
+      POSTGRES_USER: superolyauser
+      POSTGRES_PASSWORD: 2StDRkCeJJJTNtd
       POSTGRES_DB: data
     command: postgres -c timezone=Europe/Moscow
     volumes:
-      - "01-simple-alchemy-postgres:/var/lib/postgresql/data"
+      - "db_data:/var/lib/postgresql/data"
     networks:
       - botnet
 
   pgadmin:
     image: dpage/pgadmin4:latest
     restart: always
-    ports:
-      - "127.0.0.1:5050:80"
     environment:
       PGADMIN_DEFAULT_EMAIL: olpar@bot.com
       PGADMIN_DEFAULT_PASSWORD: olpar1000
     volumes:
-      - "01-simple-alchemy-pgadmin:/var/lib/pgadmin"
+      - "pgadmin_data:/var/lib/pgadmin"
+    ports:
+      - "8080:80"   # <-- порт на хосте : порт в контейнере
     depends_on:
       - postgres
     networks:
       - botnet
 
-  app:
-    build:
-      context: .
-      dockerfile: dockerfile  # убедись, что имя Dockerfile совпадает
+  bot_app:
+    build: 
+      context: ./  
+      dockerfile: dockerfile
     container_name: olya_bot_app
     restart: always
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
     env_file:
       - .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://egikww:egikkotik2021@postgres:5432/data
-    volumes:
-      - ./:/app:cached
-    networks:
-      - botnet
     depends_on:
       - postgres
-
+    environment:
+      DATABASE_URL: postgresql+psycopg://superuser:superpassword@postgres:5432/data
+    networks:
+      - botnet
+    volumes:
+      - ./:/app
+      
 volumes:
-  01-simple-alchemy-pgadmin:
-  01-simple-alchemy-postgres:
+  db_data:
+  pgadmin_data:
 
 networks:
   botnet:

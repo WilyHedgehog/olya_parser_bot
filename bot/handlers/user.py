@@ -94,19 +94,19 @@ async def start_cmd_no_prof(message: Message, state: FSMContext):
 
 
 async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
-    photo = FSInputFile("bot/assets/welcome.jpg")
+    photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
     await try_delete_message(message, state)
 
     try:
         await message.delete()
     except Exception as e:
         pass
-    
+
     if is_new:
         caption = LEXICON_USER["first_time_start_cmd"]
     else:
         caption = LEXICON_USER["no_professions_start_cmd"]
-        
+
     reply = await message.answer_photo(
         photo=photo,
         caption=caption,
@@ -118,7 +118,7 @@ async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
 
 @router.message(CommandStart(), ~IsNewUser(), UserHaveProfessions())
 async def start_cmd_existing_user(message: Message, state: FSMContext):
-    photo = FSInputFile("bot/assets/welcome.jpg")
+    photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
     await try_delete_message(message, state)
 
     try:
@@ -132,7 +132,11 @@ async def start_cmd_existing_user(message: Message, state: FSMContext):
         photo=photo,
         caption=LEXICON_USER["start_cmd"].format(
             subscription_status=await get_user_subscription_until(message.from_user.id),
-            professions_list=", ".join(professions_list_name) if professions_list_name else "Не выбраны",
+            professions_list=(
+                ", ".join(professions_list_name)
+                if professions_list_name
+                else "Не выбраны"
+            ),
         ),
         reply_markup=await get_main_reply_kb(user_id=message.from_user.id),
     )
@@ -202,15 +206,21 @@ async def change_user_chosen_professions(
     F.data == "confirm_choice", Main.first_time_choose_prof, UserHaveProfessions()
 )
 async def confirm_choice(callback: CallbackQuery, state: FSMContext):
-    photo = FSInputFile("bot/assets/welcome.jpg")
+    photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
 
     professions_list_name = await get_user_professions_list(callback.from_user.id)
 
     reply = await callback.message.answer_photo(
         photo=photo,
         caption=LEXICON_USER["start_cmd"].format(
-            subscription_status=await get_user_subscription_until(callback.from_user.id),
-            professions_list=", ".join(professions_list_name) if professions_list_name else "Не выбраны",
+            subscription_status=await get_user_subscription_until(
+                callback.from_user.id
+            ),
+            professions_list=(
+                ", ".join(professions_list_name)
+                if professions_list_name
+                else "Не выбраны"
+            ),
         ),
         reply_markup=await get_main_reply_kb(user_id=callback.from_user.id),
     )

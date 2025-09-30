@@ -80,7 +80,7 @@ def create_app(config: Config) -> FastAPI:
         )
 
         # Ждем Postgres
-        await wait_for_postgres(config.database.url)
+        #await wait_for_postgres(config.database.url)
 
         dispatcher_factory()
         me = await bot.me()
