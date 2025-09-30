@@ -88,15 +88,18 @@ async def get_user_professions_list(user_id: int):
 
 @router.message(CommandStart(deep_link=True), IsNewUser())
 async def start_cmd_new_user(
-    message: Message, state: FSMContext, session: AsyncSession
+    message: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    command: CommandStart,   # <-- вот тут прилетает объект команды
 ):
-    payload = message.args
+    payload = command.args   # в aiogram3 вместо message.args
     if payload and payload.startswith("referral_"):
         try:
             referrer_id = int(payload.split("_")[1])
             if referrer_id != message.from_user.id:
                 await get_promo_24_hours(session=session, user_id=referrer_id)
-        except Exception as e:
+        except Exception:
             pass
 
     await _start_cmd_no_prof(message, state, is_new=True)
