@@ -29,6 +29,8 @@ class User(TimestampMixin, Base):
     is_pay_status: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     three_days_free_active: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     cancelled_subscription_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_autopay: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    from_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     professions: Mapped[list["UserProfession"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -40,5 +42,8 @@ class User(TimestampMixin, Base):
         back_populates="user", cascade="all, delete-orphan"
     )
     vacancy_queue: Mapped[list["VacancyQueue"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    vacancy_two_hours: Mapped[list["VacancyTwoHours"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

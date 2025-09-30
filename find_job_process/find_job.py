@@ -98,7 +98,7 @@ async def find_job_func(
         return False
 
     vacancy_professions = [
-        (prof, score) for prof, score in result["ranked"] if score > 1.0
+        (prof, score) for prof, score in result["ranked"] if score > 2.0
     ]
 
     if not vacancy_professions:

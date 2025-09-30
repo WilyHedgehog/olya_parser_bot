@@ -11,6 +11,7 @@ from .models import (
     StopWord,
     VacancyQueue,
     PricingPlan,
+    VacancyTwoHours,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "StopWord",
     "VacancyQueue",
     "PricingPlan",
+    "VacancyTwoHours",
 ]

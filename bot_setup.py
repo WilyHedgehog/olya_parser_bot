@@ -16,6 +16,14 @@ bot = Bot(
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+_bot_id_cache = None  # глобальная переменная для кеша
+
+async def get_bot_id():
+    global _bot_id_cache
+    if _bot_id_cache is None:
+        user = await bot.get_me()
+        _bot_id_cache = user.id
+    return _bot_id_cache
 
 
 jobstores = {

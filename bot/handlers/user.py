@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram import F, Router
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.utils.deep_linking import create_start_link
 
 MOSCOW_TZ = zoneinfo.ZoneInfo("Europe/Moscow")
 
@@ -28,6 +29,8 @@ from db.requests import (
     get_pricing_data,
     update_user_pricing_data,
     get_all_users_professions,
+    update_autopay_status,
+    get_promo_24_hours,
 )
 
 from find_job_process.job_dispatcher import send_vacancy_from_queue
@@ -83,8 +86,19 @@ async def get_user_professions_list(user_id: int):
     return professions_list_name
 
 
-@router.message(CommandStart(), IsNewUser())
-async def start_cmd_new_user(message: Message, state: FSMContext):
+@router.message(CommandStart(deep_link=True), IsNewUser())
+async def start_cmd_new_user(
+    message: Message, state: FSMContext, session: AsyncSession
+):
+    payload = message.args
+    if payload and payload.startswith("referral_"):
+        try:
+            referrer_id = int(payload.split("_")[1])
+            if referrer_id != message.from_user.id:
+                await get_promo_24_hours(session=session, user_id=referrer_id)
+        except Exception as e:
+            pass
+
     await _start_cmd_no_prof(message, state, is_new=True)
 
 
@@ -415,8 +429,11 @@ async def process_promo_code(
     promo_code = message.text.strip()
 
     text = await activate_promo(session, message.from_user.id, promo_code)
+    photo = FSInputFile("bot/assets/Промокод активирован!-1.png")
 
-    reply = await message.answer(text, reply_markup=back_to_main_kb)
+    reply = await message.answer_photo(
+        photo=photo, caption=text, reply_markup=back_to_main_kb
+    )
     await state.update_data(reply_id=reply.message_id)
     await state.set_state(Main.main)  # Возвращаемся в основное состояние
 
@@ -424,13 +441,15 @@ async def process_promo_code(
 async def _start_buy_subscription(message: Message, state: FSMContext):
     await message.delete()
     await try_delete_message(message, state)
+    photo = FSInputFile("bot/assets/Тарифы и доступ 🔑-1.png")
     until_the_end_of_the_day = (
         datetime.now(MOSCOW_TZ)
         .replace(hour=23, minute=59, second=59)
         .strftime("%H:%M %d.%m.%Y")
     )
-    reply = await message.answer(
-        LEXICON_USER["buy_subscription_prompt"].format(
+    reply = await message.answer_photo(
+        photo=photo,
+        caption=LEXICON_USER["buy_subscription_prompt"].format(
             until_the_end_of_the_day=until_the_end_of_the_day
         ),
         reply_markup=start_payment_process_kb,
@@ -472,6 +491,11 @@ async def pay_subscription_auto(callback: CallbackQuery, state: FSMContext):
         return
 
     user = await get_user_by_telegram_id(callback.from_user.id)
+    try:
+        await update_autopay_status(callback.from_user.id, True)
+
+    except Exception as e:
+        pass
 
     offer_code, offer_id = await get_pricing_data(
         user_id=callback.from_user.id, chosen_plan=chosen_plan
@@ -504,6 +528,11 @@ async def pay_subscription_no_auto(callback: CallbackQuery, state: FSMContext):
         return
 
     user = await get_user_by_telegram_id(callback.from_user.id)
+
+    try:
+        await update_autopay_status(callback.from_user.id, False)
+    except Exception as e:
+        pass
 
     offer_code, offer_id = await get_pricing_data(
         user_id=callback.from_user.id, chosen_plan=chosen_plan
@@ -546,6 +575,22 @@ async def get_earned_vacancies(message: Message, state: FSMContext):
     await try_delete_message(message, state)
     message.delete()
     await send_vacancy_from_queue(message.from_user.id)
+
+
+@router.message(F.text == "👫 Пригласить друга 👭", Main.main)
+async def referal(message: Message, state: FSMContext):
+    await try_delete_message(message, state)
+    await message.delete()
+    link = await create_start_link(
+        bot=message.bot, payload=f"referral_{message.from_user.id}"
+    )
+    photo = FSInputFile("bot/assets/Приводи друзей-1.png")
+    reply = await message.answer_photo(
+        photo=photo,
+        caption=LEXICON_USER["referal"].format(referral_link=link),
+        reply_markup=back_to_main_kb,
+    )
+    await state.update_data(reply_id=reply.message_id)
 
 
 @router.message(

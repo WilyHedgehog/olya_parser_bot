@@ -2,6 +2,7 @@
 import logging
 import zoneinfo
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from uuid import UUID
 import asyncio
 from bot_setup import scheduler
@@ -16,51 +17,18 @@ from db.requests import (
     cleanup_old_data,
     get_vacancy_by_id,
     add_to_vacancy_queue,
+    add_to_two_hours,
     dublicate_check,
     get_unsent_vacancies_by_user,
+    get_two_hours_vacancies_by_user,
     mark_vacancies_as_sent,
+    mark_vacancies_as_sent_two_hours,
+    select_two_hours_users,
 )
 
 logger = logging.getLogger(__name__)
 
 TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
-
-_last_scheduled_time: datetime | None = None
-
-
-def get_next_even_hour() -> datetime:
-    now = datetime.now(TZ_MOSCOW)
-    # округляем к следующему часу
-    next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-    # если час нечётный -> прибавляем ещё 1
-    if next_hour.hour % 2 != 0:
-        next_hour += timedelta(hours=1)
-    return next_hour
-
-
-
-async def schedule_two_hours_vacancy(user_id: int, vacancy):
-    global _last_scheduled_time
-
-    # Если нет предыдущей задачи или она уже прошла — ставим на следующий чётный час
-    if _last_scheduled_time is None or _last_scheduled_time < datetime.now(TZ_MOSCOW):
-        run_time = get_next_even_hour()
-    else:
-        # Каждая следующая задача сдвигается на +1 сек после последней
-        run_time = _last_scheduled_time + timedelta(seconds=1)
-
-    _last_scheduled_time = run_time
-
-    scheduler.add_job(
-        send_delayed_vacancy,
-        trigger="date",
-        run_date=run_time,
-        args=[user_id, vacancy],
-        id=f"two_hours_{user_id}_{vacancy.id}_{int(run_time.timestamp())}",
-        replace_existing=False,  # не перезаписываем предыдущие
-    )
-
-
 
 # --- 2. Отправка вакансии пользователю ---
 async def send_vacancy(user_id: int, vacancy: Vacancy):
@@ -85,17 +53,40 @@ async def send_vacancy_to_users(vacancy_id: UUID):
     if not vacancy:
         logger.error(f"Vacancy {vacancy_id} not found.")
         return
+
     users = await get_users_by_profession(vacancy.profession_id)
 
+    now_msk = datetime.now(TZ_MOSCOW)
+
     for user in users:
+        # Приводим subscription_until к aware datetime
+        if user.subscription_until is None:
+            logger.info(f"User {user.telegram_id} subscription expired, skipping.")
+            continue
+
+        sub_until = user.subscription_until
+        if sub_until.tzinfo is None:
+            sub_until = sub_until.replace(tzinfo=ZoneInfo("UTC"))  # если без tzinfo, считаем UTC
+        sub_until = sub_until.astimezone(TZ_MOSCOW)
+
+        if sub_until < now_msk:
+            logger.info(f"User {user.telegram_id} subscription expired, skipping.")
+            continue
+
         if user.delivery_mode == "instant":
             await send_vacancy(user.telegram_id, vacancy)
-
         elif user.delivery_mode == "two_hours":
-            await schedule_two_hours_vacancy(user.telegram_id, vacancy)
-
+            await add_to_two_hours(
+                text=vacancy.text,
+                profession_id=vacancy.profession_id,
+                user_id=user.telegram_id
+            )
         elif user.delivery_mode == "button_click":
-            await add_to_vacancy_queue(text=vacancy.text, user_id=user.telegram_id, profession_id=vacancy.profession_id)
+            await add_to_vacancy_queue(
+                text=vacancy.text,
+                user_id=user.telegram_id,
+                profession_id=vacancy.profession_id
+            )
 
 # --- 5. Отложенная отправка для two_hours ---
 async def send_delayed_vacancy(user_id: int, vacancy: Vacancy):
@@ -118,6 +109,23 @@ async def send_vacancy_from_queue(user_id: int):
     # Помечаем как отправленные
     await mark_vacancies_as_sent(user_id, sent_ids)
     logger.info(f"All queued vacancies sent to user {user_id}.")
+    
+    
+async def send_two_hours_vacancies():
+    users = select_two_hours_users()
+    sent_ids = []
+    for user in users:
+        result = await get_two_hours_vacancies_by_user(user.telegram_id)
+        if not result:
+            logger.info("No two_hours vacancies to send.")
+            return
+    
+        for item in result:
+            await send_vacancy(user.telegram_id, item)  # Отправка самой вакансии
+            sent_ids.append(item.id)                 # Сохраняем id для апдейта
+        
+        await mark_vacancies_as_sent_two_hours(user.telegram_id, sent_ids)
+        logger.info(f"All two_hours vacancies sent to user {user.telegram_id}.")
 
 # --- 8. Планировщик для регулярной очистки ---
 def start_cleanup_scheduler(interval_hours: int = 24):

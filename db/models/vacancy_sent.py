@@ -16,6 +16,7 @@ class VacancySent(SentMixin, Base):
     vacancy_id: Mapped[UUID] = mapped_column(ForeignKey("vacancies.id"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.telegram_id"))
     message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    vacancy_text: Mapped[str | None] = mapped_column(nullable=True)
     
     __table_args__ = (
         UniqueConstraint("user_id", "vacancy_id", name="uq_user_vacancy"),

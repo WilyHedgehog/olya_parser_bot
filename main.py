@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 from aiogram import Dispatcher
 from aiogram.types import Update
 from aiogram.enums import ParseMode
+from aiogram.types import FSInputFile
 
 from bot_setup import bot, dp
 from config.config import Config, load_config
@@ -24,7 +25,8 @@ from db.requests import set_new_days, update_user_is_pay_status
 
 from find_job_process.find_job import load_professions
 
-from bot.background_tasks.check_subscriptions import start_scheduler
+from bot.background_tasks.check_subscriptions import start_scheduler_check_subscriptions
+from bot.background_tasks.send_two_hours_vacancy import start_scheduler_two_hours_vacancy_send
 from bot.middlewares.middlewares import (
     DbSessionMiddleware,
     TrackAllUsersMiddleware,
@@ -99,8 +101,12 @@ def create_app(config: Config) -> FastAPI:
         logger.info("Professions loaded")
 
         # Запускаем планировщик задач
-        start_scheduler(interval_seconds=10)
+        start_scheduler_check_subscriptions(interval_seconds=3600)
         logger.info("Scheduler started")
+        
+        start_scheduler_two_hours_vacancy_send()
+        logger.info("Two hours vacancy scheduler started")
+        
 
         yield
 
@@ -158,6 +164,10 @@ async def process_getcourse_promocode(
 
 # https://2ba392152584.ngrok-free.app/webhook/subscribe?gc_date={object.finish_at}&mail={object.user.email}&offer_id={object.user.id}
 
+# https://capybara.olgaproonline.ru/webhook/subscribe?gc_date={object.finish_at}&mail={object.user.email}   платная подписка
+# https://capybara.olgaproonline.ru/webhook/prolong?gc_date={object.finish_at}&mail={object.user.email}  продление подписки
+# https://capybara.olgaproonline.ru/webhook/promocode?gc_date={object.finish_at}&mail={object.user.email}    промокод
+
 @app.get(f"{WEBHOOK_PATH}/subscribe")
 async def process_getcourse_sub(
     gc_date: str = "",
@@ -165,14 +175,15 @@ async def process_getcourse_sub(
 ):
     date = await parse_date(gc_date)
     date = date + timedelta(hours=12)
-    text = ''
     user_id, new_text = await set_new_days(mail=mail, days=date)
+    photo = FSInputFile("bot/assets/Подписка активна-1.png")
     print(f"Получен платёж: email {mail}")
 
     if user_id:
-        await bot.send_message(
+        await bot.send_photo(
             chat_id=user_id,
-            text=LEXICON_SUBSCRIBE["after_subscribe_text"].format(date=date.strftime("%d.%m.%Y")),
+            photo=photo,
+            caption=LEXICON_SUBSCRIBE["after_subscribe_text"].format(date=date.strftime("%d.%m.%Y")),
             parse_mode=ParseMode.HTML,
         )
 
@@ -180,7 +191,7 @@ async def process_getcourse_sub(
     return JSONResponse(content={"status": "ok"})
 
 
-@app.get(f"{WEBHOOK_PATH}/update")
+@app.get(f"{WEBHOOK_PATH}/promocode")
 async def process_getcourse_update(
     gc_date: str = "",
     mail: str = "",
@@ -188,15 +199,15 @@ async def process_getcourse_update(
     date = await parse_date(gc_date)
     logger.info(f"Parsed date: {date}")
     date = date + timedelta(hours=12)
-    text = ''
     user_id, new_text = await set_new_days(mail=mail, days=date)
-    text += new_text
+    photo = FSInputFile("bot/assets/Подписка активна-1.png")
     print(f"Получен платёж: email {mail}")
 
     if user_id:
-        await bot.send_message(
+        await bot.send_photo(
             chat_id=user_id,
-            text=text,
+            photo=photo,
+            caption=LEXICON_SUBSCRIBE["after_promocode_text"].format(date=date.strftime("%d.%m.%Y")),
             parse_mode=ParseMode.HTML,
         )
 
@@ -205,22 +216,22 @@ async def process_getcourse_update(
 
 
 
-@app.get(f"{WEBHOOK_PATH}/extension")
+@app.get(f"{WEBHOOK_PATH}/prolong")
 async def process_getcourse_extension(
     gc_date: str = "",
     mail: str = "",
 ):
     date = await parse_date(gc_date)
     date = date + timedelta(hours=12)
-    text = ''
     user_id, new_text = await set_new_days(mail=mail, days=date)
-    text += new_text
+    photo = FSInputFile("bot/assets/Подписка активна-1.png")
     print(f"Получен платёж: email {mail}")
 
     if user_id:
-        await bot.send_message(
+        await bot.send_photo(
             chat_id=user_id,
-            text=text,
+            photo=photo,
+            caption=LEXICON_SUBSCRIBE["after_prolong_text"].format(date=date.strftime("%d.%m.%Y")),
             parse_mode=ParseMode.HTML,
         )
 

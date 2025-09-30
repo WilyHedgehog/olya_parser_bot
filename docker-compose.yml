@@ -42,7 +42,7 @@ services:
     depends_on:
       - postgres
     environment:
-      DATABASE_URL: postgresql+psycopg://superuser:superpassword@postgres:5432/data
+      DATABASE_URL: postgresql+psycopg://superolyauser:2StDRkCeJJJTNtd@postgres:5432/data
     networks:
       - botnet
     volumes:

@@ -9,6 +9,7 @@ from .user_promos import UserPromo
 from .stopwords import StopWord
 from .vacancy_queue import VacancyQueue
 from .pricing_plans import PricingPlan
+from .vacancy_two_hours import VacancyTwoHours
 
 __all__ = [
     "User",
@@ -22,4 +23,5 @@ __all__ = [
     "StopWord",
     "VacancyQueue",
     "PricingPlan",
+    "VacancyTwoHours",
 ]

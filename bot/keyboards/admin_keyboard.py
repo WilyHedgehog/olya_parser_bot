@@ -250,6 +250,12 @@ async def stopwords_keyboard(
     return builder.as_markup()
 
 
+async def get_delete_vacancy_kb(vacancy_id) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Удалить вакансию", callback_data="delete_vacancy_" + str(vacancy_id)))
+    return builder.as_markup()
+
+
 back_to_choosen_prof_kb = InlineKeyboardMarkup(
     inline_keyboard=[[back_to_choosen_prof]]
 )

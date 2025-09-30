@@ -25,6 +25,8 @@ from db.requests import (
     db_add_stopword,
     db_delete_stopword,
     get_all_stopwords,
+    delete_vacancy_evrerywhere,
+    update_user_access,
 )
 
 from find_job_process.find_job import load_professions
@@ -572,3 +574,22 @@ async def process_delete_stopword(
 
     await load_stopwords()
     await callback.answer()
+
+
+@router.callback_query(IsAdminFilter(), F.data.startswith("delete_vacancy_"))
+async def process_delete_vacancy(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    print(f"🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵{callback.data}")
+    vacancy_id = callback.data.split("_")[2]
+    result = await delete_vacancy_evrerywhere(session, vacancy_id)
+    if result:
+        await callback.message.answer("Вакансия успешно удалена.")
+        logger.info(f"Vacancy {vacancy_id} deleted successfully.")
+    else:
+        await callback.message.answer("Ошибка при удалении вакансии.")
+        logger.error(f"Failed to delete vacancy {vacancy_id}.")
+    await callback.answer()
+    
+    
+@router.message(Command("adminsub"), IsAdminFilter())
+async def admin_subs_cmd(message: Message):
+    await update_user_access(message.from_user.id, True)

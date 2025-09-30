@@ -9,6 +9,7 @@ class TgBot:
     admin_ids: list[int] = (
         None  # Список ID администраторов бота (по умолчанию пустой список)
     )
+    chat_id: int = None  # ID чата для отправки уведомлений
 
 
 @dataclass
@@ -65,6 +66,7 @@ def load_config(path: str | None = None) -> Config:
             token=env("BOT_TOKEN"),
             webhook_url=env("WEBHOOK_URL"),
             admin_ids=env.list("ADMIN_IDS"),
+            chat_id=env.int("CHAT_ID"),
         ),
         app=AppSettings(
             host=env.str("HOST", "0.0.0.0"),

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, update, func
 from sqlalchemy.dialects.postgresql import insert as upsert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from uuid import UUID
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 from getcourse.gc_api import gc_request_no_payment_link
-
+from bot_setup import bot
 
 from db.database import Sessionmaker
 from db.models import (
@@ -23,6 +23,7 @@ from db.models import (
     StopWord,
     VacancyQueue,
     PricingPlan,
+    VacancyTwoHours,
 )
 
 
@@ -181,8 +182,10 @@ async def activate_promo(
         )
         return None
 
+    promo_code_lower = promo_code.lower()
+
     # ищем промокод
-    stmt = select(PromoCode).where(PromoCode.code == promo_code)
+    stmt = select(PromoCode).where(func.lower(PromoCode.code) == promo_code_lower)
     result = await session.execute(stmt)
     promo = result.scalar_one_or_none()
     if not promo:
@@ -205,9 +208,10 @@ async def activate_promo(
         text = LEXICON_SUBSCRIBE["used_promo"]
         return text
 
-    if user.active_promo in [
-        "get10skil",
-        "get10test",
+    if user.active_promo.lower() in [
+        "club2425vip",
+        "club2425",
+        "fm091025",
     ]:  # если уже был активирован один из этих промокодов
         text = LEXICON_SUBSCRIBE["vip_used_limit"]
         return text
@@ -216,7 +220,7 @@ async def activate_promo(
         email=user.mail, offer_code=promo.offer_code, offer_id=promo.offer_id
     )
 
-    user.active_promo = promo_code
+    user.active_promo = promo_code_lower
 
     # обновляем статистику промокода
     promo.used_count += 1
@@ -300,7 +304,8 @@ stopwords_cache = {}
 async def add_to_vacancy_queue(text: str, profession_id: UUID, user_id: int):
     async with Sessionmaker() as session:
         stmt = select(VacancyQueue).where(
-            VacancyQueue.user_id == user_id and VacancyQueue.text == text
+            VacancyQueue.user_id == user_id,
+            VacancyQueue.text == text
         )
         result = await session.execute(stmt)
         existing = result.scalar_one_or_none()
@@ -320,6 +325,28 @@ async def add_to_vacancy_queue(text: str, profession_id: UUID, user_id: int):
             return False
 
 
+async def add_to_two_hours(text: str, profession_id: UUID, user_id: int):
+    async with Sessionmaker() as session:     
+        stmt = select(VacancyTwoHours).where(
+            VacancyTwoHours.user_id == user_id and VacancyTwoHours.text == text
+        )
+        result = await session.execute(stmt)
+        existing = result.scalar_one_or_none()
+        if existing:
+            logger.info(f"Vacancy already exists in two hours for user {user_id}.")
+            return False
+        try:
+            vacancy = VacancyTwoHours(
+                text=text, is_sent=False, profession_id=profession_id, user_id=user_id
+            )
+            session.add(vacancy)
+            await session.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error adding vacancy to two hours: {e}")
+            await session.rollback()
+            return False
+
 async def get_unsent_vacancies_by_user(user_id: int) -> list[VacancyQueue]:
     async with Sessionmaker() as session:
         result = await session.execute(
@@ -331,11 +358,35 @@ async def get_unsent_vacancies_by_user(user_id: int) -> list[VacancyQueue]:
         return result.scalars().all()
 
 
+async def get_two_hours_vacancies_by_user(user_id: int) -> list[VacancyQueue]:
+    async with Sessionmaker() as session:
+        result = await session.execute(
+            select(VacancyTwoHours)
+            .where(VacancyTwoHours.user_id == user_id, VacancyTwoHours.is_sent == False)
+            .order_by(VacancyTwoHours.created_at.asc())
+        )
+
+        return result.scalars().all()
+
+
 async def mark_vacancies_as_sent(user_id: int, vacancy_ids: list[str]):
     async with Sessionmaker() as session:
         result = await session.execute(
             select(VacancyQueue).where(
                 VacancyQueue.user_id == user_id, VacancyQueue.id.in_(vacancy_ids)
+            )
+        )
+        vacancies = result.scalars().all()
+        for v in vacancies:
+            v.is_sent = True
+        await session.commit()
+
+
+async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_ids: list[str]):
+    async with Sessionmaker() as session:
+        result = await session.execute(
+            select(VacancyTwoHours).where(
+                VacancyTwoHours.user_id == user_id, VacancyTwoHours.id.in_(vacancy_ids)
             )
         )
         vacancies = result.scalars().all()
@@ -363,7 +414,10 @@ async def record_vacancy_sent(user_id: int, vacancy_id: UUID, message_id: int):
         stmt = (
             upsert(VacancySent)
             .values(user_id=user_id, vacancy_id=vacancy_id, message_id=message_id)
-            .on_conflict_do_nothing(index_elements=["user_id", "vacancy_id"])
+            .on_conflict_do_update(
+                index_elements=["user_id", "vacancy_id"],
+                set_={"message_id": message_id}
+            )
         )
         await session.execute(stmt)
         await session.commit()
@@ -376,7 +430,54 @@ async def cleanup_old_data(days: int = 2):
         await session.execute(
             delete(VacancyQueue).where(VacancyQueue.created_at < threshold)
         )
+        await session.execute(
+            delete(VacancyTwoHours).where(VacancyTwoHours.created_at < threshold)
+        )
         await session.commit()
+        
+        
+async def delete_vacancy_evrerywhere(session: AsyncSession, vacancy_id: UUID):
+    try:
+        # Получаем вакансию
+        stmt = select(Vacancy).where(Vacancy.id == vacancy_id)
+        result = await session.execute(stmt)
+        vacancy = result.scalar_one_or_none()
+        if not vacancy:
+            logger.error(f"Vacancy with ID {vacancy_id} not found for deletion.")
+            return False
+
+        # Находим все отправленные вакансии
+        stmt = select(VacancySent).where(VacancySent.vacancy_id == vacancy_id)
+        result = await session.execute(stmt)
+        sent_vacancies = result.scalars().all()
+
+        if not sent_vacancies:
+            logger.info(f"No sent vacancies found for vacancy ID {vacancy_id}.")
+        else:
+            for sent in sent_vacancies:
+                try:
+                    await bot.delete_message(sent.user_id, sent.message_id)
+                except Exception as e:
+                    logger.warning(f"Failed to delete message {sent.message_id} for user {sent.user_id}: {e}")
+
+            # Удаляем записи из VacancySent
+            await session.execute(delete(VacancySent).where(VacancySent.vacancy_id == vacancy_id))
+
+        # Удаляем из очередей по vacancy_id
+        await session.execute(delete(VacancyQueue).where(VacancyQueue.text == vacancy.text))
+        await session.execute(delete(VacancyTwoHours).where(VacancyTwoHours.text == vacancy.text))
+
+        # Теперь удаляем саму вакансию
+        await session.execute(delete(Vacancy).where(Vacancy.id == vacancy_id))
+
+        await session.commit()
+        logger.info(f"Vacancy {vacancy_id} deleted successfully everywhere.")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error deleting vacancy ID {vacancy_id} everywhere: {e}")
+        await session.rollback()
+        return False
 
 
 async def dublicate_check(user_id: int, vacancy: Vacancy) -> bool:
@@ -401,8 +502,9 @@ async def dublicate_check(user_id: int, vacancy: Vacancy) -> bool:
 
 async def save_vacancy(
     text: str, profession_name: str, url: str, score: float
-) -> Vacancy:
+) -> int | None:
     async with Sessionmaker() as session:
+        # Получаем профессию
         stmt = select(Profession).where(Profession.name == profession_name)
         result = await session.execute(stmt)
         profession = result.scalar_one_or_none()
@@ -410,24 +512,22 @@ async def save_vacancy(
             logger.error(f"Profession '{profession_name}' not found, skipping save.")
             return None
 
-        # Проверяем, есть ли уже вакансия с таким же текстом и той же профессией
-        stmt = select(Vacancy.id).where(
+        # Проверяем существование вакансии
+        stmt = select(Vacancy).where(
             Vacancy.text == text,
             Vacancy.profession_id == profession.id,
         )
         result = await session.execute(stmt)
-        if result.scalar_one_or_none():
+        vacancy = result.scalar_one_or_none()
+        if vacancy:
             logger.info(
-                "Vacancy with same text and profession already exists, skipping save."
+                f"Vacancy for profession '{profession_name}' already exists, using existing ID."
             )
-            return None
-        stmt = select(Profession).where(Profession.name == profession_name)
+            return vacancy.id  # возвращаем существующий ID
 
-        profession = await session.execute(stmt)
-        profession_id = profession.scalar_one_or_none().id
-        vacancy = Vacancy(text=text, profession_id=profession_id, url=url, score=score)
+        # Создаём новую
+        vacancy = Vacancy(text=text, profession_id=profession.id, url=url, score=score)
         session.add(vacancy)
-
         await session.commit()
         await session.refresh(vacancy)
         return vacancy.id
@@ -461,7 +561,8 @@ async def give_three_days_free(telegram_id: int) -> bool:
             return False
         user.subscription_until = (
             datetime.now(MOSCOW_TZ) + timedelta(days=3)
-            if not user.subscription_until or user.subscription_until < datetime.now(MOSCOW_TZ)
+            if not user.subscription_until
+            or user.subscription_until < datetime.now(MOSCOW_TZ)
             else user.subscription_until + timedelta(days=3)
         )
         user.three_days_free_active = "active"
@@ -702,9 +803,7 @@ async def update_user_pricing_data(
             return False
 
 
-async def update_user_is_pay_status(
-    telegram_id: int, is_pay_status: bool
-):
+async def update_user_is_pay_status(telegram_id: int, is_pay_status: bool):
     async with Sessionmaker() as session:
         user = await session.get(User, telegram_id)
         if user:
@@ -714,3 +813,51 @@ async def update_user_is_pay_status(
         else:
             logger.error(f"Failed to update pricing data for user ID {telegram_id}")
             return False
+
+
+async def update_autopay_status(telegram_id: int, is_autopay: bool):
+    async with Sessionmaker() as session:
+        user = await session.get(User, telegram_id)
+        if user:
+            user.is_autopay = is_autopay
+            await session.commit()
+            return True
+        else:
+            logger.error(f"Failed to update autopay status for user ID {telegram_id}")
+            return False
+
+
+async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode | None:
+    try:
+        stmt = select(User).where(User.telegram_id == user_id)
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            logger.error(f"User with telegram_id {user_id} not found for promo check")
+            return False
+    
+        if user.subscription_until == None or user.subscription_until < datetime.now(MOSCOW_TZ):
+            user.subscription_until = datetime.now(MOSCOW_TZ) + timedelta(days=1)
+            await bot.send_message(user_id, LEXICON_SUBSCRIBE["referral_bonus_24h"])
+            await session.commit()
+            return True
+        else:
+            user.subscription_until = user.subscription_until + timedelta(days=1)
+            await bot.send_message(user_id, LEXICON_SUBSCRIBE["referral_bonus_24h"])
+            await session.commit()
+            return True
+        
+    except Exception as e:
+        logger.error(f"Error fetching user ID {user_id}: {e}")
+        return False
+
+
+async def select_two_hours_users() -> list[User]:
+    async with Sessionmaker() as session:
+        result = await session.execute(
+            select(User).where(
+                User.is_banned == False,
+                User.delivery_mode == "two_hours"
+            )
+        )
+        return result.scalars().all()

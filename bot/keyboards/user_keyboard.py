@@ -171,44 +171,62 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
 
     buy_subscription_text = "💳 Купить подписку 💳"
     get_earned_vacancies_text = "Получить накопленные вакансии"
-    if user.active_promo in ("get2free", "3months"):
+    profeessions_settings_text = "🛠️ Настройки профессий 🛠️"
+    delivery_settings_text = "📬 Настройки параметров доставки вакансий 📬"
+    promo_text = "🎟️ Активировать промокод 🎟️"
+    referal_text = "👫 Пригласить друга 👭"
+    if user.active_promo and user.active_promo.lower() in [
+        "club2425vip",
+        "club2425",
+        "fm091025",
+    ]:
         promo_text = (
             " Активировать новый промокод можно только после окончания имеющегося"
         )
         if user_delivery_mode == "button_click":
             buttons = [
-                [KeyboardButton(text="🛠️ Настройки профессий 🛠️")],
-                [KeyboardButton(text="📬 Настройки параметров доставки вакансий 📬")],
-                [KeyboardButton(text=get_earned_vacancies_text)],
+                [KeyboardButton(text=profeessions_settings_text)],
+                [KeyboardButton(text=delivery_settings_text)],
+                [
+                    KeyboardButton(text=get_earned_vacancies_text),
+                    KeyboardButton(text=referal_text),
+                ],
                 [KeyboardButton(text=promo_text)],
                 [KeyboardButton(text=buy_subscription_text)],
             ]
         else:
             buttons = [
-                [KeyboardButton(text="🛠️ Настройки профессий 🛠️")],
-                [KeyboardButton(text="📬 Настройки параметров доставки вакансий 📬")],
+                [KeyboardButton(text=profeessions_settings_text)],
+                [KeyboardButton(text=delivery_settings_text)],
+                [
+                    KeyboardButton(text=buy_subscription_text),
+                    KeyboardButton(text=referal_text),
+                ],
                 [KeyboardButton(text=promo_text)],
-                [KeyboardButton(text=buy_subscription_text)],
             ]
     else:
         if user_delivery_mode == "button_click":
             buttons = [
-                [KeyboardButton(text="🛠️ Настройки профессий 🛠️")],
-                [KeyboardButton(text="📬 Настройки параметров доставки вакансий 📬")],
+                [KeyboardButton(text=profeessions_settings_text)],
+                [KeyboardButton(text=delivery_settings_text)],
                 [
                     KeyboardButton(text=get_earned_vacancies_text),
-                    KeyboardButton(text="🎟️ Активировать промокод 🎟️"),
+                    KeyboardButton(text=promo_text),
                 ],
-                [KeyboardButton(text=buy_subscription_text)],
+                [
+                    KeyboardButton(text=buy_subscription_text),
+                    KeyboardButton(text=referal_text),
+                ],
             ]
         else:
             buttons = [
-                [KeyboardButton(text="🛠️ Настройки профессий 🛠️")],
-                [KeyboardButton(text="📬 Настройки параметров доставки вакансий 📬")],
+                [KeyboardButton(text=profeessions_settings_text)],
+                [KeyboardButton(text=delivery_settings_text)],
                 [
-                    KeyboardButton(text="🎟️ Активировать промокод 🎟️"),
+                    KeyboardButton(text=promo_text),
                     KeyboardButton(text=buy_subscription_text),
                 ],
+                [KeyboardButton(text=referal_text)],
             ]
     keyboard = ReplyKeyboardMarkup(
         keyboard=buttons,
