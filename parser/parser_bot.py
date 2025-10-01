@@ -319,14 +319,25 @@ def message_to_html(message) -> str:
 
 processed_messages = set() 
 
+def clean_dynamic_mentions(text: str) -> str:
+    """Удаляем все @username из текста"""
+    text = re.sub(r'@\w+', '', text)
+    return text.strip()
+
+
+def text_hash(text: str) -> str:
+    """Возвращает MD5 хэш текста для проверки уникальности"""
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+
 async def process_message(message):
-    # Проверка, что сообщение ещё не обрабатывалось
+    # Защита от повторной обработки одного и того же сообщения
     if message.id in processed_messages:
         logger.info(f"Сообщение {message.id} уже обработано, пропускаем.")
         return
     processed_messages.add(message.id)
 
-    # Собираем текст сообщения
+    # Получаем текст сообщения
     message_text = (
         message.text
         or message.message
@@ -341,18 +352,24 @@ async def process_message(message):
 
     logger.info(f"Проверяем сообщение {message.id}: {message.date}")
 
-    clean_text = message_text
+    # Очистка от динамических упоминаний
+    clean_text = clean_dynamic_mentions(message_text)
+
+    # Хэш текста для проверки уникальности в БД
+    message_hash = text_hash(clean_text)
+
+    # Преобразуем Markdown/HTML
     markdown_text = markdown_to_html(clean_text)
     html_text = message_to_html(markdown_text)
     message_link = get_message_link(message)
 
-    # Находим профессии
+    # Поиск профессий
     found_proffs = await find_job_func(vacancy_text=clean_text)
     if not found_proffs:
         logger.warning(f"⚠️ Вакансия не подходит ни под одну из профессий: {message.id}")
         return
 
-    # Фильтруем дубли профессий
+    # Убираем дубли профессий в одном сообщении
     unique_proffs = {prof_name: score for prof_name, score in found_proffs}
 
     for prof_name, score in unique_proffs.items():
@@ -373,12 +390,14 @@ async def process_message(message):
             logger.error(f"Ошибка пересылки вакансии: {e}")
             link = None
 
-        # Сохраняем вакансию в БД
+        # Сохраняем вакансию в БД с хэшем текста
         vacancy_id = await save_vacancy(
             text=html_text,
             profession_name=prof_name,
             score=score,
             url=link,
+            message_id=message.id,
+            text_hash=message_hash  # новый параметр для уникальности
         )
 
         if vacancy_id:
@@ -397,9 +416,8 @@ async def process_message(message):
     # Задержка между обработкой сообщений
     await asyncio.sleep(random.uniform(config.parser.delay_min, config.parser.delay_max))
 
-# ==================== Обработка новых сообщений в реальном времени ====================
-# Список чатов, которые нужно игнорировать
-EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]  # примеры chat_id
+
+EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
 @app.on(events.NewMessage())
 async def on_new_message(event):

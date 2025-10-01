@@ -426,9 +426,12 @@ async def activate_promo_code_from_callback(callback: CallbackQuery, state: FSMC
 async def process_promo_code(
     message: Message, state: FSMContext, session: AsyncSession
 ):
-    await message.bot.delete_message(
-        chat_id=message.chat.id, message_id=await get_reply_id(state)
-    )
+    try:
+        await message.bot.delete_message(
+            chat_id=message.chat.id, message_id=await get_reply_id(state)
+        )
+    except Exception as e:
+        pass
     await try_delete_message(message)
     promo_code = message.text.strip()
 
