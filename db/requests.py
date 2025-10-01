@@ -543,7 +543,7 @@ def make_message_hash(text: str) -> str:
 
 async def get_vacancy_by_hash(text_hash: str):
     async with Sessionmaker() as session:
-        stmt = select(Vacancy).where(Vacancy.text_hash == text_hash)
+        stmt = select(Vacancy).where(Vacancy.hash == text_hash)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -558,7 +558,7 @@ async def save_vacancy_hash(text, profession_name, score, url, text_hash):
             profession_name=profession_name,
             score=score,
             url=url,
-            text_hash=text_hash,
+            hash=text_hash,
         )
         session.add(vacancy)
         try:
