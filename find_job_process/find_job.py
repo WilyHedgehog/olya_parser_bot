@@ -3,6 +3,7 @@ from sentence_transformers import SentenceTransformer, util
 from db.requests import stopwords_cache
 from db.requests import get_all_professions_parser
 import logging
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
