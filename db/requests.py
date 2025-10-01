@@ -547,15 +547,24 @@ async def get_vacancy_by_hash(text_hash: str):
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
-async def save_vacancy_hash(text, profession_name, score, url, text_hash):
+async def save_vacancy_hash(text, proffname, score, url, text_hash):
     async with Sessionmaker() as session:
+        # Проверяем, есть ли вакансия с таким хэшем
         existing = await get_vacancy_by_hash(text_hash)
         if existing:
             return existing.id
+        
+        res = select(Profession).where(Profession.name == proffname)
+        result = await session.execute(res)
+        profession = result.scalar_one_or_none()
+        if not profession:
+            logger.error(f"Profession '{proffname}' not found, skipping save.")
+            return None
 
+        # Создаём новую вакансию
         vacancy = Vacancy(
             text=text,
-            profession_name=profession_name,
+            profession_id=profession.id,  # используем profession_id, а не profession_name
             score=score,
             url=url,
             hash=text_hash,
@@ -567,7 +576,7 @@ async def save_vacancy_hash(text, profession_name, score, url, text_hash):
             return vacancy.id
         except IntegrityError:
             await session.rollback()
-            existing = await get_vacancy_by_hash(session, text_hash)
+            existing = await get_vacancy_by_hash(text_hash)
             return existing.id if existing else None
 
 

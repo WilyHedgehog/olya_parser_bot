@@ -387,7 +387,7 @@ async def process_message(message):
     for prof_name, score in unique_proffs.items():
         vacancy_id = await save_vacancy_hash(
             text=html_text,
-            profession_name=prof_name,
+            proffname=prof_name,
             score=score,
             url=link,
             text_hash=message_hash
