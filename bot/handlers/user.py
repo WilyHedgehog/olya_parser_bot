@@ -370,7 +370,7 @@ async def add_email(message: Message, state: FSMContext):
         return
 
     await try_delete_message(message)
-    email = message.text
+    email = message.text.lower()
     await state.update_data(email=email)
     reply = await message.answer(
         LEXICON_USER["add_email_confirm"].format(email=email),
