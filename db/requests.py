@@ -594,6 +594,7 @@ async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:
         return vacancy
 
 
+
 async def load_stopwords():
     # если кэш уже есть, возвращаем его
     if hasattr(load_stopwords, "cache"):

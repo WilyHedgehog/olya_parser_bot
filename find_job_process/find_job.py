@@ -25,9 +25,9 @@ def count_stop_words(text: str) -> int:
     text_lower = text.lower()
     text_words = set(re.findall(r"\b\w+\b", text_lower))  # разбиваем на слова
     found_words = stopwords_cache.intersection(text_words)
-    print(f"Stop words cache: {stopwords_cache}")
-    print(f"Words in text: {text_words}")
-    print(f"Found stop words: {found_words}")
+    #print(f"Stop words cache: {stopwords_cache}")
+    #print(f"Words in text: {text_words}")
+    #print(f"Found stop words: {found_words}")
     return len(found_words)
 
 
@@ -97,7 +97,7 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
             if kw.lower() in lowered:
                 score += weight
         keyword_scores[name] = score
-    print(f"Очки по ключевым словам: {keyword_scores}")
+    #print(f"Очки по ключевым словам: {keyword_scores}")
 
     # --- сходство по эмбеддингам ---
     text_emb = model.encode(text, convert_to_tensor=True)
@@ -106,14 +106,14 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
     for name, prof_emb in embeddings.items():
         sim = util.cos_sim(text_emb, prof_emb).item()
         embedding_scores[name] = sim
-    print(f"Сходство по эмбеддингам: {embedding_scores}")
+    #print(f"Сходство по эмбеддингам: {embedding_scores}")
 
     # --- итоговый рейтинг ---
     final_scores = {
         name: keyword_scores[name] + embedding_weight * embedding_scores[name]
         for name in professions_cache
     }
-    print(f"Итоговые рейтинги: {final_scores}")
+    #print(f"Итоговые рейтинги: {final_scores}")
 
     ranked = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
     return {"status": "ok", "ranked": ranked}
@@ -128,7 +128,7 @@ async def find_job_func(
     )
 
     if result["status"] == "blocked":
-        print(f"🚫 Вакансия заблокирована ({result['reason']})")
+        #print(f"🚫 Вакансия заблокирована ({result['reason']})")
         return False
 
     vacancy_professions = [
@@ -136,12 +136,10 @@ async def find_job_func(
     ]
 
     if not vacancy_professions:
-        print("⚠️ Вакансия не подходит ни под одну из профессий.")
+        #print("⚠️ Вакансия не подходит ни под одну из профессий.")
         return False
 
-    print("🔎 Результаты анализа вакансии:")
-    for prof, score in vacancy_professions:
-        print(f"  {prof}: {score:.3f}")
+    #print("🔎 Результаты анализа вакансии:"
 
     return vacancy_professions
 
