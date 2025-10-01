@@ -80,13 +80,11 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
     print("=== Анализ вакансии ===")
     print(f"Текст вакансии: {text[:100]}...")  # первые 100 символов
 
-    # --- стоп-слова ---
     stopwords = await load_stopwords()
-    words_in_text = {w.lower() for w in text.split()}
-    found_stopwords = words_in_text & stopwords
+    lowered_text = text.lower()
+    found_stopwords = {sw for sw in stopwords if sw in lowered_text}
     stop_count = len(found_stopwords)
     print(f"Stop words cache: {stopwords}")
-    print(f"Words in text: {words_in_text}")
     print(f"Found stop words: {found_stopwords}")
     print(f"Количество стоп-слов: {stop_count}")
     if stop_count >= 1:
