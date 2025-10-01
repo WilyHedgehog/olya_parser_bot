@@ -599,9 +599,9 @@ async def load_stopwords():
     async with Sessionmaker() as session:
         result = await session.execute(select(StopWord))
         stopwords = result.scalars().all()
-        await session.commit()
-
+        # await session.commit()  # НЕ НУЖНО при выборке
     stopwords_cache = {sw.word.lower() for sw in stopwords}
+    print(f"Stopwords loaded: {len(stopwords_cache)}")  # для проверки
 
 
 async def give_three_days_free(telegram_id: int) -> bool:
