@@ -101,7 +101,7 @@ def create_app(config: Config) -> FastAPI:
         logger.info("Professions loaded")
 
         # Запускаем планировщик задач
-        start_scheduler_check_subscriptions(interval_seconds=3600)
+        start_scheduler_check_subscriptions(interval_seconds=10)
         logger.info("Scheduler started")
         
         start_scheduler_two_hours_vacancy_send()

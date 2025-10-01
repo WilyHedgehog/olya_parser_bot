@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from bot_setup import bot, dp, get_bot_id
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 from bot.states.user import Main
+from bot.handlers.chat_admin import remove_expired_subscribers
 import asyncio
 import logging
 
@@ -34,6 +35,7 @@ async def check_subscriptions():
                 if sub_until_msk < now:
                     await update_user_access(user.telegram_id, False)
                     await update_autopay_status(user.telegram_id, False)
+                    await remove_expired_subscribers(user.telegram_id)
                     logger.info(
                         f"User {user.telegram_id} access revoked (subscription expired)."
                     )
