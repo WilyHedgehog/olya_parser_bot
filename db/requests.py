@@ -552,6 +552,7 @@ async def save_vacancy_hash(
     profession_name: str,
     score: float,
     url: str,
+    text_hash: str = None
 ):
     """Сохраняем вакансию, если такой ещё нет"""
     message_hash = make_message_hash(text)
@@ -566,7 +567,7 @@ async def save_vacancy_hash(
         profession_name=profession_name,
         score=score,
         url=url,
-        hash=message_hash
+        text_hash=message_hash
     )
     session.add(vacancy)
     await session.commit()
