@@ -540,11 +540,11 @@ def make_message_hash(text: str) -> str:
     """Создаем хэш для текста вакансии"""
     return hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()
 
-async def get_vacancy_by_hash(session: AsyncSession, message_hash: str):
-    """Возвращает вакансию, если хэш уже существует"""
-    stmt = select(Vacancy).where(Vacancy.hash == message_hash)
-    result = await session.execute(stmt)
-    return result.scalars().first()
+async def get_vacancy_by_hash(message_hash: str):
+    async with Sessionmaker() as session:
+        stmt = select(Vacancy).where(Vacancy.hash == message_hash)
+        result = await session.execute(stmt)
+        return result.scalars().first()
 
 async def save_vacancy_hash(
     session: AsyncSession,
@@ -557,7 +557,7 @@ async def save_vacancy_hash(
     message_hash = make_message_hash(text)
 
     # проверяем ещё раз тут
-    existing = await get_vacancy_by_hash(session, message_hash)
+    existing = await get_vacancy_by_hash(message_hash)
     if existing:
         return None
 
