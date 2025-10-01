@@ -176,23 +176,31 @@ async def process_getcourse_sub(
     gc_date: str = "",
     mail: str = "",
 ):
-    date = await parse_date(gc_date)
-    date = date + timedelta(hours=12)
-    user_id, new_text = await set_new_days(mail=mail, days=date)
-    photo = FSInputFile("bot/assets/Подписка активна-1.png")
-    print(f"Получен платёж: email {mail}")
+    try:
+        date = await parse_date(gc_date)
+        logger.info(f"Parsed date: {date}")
+        date = date + timedelta(hours=12)
+        user_id, new_text = await set_new_days(mail=mail, days=date)
+        print(f"Получен платёж: email {mail}")
 
-    if user_id:
-        await bot.send_photo(
-            chat_id=user_id,
-            photo=photo,
-            caption=LEXICON_SUBSCRIBE["after_subscribe_text"].format(date=date.strftime("%d.%m.%Y")),
-            parse_mode=ParseMode.HTML,
-        )
+        if user_id:
+            try:
+                photo = FSInputFile("bot/assets/Подписка активна-1.png")
+                await bot.send_photo(
+                    chat_id=user_id,
+                    photo=photo,
+                    caption=LEXICON_SUBSCRIBE["after_subscribe_text"].format(date=date.strftime("%d.%m.%Y")),
+                    parse_mode=ParseMode.HTML,
+                )
+            except Exception as e:
+                logger.error(f"Ошибка при отправке фото пользователю {user_id}: {e}")
 
-    await update_user_is_pay_status(telegram_id=user_id, is_pay_status=True)
-    
-    return JSONResponse(content={"status": "ok"})
+            await update_user_is_pay_status(telegram_id=user_id, is_pay_status=True)
+        
+        return JSONResponse(content={"status": "ok"})
+    except Exception as e:
+        logger.error(f"Ошибка в process_getcourse_sub: {e}")
+        return JSONResponse(content={"status": "error", "message": str(e)})
 
 
 @app.get(f"{WEBHOOK_PATH}/promocode")
@@ -224,11 +232,6 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
             except Exception as e:
                 logger.error(f"Ошибка при отправке фото пользователю {user_id}: {e}")
 
-            try:
-                await update_user_is_pay_status(telegram_id=user_id, is_pay_status=True)
-            except Exception as e:
-                logger.error(f"Ошибка при обновлении статуса оплаты у {user_id}: {e}")
-
         return JSONResponse(content={"status": "ok", "user_id": user_id, "mail": mail})
 
     except Exception as e:
@@ -242,22 +245,28 @@ async def process_getcourse_extension(
     gc_date: str = "",
     mail: str = "",
 ):
-    date = await parse_date(gc_date)
-    date = date + timedelta(hours=12)
-    user_id, new_text = await set_new_days(mail=mail, days=date)
-    photo = FSInputFile("bot/assets/Подписка активна-1.png")
-    print(f"Получен платёж: email {mail}")
+    try:
+        date = await parse_date(gc_date)
+        date = date + timedelta(hours=12)
+        user_id, new_text = await set_new_days(mail=mail, days=date)
+        print(f"Получен платёж: email {mail}")
 
-    if user_id:
-        await bot.send_photo(
-            chat_id=user_id,
-            photo=photo,
-            caption=LEXICON_SUBSCRIBE["after_prolong_text"].format(date=date.strftime("%d.%m.%Y")),
-            parse_mode=ParseMode.HTML,
-        )
+        if user_id:
+            try:
+                photo = FSInputFile("bot/assets/Подписка активна-1.png")
+                await bot.send_photo(
+                    chat_id=user_id,
+                    photo=photo,
+                    caption=LEXICON_SUBSCRIBE["after_prolong_text"].format(date=date.strftime("%d.%m.%Y")),
+                    parse_mode=ParseMode.HTML,
+                )
+            except Exception as e:
+                logger.error(f"Ошибка при отправке фото пользователю {user_id}: {e}")
 
-    return JSONResponse(content={"status": "ok"})
-
+        return JSONResponse(content={"status": "ok"})
+    except Exception as e:
+        logger.error(f"Ошибка в process_getcourse_extension: {e}")
+        return JSONResponse(content={"status": "error", "message": str(e)})
 
 
 
