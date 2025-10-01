@@ -37,7 +37,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
     if await dublicate_check(user_id, vacancy):
         if url == True:
             main_vacancy = await get_vacancy_by_text(vacancy.text)
-            vacancy_url = url
+            vacancy_url = main_vacancy.url
         else:
             vacancy_url = vacancy.url
         try:
