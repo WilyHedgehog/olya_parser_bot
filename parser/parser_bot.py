@@ -385,10 +385,19 @@ async def process_message(message):
 
 
 # ==================== Обработка новых сообщений в реальном времени ====================
+# Список чатов, которые нужно игнорировать
+EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]  # примеры chat_id
+
 @app.on(events.NewMessage())
 async def on_new_message(event):
+    # Игнорируем исходящие сообщения
     if event.out:
         return
+
+    # Игнорируем сообщения из определённых чатов
+    if event.chat_id in EXCLUDED_CHAT_IDS:
+        return
+
     await process_message(event.message)
 
 
