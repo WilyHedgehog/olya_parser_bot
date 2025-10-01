@@ -869,3 +869,11 @@ async def select_two_hours_users() -> list[User]:
             )
         )
         return result.scalars().all()
+    
+    
+async def check_user_has_active_subscription(telegram_id: int) -> bool:
+    async with Sessionmaker() as session:
+        user = await session.get(User, telegram_id)
+        if user and user.subscription_until and user.subscription_until > datetime.now(MOSCOW_TZ):
+            return True
+        return False
