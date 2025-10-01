@@ -37,7 +37,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy) -> bool:
         try:
             msg = vacancy.text + f"\n\nСсылка на вакансию в чате: {vacancy.url}"
             message = await bot.send_message(
-                user_id, vacancy.text, disable_web_page_preview=True
+                user_id, msg, disable_web_page_preview=True
             )
             print(f"Vacancy sent to user {user_id}, message ID:🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶 {message.message_id}")
             await record_vacancy_sent(
