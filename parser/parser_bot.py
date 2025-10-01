@@ -343,29 +343,32 @@ async def process_message(message):
             logger.info(
                 f"Найдена профессия '{prof_name}' с оценкой {score:.2f} в сообщении {message.id}"
             )
+            try:
+                forwarded_msg = await app.forward_messages(
+                    entity=config.bot.wacancy_chat_id,   # канал для пересылки
+                    messages=message.id,         # ID сообщения
+                    from_peer=message.chat_id    # чат, откуда пересылаем
+                )
+                logger.info(f"Вакансия {vacancy_id} переслана в канал через Telethon.")
+                chat_id = forwarded_msg.chat_id  # отрицательный chat_id приватного канала
+                msg_id = forwarded_msg.id
+                link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
+            except Exception as e:
+                logger.error(f"Ошибка пересылки вакансии {vacancy_id}: {e}")
             # Сохраняем вакансию в БД
             vacancy_id = await save_vacancy(
                 text=html_text,
                 profession_name=prof_name,
                 score=score,
-                url=message_link,
+                url=link,
             )
             if vacancy_id:
-                try:
-                    await app.forward_messages(
-                        entity=config.bot.wacancy_chat_id,   # канал для пересылки
-                        messages=message.id,         # ID сообщения
-                        from_peer=message.chat_id    # чат, откуда пересылаем
-                    )
-                    logger.info(f"Вакансия {vacancy_id} переслана в канал через Telethon.")
-                except Exception as e:
-                    logger.error(f"Ошибка пересылки вакансии {vacancy_id}: {e}")
                 
                 
                 logger.info(f"Вакансия по профессии '{prof_name}' сохранена в БД.")
                 await bot.send_message(
                     config.bot.chat_id,
-                    f"Новая вакансия по профессии '{prof_name}':\n{message_link}\nОценка: {score:.2f}\nID вакансии: {vacancy_id}\n\n\n{html_text}",
+                    f"Новая вакансия по профессии '{prof_name}':\n{link}\nОценка: {score:.2f}\nID вакансии: {vacancy_id}\n\n\n{html_text}",
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     reply_markup=await get_delete_vacancy_kb(vacancy_id),

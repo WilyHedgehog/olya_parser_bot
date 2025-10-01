@@ -35,6 +35,7 @@ TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
 async def send_vacancy(user_id: int, vacancy: Vacancy) -> bool:
     if await dublicate_check(user_id, vacancy):
         try:
+            msg = vacancy.text + f"\n\nСсылка на вакансию в чате: {vacancy.url}"
             message = await bot.send_message(
                 user_id, vacancy.text, disable_web_page_preview=True
             )
