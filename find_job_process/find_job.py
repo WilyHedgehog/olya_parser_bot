@@ -1,7 +1,7 @@
 import asyncio
 from sentence_transformers import SentenceTransformer, util
 from db.requests import stopwords_cache
-from db.requests import get_all_professions_parser
+from db.requests import get_all_professions_parser, get_all_stopwords
 from db.database import Sessionmaker
 from db.models import StopWord
 from sqlalchemy.future import select
@@ -60,34 +60,31 @@ def get_profession_embeddings() -> dict[str, any]:
     return professions_embeddings_cache
 
 
-from sentence_transformers import util
 
-async def load_stopwords():
-    # если кэш уже есть, возвращаем его
-    if hasattr(load_stopwords, "cache"):
-        return load_stopwords.cache
+import re
+import asyncio
 
-    async with Sessionmaker() as session:
-        result = await session.execute(select(StopWord))
-        stopwords = result.scalars().all()
 
-    load_stopwords.cache = {sw.word.lower() for sw in stopwords}
-    print(f"Stopwords loaded: {len(load_stopwords.cache)}")
-    return load_stopwords.cache
+
+async def contains_any_regex_async(text: str) -> bool:
+    stopwords = await get_all_stopwords()
+    keywords = [sw.word for sw in stopwords]
+    
+    pattern = re.compile("|".join(re.escape(k.lower()) for k in keywords), re.IGNORECASE)
+
+    def search():
+        matches = pattern.findall(text.lower())
+        for match in matches:
+            logger.info(f"Found stop word: {match}")
+        return bool(matches)
+
+    return await asyncio.to_thread(search)
+
 
 
 async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
-    print("=== Анализ вакансии ===")
-    print(f"Текст вакансии: {text[:100]}...")  # первые 100 символов
-
-    stopwords = await load_stopwords()
-    lowered_text = text.lower()
-    found_stopwords = {sw for sw in stopwords if sw in lowered_text}
-    stop_count = len(found_stopwords)
-    print(f"Stop words cache: {stopwords}")
-    print(f"Found stop words: {found_stopwords}")
-    print(f"Количество стоп-слов: {stop_count}")
-    if stop_count >= 1:
+    stop_count = await contains_any_regex_async(text)
+    if stop_count:
         return {"status": "blocked", "reason": f"{stop_count} stop words found"}
 
     lowered = text.lower()
