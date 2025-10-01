@@ -349,12 +349,12 @@ async def process_message(message):
                     messages=message.id,         # ID сообщения
                     from_peer=message.chat_id    # чат, откуда пересылаем
                 )
-                logger.info(f"Вакансия {vacancy_id} переслана в канал через Telethon.")
+                logger.info(f"Вакансия  переслана в канал через Telethon.")
                 chat_id = forwarded_msg.chat_id  # отрицательный chat_id приватного канала
                 msg_id = forwarded_msg.id
                 link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
             except Exception as e:
-                logger.error(f"Ошибка пересылки вакансии {vacancy_id}: {e}")
+                logger.error(f"Ошибка пересылки вакансии: {e}")
             # Сохраняем вакансию в БД
             vacancy_id = await save_vacancy(
                 text=html_text,
