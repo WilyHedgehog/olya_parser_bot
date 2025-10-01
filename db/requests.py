@@ -835,18 +835,25 @@ async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode |
         if not user:
             logger.error(f"User with telegram_id {user_id} not found for promo check")
             return False
-    
-        if user.subscription_until == None or user.subscription_until < datetime.now(MOSCOW_TZ):
-            user.subscription_until = datetime.now(MOSCOW_TZ) + timedelta(days=1)
-            await bot.send_message(user_id, LEXICON_SUBSCRIBE["referral_bonus_24h"])
-            await session.commit()
-            return True
+
+        now = datetime.now(MOSCOW_TZ)
+
+        # Приводим subscription_until к aware datetime в MOSCOW_TZ
+        subscription_until = (
+            user.subscription_until.replace(tzinfo=MOSCOW_TZ)
+            if user.subscription_until is not None
+            else None
+        )
+
+        if subscription_until is None or subscription_until < now:
+            user.subscription_until = now + timedelta(days=1)
         else:
-            user.subscription_until = user.subscription_until + timedelta(days=1)
-            await bot.send_message(user_id, LEXICON_SUBSCRIBE["referral_bonus_24h"])
-            await session.commit()
-            return True
-        
+            user.subscription_until = subscription_until + timedelta(days=1)
+
+        await bot.send_message(user_id, LEXICON_SUBSCRIBE["referral_bonus_24h"])
+        await session.commit()
+        return True
+
     except Exception as e:
         logger.error(f"Error fetching user ID {user_id}: {e}")
         return False
