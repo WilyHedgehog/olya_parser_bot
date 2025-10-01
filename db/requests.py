@@ -9,6 +9,7 @@ from uuid import UUID
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 from getcourse.gc_api import gc_request_no_payment_link
 from bot_setup import bot
+from sqlalchemy.exc import IntegrityError
 import hashlib
 
 from db.database import Sessionmaker
@@ -540,39 +541,34 @@ def make_message_hash(text: str) -> str:
     """Создаем хэш для текста вакансии"""
     return hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()
 
-async def get_vacancy_by_hash(message_hash: str):
+async def get_vacancy_by_hash(text_hash: str):
     async with Sessionmaker() as session:
-        stmt = select(Vacancy).where(Vacancy.hash == message_hash)
+        stmt = select(Vacancy).where(Vacancy.text_hash == text_hash)
         result = await session.execute(stmt)
-        return result.scalars().first()
+        return result.scalar_one_or_none()
 
-async def save_vacancy_hash(
-    session: AsyncSession,
-    text: str,
-    profession_name: str,
-    score: float,
-    url: str,
-    text_hash: str = None
-):
-    """Сохраняем вакансию, если такой ещё нет"""
-    message_hash = make_message_hash(text)
+async def save_vacancy_hash(text, profession_name, score, url, text_hash):
+    async with Sessionmaker() as session:
+        existing = await get_vacancy_by_hash(text_hash)
+        if existing:
+            return existing.id
 
-    # проверяем ещё раз тут
-    existing = await get_vacancy_by_hash(message_hash)
-    if existing:
-        return None
-
-    vacancy = Vacancy(
-        text=text,
-        profession_name=profession_name,
-        score=score,
-        url=url,
-        text_hash=message_hash
-    )
-    session.add(vacancy)
-    await session.commit()
-    await session.refresh(vacancy)
-    return vacancy.id
+        vacancy = Vacancy(
+            text=text,
+            profession_name=profession_name,
+            score=score,
+            url=url,
+            text_hash=text_hash,
+        )
+        session.add(vacancy)
+        try:
+            await session.commit()
+            await session.refresh(vacancy)
+            return vacancy.id
+        except IntegrityError:
+            await session.rollback()
+            existing = await get_vacancy_by_hash(session, text_hash)
+            return existing.id if existing else None
 
 
 
@@ -596,7 +592,7 @@ async def load_stopwords():
         stopwords = result.scalars().all()
         await session.commit()
 
-    stopwords_cache = {sw.word for sw in stopwords}
+    stopwords_cache = {sw.word.lower() for sw in stopwords}
 
 
 async def give_three_days_free(telegram_id: int) -> bool:

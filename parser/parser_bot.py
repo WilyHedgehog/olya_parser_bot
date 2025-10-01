@@ -347,8 +347,8 @@ async def process_message(message):
 
     logger.info(f"Проверяем сообщение {message.id}: {message.date}")
 
-    clean_text = clean_vacancy_text(message_text)
-    message_hash = text_hash(clean_text)
+    clean_text = message_text
+    message_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
 
     # 3. Проверка по хэшу в БД
     existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
