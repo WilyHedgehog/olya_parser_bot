@@ -75,18 +75,21 @@ class UserHaveProfessions(BaseFilter):
         if from_user is None:
             logger.debug("Update has no from_user.")
             return False
+        
         user_id = from_user.id
         user_professions = await get_all_users_professions(user_id)
-        for item in user_professions:
-            logger.debug("User profession: %s", item)
-            has_professions = any(item.is_selected for item in user_professions)
-            
+        
+        # Проверяем, есть ли выбранные профессии
+        has_professions = any(item.is_selected for item in user_professions)
+
         if not has_professions:
             logger.debug("User has no selected professions.")
         else:
             logger.debug("User has selected professions.")
-        # Обновляем состояние
+        
+        # Отладка
         logger.debug("User professions %s has professions: %s", user_professions, has_professions)
+        
         return has_professions
     
 
