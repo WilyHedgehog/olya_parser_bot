@@ -235,6 +235,41 @@ async def activate_promo(
     return text
 
 
+
+async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode | None:
+    try:
+        stmt = select(User).where(User.telegram_id == user_id)
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            logger.error(f"User with telegram_id {user_id} not found for promo check")
+            return False
+
+        now = datetime.now(MOSCOW_TZ)
+
+        # Приводим subscription_until к aware datetime в MOSCOW_TZ
+        subscription_until = (
+            user.subscription_until.replace(tzinfo=MOSCOW_TZ)
+            if user.subscription_until is not None
+            else None
+        )
+
+        if subscription_until is None or subscription_until < now:
+            user.subscription_until = now + timedelta(days=1)
+        else:
+            user.subscription_until = subscription_until + timedelta(days=1)
+
+        await bot.send_message(user_id, LEXICON_SUBSCRIBE["referral_bonus_24h"])
+        await session.commit()
+        return True
+
+    except Exception as e:
+        logger.error(f"Error fetching user ID {user_id}: {e}")
+        return False
+
+
+
+
 async def set_new_days(mail: str, days: int):
     async with Sessionmaker() as session:
         stmt = select(User).where(User.mail == mail)
@@ -887,38 +922,6 @@ async def update_autopay_status(telegram_id: int, is_autopay: bool):
             return False
 
 
-async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode | None:
-    try:
-        stmt = select(User).where(User.telegram_id == user_id)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
-        if not user:
-            logger.error(f"User with telegram_id {user_id} not found for promo check")
-            return False
-
-        now = datetime.now(MOSCOW_TZ)
-
-        # Приводим subscription_until к aware datetime в MOSCOW_TZ
-        subscription_until = (
-            user.subscription_until.replace(tzinfo=MOSCOW_TZ)
-            if user.subscription_until is not None
-            else None
-        )
-
-        if subscription_until is None or subscription_until < now:
-            user.subscription_until = now + timedelta(days=1)
-        else:
-            user.subscription_until = subscription_until + timedelta(days=1)
-
-        await bot.send_message(user_id, LEXICON_SUBSCRIBE["referral_bonus_24h"])
-        await session.commit()
-        return True
-
-    except Exception as e:
-        logger.error(f"Error fetching user ID {user_id}: {e}")
-        return False
-
-
 async def select_two_hours_users() -> list[User]:
     async with Sessionmaker() as session:
         result = await session.execute(
@@ -936,3 +939,10 @@ async def check_user_has_active_subscription(telegram_id: int) -> bool:
         if user and user.subscription_until and user.subscription_until > datetime.now(MOSCOW_TZ):
             return True
         return False
+    
+
+async def get_vacancy_by_text(text: str) -> Vacancy | None:
+    async with Sessionmaker() as session:
+        stmt = select(Vacancy).where(Vacancy.text == text)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()

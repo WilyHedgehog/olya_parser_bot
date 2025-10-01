@@ -24,6 +24,7 @@ from db.requests import (
     mark_vacancy_as_sent,
     mark_vacancies_as_sent_two_hours,
     select_two_hours_users,
+    get_vacancy_by_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,10 +33,14 @@ TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
 
 
 # --- 2. Отправка вакансии пользователю ---
-async def send_vacancy(user_id: int, vacancy: Vacancy) -> bool:
+async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
     if await dublicate_check(user_id, vacancy):
+        if url != None:
+            vacancy_url = url
+        else:
+            vacancy_url = vacancy.url
         try:
-            msg = vacancy.text + f"\n\nСсылка на вакансию в чате: {vacancy.url}"
+            msg = vacancy.text + f"\n\nСсылка на вакансию в чате: {vacancy_url}"
             message = await bot.send_message(
                 user_id, msg, disable_web_page_preview=True
             )
@@ -110,7 +115,8 @@ async def send_vacancy_from_queue(user_id: int):
         return
 
     for item in result:
-        sent = await send_vacancy(user_id, item)  # True, если реально отправили
+        link = await get_vacancy_by_text(item.text)
+        sent = await send_vacancy(user_id, item, url=link.url)  # True, если реально отправили
         if sent:
             await mark_vacancy_as_sent(user_id, item.id)
 

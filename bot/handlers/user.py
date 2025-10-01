@@ -174,6 +174,10 @@ async def change_delivery_mode(
     # Если нажали на уже выбранный режим
     if mode == user_mode:
         return
+    
+    if mode == "two_hours":
+        await callback.answer("Режим скоро будет доступен",show_alert=True)
+        return
 
     # Сохраняем новый режим в базе
     await update_delivery_mode(session, callback.from_user.id, mode)
@@ -477,12 +481,18 @@ async def buy_subscription_from_callback(callback: CallbackQuery, state: FSMCont
 @router.callback_query(F.data == "start_payment_process_3_months", Main.payment_link)
 @router.callback_query(F.data == "start_payment_process_1_month", Main.payment_link)
 async def pay_subscription(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.bot.delete_message(
+            chat_id=callback.message.chat.id, message_id=await get_reply_id(state)
+        )
+    except Exception as e:
+        pass
     if callback.data == "start_payment_process_1_month":
         await state.update_data(chosen_plan="1_month")
     else:
         await state.update_data(chosen_plan="3_months")
 
-    reply = await callback.message.edit_text(
+    reply = await callback.message.answer(
         LEXICON_USER["buy_subscription_second_stage"], reply_markup=is_auto_payment_kb
     )
     await state.update_data(reply_id=reply.message_id)

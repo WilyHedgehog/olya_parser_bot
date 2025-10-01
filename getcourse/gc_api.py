@@ -38,7 +38,7 @@ async def gc_request_no_payment_link(email, offer_code, offer_id):
     base64_string = await create_promo_req(
         email=email, offer_code=offer_code, offer_id=offer_id
     )
-    print(base64_string)
+    #print(base64_string)
     url = f"{BASE_URL}/deals"
 
     payload = {
@@ -58,7 +58,7 @@ async def gc_request_auto_payment_link(email, offer_code, offer_id):
     base64_string = await create_payment_req_auto(
         email=email, offer_code=offer_code, offer_id=offer_id
     )
-    print(base64_string)
+    #print(base64_string)
     url = f"{BASE_URL}/deals"
 
     payload = {
@@ -84,7 +84,7 @@ async def gc_request_no_auto_payment_link(email, offer_code, offer_id):
     base64_string = await create_payment_req_no_auto(
         email=email, offer_code=offer_code, offer_id=offer_id
     )
-    print(base64_string)
+    #print(base64_string)
     url = f"{BASE_URL}/deals"
 
     payload = {
