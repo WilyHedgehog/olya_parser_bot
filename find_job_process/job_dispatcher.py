@@ -35,7 +35,8 @@ TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
 # --- 2. Отправка вакансии пользователю ---
 async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
     if await dublicate_check(user_id, vacancy):
-        if url != None:
+        if url == True:
+            main_vacancy = await get_vacancy_by_text(vacancy.text)
             vacancy_url = url
         else:
             vacancy_url = vacancy.url
@@ -46,7 +47,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
             )
             print(f"Vacancy sent to user {user_id}, message ID:🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶 {message.message_id}")
             await record_vacancy_sent(
-                user_id=user_id, vacancy_id=vacancy.id, message_id=message.message_id
+                user_id=user_id, vacancy_id=main_vacancy.id, message_id=message.message_id
             )
             await asyncio.sleep(1)
             return True
@@ -115,8 +116,7 @@ async def send_vacancy_from_queue(user_id: int):
         return
 
     for item in result:
-        link = await get_vacancy_by_text(item.text)
-        sent = await send_vacancy(user_id, item, url=link.url)  # True, если реально отправили
+        sent = await send_vacancy(user_id, item, url=True)  # True, если реально отправили
         if sent:
             await mark_vacancy_as_sent(user_id, item.id)
 
