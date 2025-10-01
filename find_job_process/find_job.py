@@ -57,7 +57,7 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
     """
     # --- стоп-слова ---
     stop_count = count_stop_words(text)
-    if stop_count >= 3:
+    if stop_count >= 1:
         return {"status": "blocked", "reason": f"{stop_count} stop words found"}
 
     lowered = text.lower()
