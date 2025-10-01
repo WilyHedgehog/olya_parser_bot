@@ -51,8 +51,9 @@ async def check_subscriptions():
 
 def start_scheduler_check_subscriptions(interval_seconds: int = 10):
     if not any(job.id == "check_subscriptions" for job in scheduler.get_jobs()):
+        # Оборачиваем async функцию через asyncio.create_task
         scheduler.add_job(
-            check_subscriptions,
+            lambda: asyncio.create_task(check_subscriptions()),
             trigger=IntervalTrigger(seconds=interval_seconds),
             id="check_subscriptions",
             coalesce=True,

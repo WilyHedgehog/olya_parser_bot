@@ -21,12 +21,13 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 def start_scheduler_two_hours_vacancy_send():
     if not any(job.id == "two_hours_vacancy" for job in scheduler.get_jobs()):
         trigger = CronTrigger(minute=0, hour="0-23/2", timezone=MOSCOW_TZ)
+        # Если send_two_hours_vacancies async, оборачиваем через asyncio.create_task
         scheduler.add_job(
-            send_two_hours_vacancies,
+            lambda: asyncio.create_task(send_two_hours_vacancies()),
             trigger=trigger,
             id="two_hours_vacancy",
             coalesce=True,
             max_instances=1,
-            misfire_grace_time=60
+            misfire_grace_time=60,
         )
     logger.info("Two hours vacancy scheduler task added.")
