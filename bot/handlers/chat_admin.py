@@ -1,6 +1,7 @@
 from aiogram import F
 from aiogram.types import ChatMemberUpdated
 from bot_setup import bot
+from aiogram.types import ChatMemberStatus
 import asyncio
 from aiogram import Router
 

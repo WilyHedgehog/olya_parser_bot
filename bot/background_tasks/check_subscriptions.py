@@ -22,8 +22,10 @@ async def check_subscriptions():
     now = datetime.now(MOSCOW_TZ)  # текущее время в МСК
     bot_id = await get_bot_id()
     for user in users:
+        logger.error(f"Checking subscription for user {user.first_name} ({user.telegram_id})")  
         try:
             if user.subscription_until:
+                logger.error(f"User {user.telegram_id} subscription until {user.subscription_until}")
                 # Приводим subscription_until к МСК
                 sub_until_msk = (
                     user.subscription_until
@@ -32,6 +34,7 @@ async def check_subscriptions():
                 ).astimezone(MOSCOW_TZ)
 
                 if sub_until_msk < now:
+                    logger.error(f"User {user.telegram_id} subscription expired, revoking access.")
                     await update_user_access(user.telegram_id, False)
                     await update_autopay_status(user.telegram_id, False)
                     logger.info(
