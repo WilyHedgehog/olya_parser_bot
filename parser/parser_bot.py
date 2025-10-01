@@ -1,4 +1,5 @@
 from telethon import TelegramClient, events
+import hashlib
 import asyncio
 from find_job_process.find_job import find_job_func
 import random

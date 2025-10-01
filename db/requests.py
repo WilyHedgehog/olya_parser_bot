@@ -208,7 +208,7 @@ async def activate_promo(
         text = LEXICON_SUBSCRIBE["used_promo"]
         return text
 
-    if user.active_promo.lower() in [
+    if (user.active_promo or "").lower() in [
         "club2425vip",
         "club2425",
         "fm091025",
