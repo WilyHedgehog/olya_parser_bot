@@ -369,17 +369,17 @@ async def get_two_hours_vacancies_by_user(user_id: int) -> list[VacancyQueue]:
         return result.scalars().all()
 
 
-async def mark_vacancies_as_sent(user_id: int, vacancy_ids: list[str]):
+async def mark_vacancy_as_sent(user_id: int, vacancy_id: str):
     async with Sessionmaker() as session:
         result = await session.execute(
             select(VacancyQueue).where(
-                VacancyQueue.user_id == user_id, VacancyQueue.id.in_(vacancy_ids)
+                VacancyQueue.user_id == user_id, VacancyQueue.id == vacancy_id
             )
         )
-        vacancies = result.scalars().all()
-        for v in vacancies:
-            v.is_sent = True
-        await session.commit()
+        vacancy = result.scalar_one_or_none()
+        if vacancy:
+            vacancy.is_sent = True
+            await session.commit()
 
 
 async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_ids: list[str]):

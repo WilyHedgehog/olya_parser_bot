@@ -114,9 +114,16 @@ class FreeThreeDaysMiddleware(BaseMiddleware):
         # запускаем хэндлер
         result = await handler(event, data)
 
-        # работаем только если это сообщение со /start
-        if not event.message or event.message.text != "/start":
+        # работаем только если это сообщение со /start (учитываем deep link)
+        if not event.message or not event.message.text:
             return result
+
+        text = event.message.text
+        if not text.startswith("/start"):
+            return result
+
+        # извлекаем payload (аргумент после /start)
+        payload = text.split(maxsplit=1)[1] if len(text.split(maxsplit=1)) > 1 else None
 
         event_user = event.message.from_user
         if not event_user:
