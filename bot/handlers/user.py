@@ -166,6 +166,7 @@ async def start_cmd_existing_user(message: Message, state: FSMContext):
 async def change_delivery_mode(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
+    await callback.answer()
     data = await state.get_data()
     user_mode = data.get("delivery_mode")  # текущий сохранённый режим
 
@@ -189,7 +190,6 @@ async def change_delivery_mode(
     await callback.message.edit_reply_markup(
         reply_markup=await get_delivery_mode_kb(user_id=callback.from_user.id)
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("profession_"), Main.main)
@@ -197,6 +197,7 @@ async def change_delivery_mode(
 async def change_user_chosen_professions(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
+    await callback.answer()
     profession_id = callback.data.split("_")[2]
     check = callback.data.split("_")[1]  # chosen или unchosen
 
@@ -219,7 +220,6 @@ async def change_user_chosen_professions(
             user_id=callback.from_user.id, page=page
         )
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "back_to_main")
@@ -230,6 +230,7 @@ async def change_user_chosen_professions(
 async def confirm_choice(callback: CallbackQuery, state: FSMContext):
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
 
+    await callback.answer()
     professions_list_name = await get_user_professions_list(callback.from_user.id)
 
     reply = await callback.message.answer_photo(
@@ -254,7 +255,6 @@ async def confirm_choice(callback: CallbackQuery, state: FSMContext):
         pass
     await state.update_data(reply_id=reply.message_id)
     await state.set_state(Main.main)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "confirm_choice", Main.first_time_choose_prof)
@@ -270,6 +270,7 @@ async def confirm_choice(callback: CallbackQuery, state: FSMContext):
 async def choose_all_professions(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
+    await callback.answer()
     professions = await get_all_professions()
     profession_ids = [str(prof.id) for prof in professions]
     action = callback.data.split("_")[2]  # choose или dismiss
@@ -294,12 +295,12 @@ async def choose_all_professions(
         )
     except Exception as e:
         pass
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("uppage_"), Main.first_time_choose_prof)
 @router.callback_query(F.data.startswith("uppage_"), Main.main)
 async def change_page(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
     page = int(callback.data.split("_")[1])
     await callback.message.edit_reply_markup(
         reply_markup=await get_all_professions_kb(
@@ -307,7 +308,6 @@ async def change_page(callback: CallbackQuery, state: FSMContext):
         )
     )
     await state.update_data({"current_page": page})
-    await callback.answer()
 
 
 @router.callback_query(F.data == "noop")
@@ -383,12 +383,12 @@ async def add_email(message: Message, state: FSMContext):
 async def confirm_email(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
+    await callback.answer()
     user_data = await state.get_data()
     email = user_data.get("email")
     if not email:
         await callback.message.edit_text(LEXICON_USER["add_email_fail"])
         await state.set_state(Main.add_email)
-        await callback.answer()
         return
 
     result = await db_change_email(session, callback.from_user.id, email)
@@ -404,7 +404,6 @@ async def confirm_email(
             await activate_promo_code_from_callback(callback, state)
         else:
             await buy_subscription(callback, state)
-    await callback.answer()
 
 
 async def _start_activate_promo(message: Message, state: FSMContext):
@@ -481,6 +480,7 @@ async def buy_subscription_from_callback(callback: CallbackQuery, state: FSMCont
 @router.callback_query(F.data == "start_payment_process_3_months", Main.payment_link)
 @router.callback_query(F.data == "start_payment_process_1_month", Main.payment_link)
 async def pay_subscription(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
     try:
         await callback.message.bot.delete_message(
             chat_id=callback.message.chat.id, message_id=await get_reply_id(state)
@@ -496,13 +496,13 @@ async def pay_subscription(callback: CallbackQuery, state: FSMContext):
         LEXICON_USER["buy_subscription_second_stage"], reply_markup=is_auto_payment_kb
     )
     await state.update_data(reply_id=reply.message_id)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "auto_payment_true", Main.payment_link)
 async def pay_subscription_auto(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     chosen_plan = data.get("chosen_plan")
+    await callback.answer()
     if not chosen_plan:
         await callback.answer("Произошла ошибка, попробуйте снова.")
         return
@@ -533,13 +533,13 @@ async def pay_subscription_auto(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(Main.main)
     await state.update_data(reply_id=reply.message_id)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "auto_payment_false", Main.payment_link)
 async def pay_subscription_no_auto(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     chosen_plan = data.get("chosen_plan")
+    await callback.answer()
     if not chosen_plan:
         await callback.answer("Произошла ошибка, попробуйте снова.")
         return
@@ -572,18 +572,17 @@ async def pay_subscription_no_auto(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(Main.main)
     await state.update_data(reply_id=reply.message_id)
-    await callback.answer()
 
 
 @router.callback_query(F.data == "back_to_main")
 async def back_to_main(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
     try:
         await callback.message.bot.delete_message(
             chat_id=callback.message.chat.id, message_id=await get_reply_id(state)
         )
     except Exception as e:
         pass
-    await callback.answer()
     await state.set_state(Main.main)
 
 
@@ -609,11 +608,12 @@ async def referal(message: Message, state: FSMContext):
     )
     await state.update_data(reply_id=reply.message_id)
 
-
+@router.message(Command("help"))
 @router.message(Command("help"), Main.main)
 async def help_cmd(message: Message, state: FSMContext):
     await try_delete_message_old(message, state)
     await try_delete_message(message)
+    await state.set_state(Main.main)
     reply = await message.answer(
         LEXICON_USER["help_cmd"], reply_markup=back_to_main_kb
     )

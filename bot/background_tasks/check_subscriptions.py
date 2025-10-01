@@ -63,7 +63,7 @@ async def check_subscriptions():
             logger.exception(f"Error processing user {user.telegram_id}: {e}")
 
 
-def start_subscription_scheduler(interval_seconds: int = 10):
+def start_subscription_scheduler(interval_seconds: int = 1800):
     job_id = "check_subscriptions"
 
     if not any(job.id == job_id for job in scheduler.get_jobs()):
