@@ -16,14 +16,14 @@ router = Router(name="chat_admin_bot_router")
 async def new_member_handler(event: ChatMemberUpdated):
     user_id = event.from_user.id
     chat_id = event.chat.id
-    # Если новый участник или восстановлен
-    if event.new_chat_member.status in ["member", "restricted"]:
+
+    # new_chat_member может быть None
+    status = getattr(event.new_chat_member, "status", None)
+    if status in ["member", "restricted"]:
         if not await check_user_has_active_subscription(user_id):
             try:
                 await bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
-                await bot.unban_chat_member(
-                    chat_id=chat_id, user_id=user_id
-                )  # чтобы мог вернуться после подписки
+                await bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
                 print(f"Удалён пользователь {user_id}, нет подписки")
             except Exception as e:
                 print(f"Ошибка при удалении пользователя {user_id}: {e}")

@@ -25,7 +25,7 @@ from db.requests import set_new_days, update_user_is_pay_status
 
 from find_job_process.find_job import load_professions
 
-from bot.background_tasks.check_subscriptions import start_scheduler
+from bot.background_tasks.check_subscriptions import start_all_schedulers
 from bot.background_tasks.send_two_hours_vacancy import start_scheduler_two_hours_vacancy_send
 from bot.middlewares.middlewares import (
     DbSessionMiddleware,
@@ -101,7 +101,7 @@ def create_app(config: Config) -> FastAPI:
         logger.info("Professions loaded")
 
         # Запускаем планировщик задач
-        start_scheduler(interval_seconds=10)
+        start_all_schedulers()
         logger.info("Scheduler started")
         
         #start_scheduler_two_hours_vacancy_send()
