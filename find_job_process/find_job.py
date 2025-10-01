@@ -1,7 +1,10 @@
 import asyncio
 from sentence_transformers import SentenceTransformer, util
 from db.requests import stopwords_cache
-from db.requests import get_all_professions_parser, load_stopwords
+from db.requests import get_all_professions_parser
+from db.database import Sessionmaker
+from db.models import StopWord
+from sqlalchemy.future import select
 import logging
 import re
 
@@ -57,12 +60,34 @@ def get_profession_embeddings() -> dict[str, any]:
     return professions_embeddings_cache
 
 
+from sentence_transformers import util
+
+async def load_stopwords():
+    # если кэш уже есть, возвращаем его
+    if hasattr(load_stopwords, "cache"):
+        return load_stopwords.cache
+
+    async with Sessionmaker() as session:
+        result = await session.execute(select(StopWord))
+        stopwords = result.scalars().all()
+
+    load_stopwords.cache = {sw.word.lower() for sw in stopwords}
+    print(f"Stopwords loaded: {len(load_stopwords.cache)}")
+    return load_stopwords.cache
+
+
 async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
     print("=== Анализ вакансии ===")
     print(f"Текст вакансии: {text[:100]}...")  # первые 100 символов
 
     # --- стоп-слова ---
-    stop_count = count_stop_words(text)
+    stopwords = await load_stopwords()
+    words_in_text = {w.lower() for w in text.split()}
+    found_stopwords = words_in_text & stopwords
+    stop_count = len(found_stopwords)
+    print(f"Stop words cache: {stopwords}")
+    print(f"Words in text: {words_in_text}")
+    print(f"Found stop words: {found_stopwords}")
     print(f"Количество стоп-слов: {stop_count}")
     if stop_count >= 1:
         return {"status": "blocked", "reason": f"{stop_count} stop words found"}
@@ -102,10 +127,6 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
 async def find_job_func(
     vacancy_text: str, embedding_weight: float = 0.7
 ):
-    if not stopwords_cache:
-        await load_stopwords()
-    if not professions_cache:
-        await load_professions()
 
     result = await analyze_vacancy(
         vacancy_text, embedding_weight=embedding_weight

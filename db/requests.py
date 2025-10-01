@@ -595,13 +595,18 @@ async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:
 
 
 async def load_stopwords():
-    global stopwords_cache
+    # если кэш уже есть, возвращаем его
+    if hasattr(load_stopwords, "cache"):
+        return load_stopwords.cache
+
     async with Sessionmaker() as session:
         result = await session.execute(select(StopWord))
         stopwords = result.scalars().all()
-        # await session.commit()  # НЕ НУЖНО при выборке
-    stopwords_cache = {sw.word.lower() for sw in stopwords}
-    print(f"Stopwords loaded: {len(stopwords_cache)}")  # для проверки
+
+    # создаём кэш и сохраняем как атрибут функции
+    load_stopwords.cache = {sw.word.lower() for sw in stopwords}
+    print(f"Stopwords loaded: {len(load_stopwords.cache)}")
+    return load_stopwords.cache
 
 
 async def give_three_days_free(telegram_id: int) -> bool:
