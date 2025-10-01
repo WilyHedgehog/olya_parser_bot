@@ -7,9 +7,8 @@ from db.requests import update_user_access, get_all_users, update_autopay_status
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from bot_setup import bot, dp, get_bot_id
-from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
+from lexicon.lexicon import LEXICON_SUBSCRIBE
 from bot.states.user import Main
-from bot.handlers.chat_admin import remove_expired_subscribers
 import asyncio
 import logging
 
@@ -35,7 +34,6 @@ async def check_subscriptions():
                 if sub_until_msk < now:
                     await update_user_access(user.telegram_id, False)
                     await update_autopay_status(user.telegram_id, False)
-                    await remove_expired_subscribers(user.telegram_id)
                     logger.info(
                         f"User {user.telegram_id} access revoked (subscription expired)."
                     )
@@ -49,15 +47,14 @@ async def check_subscriptions():
             logger.error(f"Error processing user {user.telegram_id}: {e}")
 
 
-def start_scheduler_check_subscriptions(interval_seconds: int = 10):
-    if not any(job.id == "check_subscriptions" for job in scheduler.get_jobs()):
-        # Оборачиваем async функцию через asyncio.create_task
-        scheduler.add_job(
-            lambda: asyncio.create_task(check_subscriptions()),
-            trigger=IntervalTrigger(seconds=interval_seconds),
-            id="check_subscriptions",
-            coalesce=True,
-            max_instances=1,
-            misfire_grace_time=30,
-        )
-    logger.info("Subscription check scheduler task added.")
+def start_scheduler(interval_seconds: int = 10):
+
+    scheduler.add_job(
+        check_subscriptions,
+        trigger=IntervalTrigger(seconds=interval_seconds),
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=30,
+    )
+    scheduler.start()
+    logger.info("Subscription check scheduler started.")
