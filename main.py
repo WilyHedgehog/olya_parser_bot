@@ -21,7 +21,7 @@ from bot.handlers import get_routers
 from parser.parser_bot import main as parser_main
 
 from db.database import Sessionmaker
-from db.requests import set_new_days, update_user_is_pay_status
+from db.requests import set_new_days, update_user_is_pay_status, load_stopwords
 
 from find_job_process.find_job import load_professions
 
@@ -99,6 +99,9 @@ def create_app(config: Config) -> FastAPI:
         # Загружаем профессии
         await load_professions()
         logger.info("Professions loaded")
+        
+        await load_stopwords()
+        logger.info("Stopwords loaded")
 
         # Запускаем планировщик задач
         start_all_schedulers()
