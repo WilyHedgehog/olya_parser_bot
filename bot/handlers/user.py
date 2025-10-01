@@ -596,6 +596,16 @@ async def referal(message: Message, state: FSMContext):
     await state.update_data(reply_id=reply.message_id)
 
 
+@router.message(Command("help"), Main.main)
+async def help_cmd(message: Message, state: FSMContext):
+    await try_delete_message(message, state)
+    await message.delete()
+    reply = await message.answer(
+        LEXICON_USER["help_cmd"], reply_markup=back_to_main_kb
+    )
+    await state.update_data(reply_id=reply.message_id)
+
+
 @router.message(
     F.text == "Активировать новый промокод можно только после окончания имеющегося",
     Main.main,

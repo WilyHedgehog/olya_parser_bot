@@ -352,12 +352,12 @@ async def process_message(message):
             )
             if vacancy_id:
                 try:
-                    await bot.forward_message(
-                        chat_id=config.bot.chat_id,  # ID канала для пересылки
-                        from_chat_id=message.chat_id,          # откуда пересылаем
-                        message_id=message.id                   # ID сообщения
+                    await app.forward_messages(
+                        entity=config.bot.wacancy_chat_id,   # канал для пересылки
+                        messages=message.id,         # ID сообщения
+                        from_peer=message.chat_id    # чат, откуда пересылаем
                     )
-                    logger.info(f"Вакансия {vacancy_id} переслана в канал.")
+                    logger.info(f"Вакансия {vacancy_id} переслана в канал через Telethon.")
                 except Exception as e:
                     logger.error(f"Ошибка пересылки вакансии {vacancy_id}: {e}")
                 
