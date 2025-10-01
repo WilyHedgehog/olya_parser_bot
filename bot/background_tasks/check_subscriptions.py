@@ -7,7 +7,7 @@ from db.requests import update_user_access, get_all_users, update_autopay_status
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from bot_setup import bot, dp, get_bot_id
-from lexicon.lexicon import LEXICON_SUBSCRIBE
+from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 from bot.states.user import Main
 import asyncio
 import logging
