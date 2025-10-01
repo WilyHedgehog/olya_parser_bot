@@ -61,11 +61,18 @@ logger = logging.getLogger(__name__)
 router = Router(name="main router")
 
 
-async def try_delete_message(message: Message, state: FSMContext):
+async def try_delete_message_old(message: Message, state: FSMContext):
     try:
         await message.bot.delete_message(
             chat_id=message.chat.id, message_id=await get_reply_id(state)
         )
+    except Exception as e:
+        pass
+    
+    
+async def try_delete_message(message: Message):
+    try: 
+        await message.delete()
     except Exception as e:
         pass
 
@@ -112,12 +119,9 @@ async def start_cmd_no_prof(message: Message, state: FSMContext):
 
 async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
-    await try_delete_message(message, state)
+    await try_delete_message_old(message, state)
 
-    try:
-        await message.delete()
-    except Exception as e:
-        pass
+    await try_delete_message(message)
 
     if is_new:
         caption = LEXICON_USER["first_time_start_cmd"]
@@ -136,12 +140,9 @@ async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
 @router.message(CommandStart(), ~IsNewUser(), UserHaveProfessions())
 async def start_cmd_existing_user(message: Message, state: FSMContext):
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
-    await try_delete_message(message, state)
+    await try_delete_message_old(message, state)
 
-    try:
-        await message.delete()
-    except Exception as e:
-        pass
+    await try_delete_message(message)
 
     professions_list_name = await get_user_professions_list(message.from_user.id)
 
@@ -317,8 +318,8 @@ async def noop(callback: CallbackQuery):
 
 @router.message(F.text == "🛠️ Настройки профессий 🛠️", Main.main)
 async def settings_professions(message: Message, state: FSMContext):
-    await message.delete()
-    await try_delete_message(message, state)
+    await try_delete_message(message)
+    await try_delete_message_old(message, state)
     reply = await message.answer(
         LEXICON_USER["settings_professions"],
         reply_markup=await get_all_professions_kb(user_id=message.from_user.id, page=1),
@@ -328,8 +329,8 @@ async def settings_professions(message: Message, state: FSMContext):
 
 @router.message(F.text == "📬 Настройки параметров доставки вакансий 📬", Main.main)
 async def settings_delivery(message: Message, state: FSMContext):
-    await message.delete()
-    await try_delete_message(message, state)
+    await try_delete_message(message)
+    await try_delete_message_old(message, state)
     reply = await message.answer(
         LEXICON_USER["settings_delivery"],
         reply_markup=await get_delivery_mode_kb(user_id=message.from_user.id),
@@ -344,8 +345,8 @@ async def add_email_prompt(message: Message, state: FSMContext):
         await state.update_data(from_promo=True)
     else:
         await state.update_data(from_promo=False)
-    await message.delete()
-    await try_delete_message(message, state)
+    await try_delete_message(message)
+    await try_delete_message_old(message, state)
     reply = await message.answer(
         LEXICON_USER["no_email_prompt"],
         reply_markup=back_to_main_kb,
@@ -356,15 +357,15 @@ async def add_email_prompt(message: Message, state: FSMContext):
 
 @router.message(Main.add_email, F.text)
 async def add_email(message: Message, state: FSMContext):
-    await try_delete_message(message, state)
+    await try_delete_message_old(message, state)
 
     if message.text.lower() in [mail.lower() for mail in await get_all_mails()]:
-        await message.delete()
+        await try_delete_message(message)
         reply = await message.answer(LEXICON_USER["add_email_exists"])
         await state.update_data(reply_id=reply.message_id)
         return
 
-    await message.delete()
+    await try_delete_message(message)
     email = message.text
     await state.update_data(email=email)
     reply = await message.answer(
@@ -403,8 +404,8 @@ async def confirm_email(
 
 
 async def _start_activate_promo(message: Message, state: FSMContext):
-    await message.delete()
-    await try_delete_message(message, state)
+    await try_delete_message(message)
+    await try_delete_message_old(message, state)
     reply = await message.answer(
         "Пожалуйста, введите ваш промокод.", reply_markup=back_to_main_kb
     )
@@ -428,7 +429,7 @@ async def process_promo_code(
     await message.bot.delete_message(
         chat_id=message.chat.id, message_id=await get_reply_id(state)
     )
-    await message.delete()
+    await try_delete_message(message)
     promo_code = message.text.strip()
 
     text = await activate_promo(session, message.from_user.id, promo_code)
@@ -442,8 +443,8 @@ async def process_promo_code(
 
 
 async def _start_buy_subscription(message: Message, state: FSMContext):
-    await message.delete()
-    await try_delete_message(message, state)
+    await try_delete_message(message)
+    await try_delete_message_old(message, state)
     photo = FSInputFile("bot/assets/Тарифы и доступ 🔑-1.png")
     until_the_end_of_the_day = (
         datetime.now(MOSCOW_TZ)
@@ -575,15 +576,15 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext):
 
 @router.message(F.text == "Получить накопленные вакансии", Main.main)
 async def get_earned_vacancies(message: Message, state: FSMContext):
-    await try_delete_message(message, state)
-    message.delete()
+    await try_delete_message_old(message, state)
+    await try_delete_message(message)
     await send_vacancy_from_queue(message.from_user.id)
 
 
 @router.message(F.text == "👫 Пригласить друга 👭", Main.main)
 async def referal(message: Message, state: FSMContext):
-    await try_delete_message(message, state)
-    await message.delete()
+    await try_delete_message_old(message, state)
+    await try_delete_message(message)
     link = await create_start_link(
         bot=message.bot, payload=f"referral_{message.from_user.id}"
     )
@@ -598,8 +599,8 @@ async def referal(message: Message, state: FSMContext):
 
 @router.message(Command("help"), Main.main)
 async def help_cmd(message: Message, state: FSMContext):
-    await try_delete_message(message, state)
-    await message.delete()
+    await try_delete_message_old(message, state)
+    await try_delete_message(message)
     reply = await message.answer(
         LEXICON_USER["help_cmd"], reply_markup=back_to_main_kb
     )
@@ -611,11 +612,11 @@ async def help_cmd(message: Message, state: FSMContext):
     Main.main,
 )
 async def promo_no_active(message: Message):
-    await message.delete()
+    await try_delete_message(message)
 
 
 @router.message(F.text, Prof.main)
 @router.message(F.text, Main.main)
 @router.message(F.text)
 async def handle_text_message(message: Message, state: FSMContext):
-    await message.delete()
+    await try_delete_message(message)

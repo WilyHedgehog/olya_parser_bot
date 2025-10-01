@@ -317,9 +317,16 @@ def message_to_html(message) -> str:
 
     return html
 
+processed_messages = set() 
 
 async def process_message(message):
-    # Собираем текст из всех полей
+    # Проверка, что сообщение ещё не обрабатывалось
+    if message.id in processed_messages:
+        logger.info(f"Сообщение {message.id} уже обработано, пропускаем.")
+        return
+    processed_messages.add(message.id)
+
+    # Собираем текст сообщения
     message_text = (
         message.text
         or message.message
@@ -328,61 +335,67 @@ async def process_message(message):
         or ""
     ).strip()
 
+    if not message_text:
+        logger.info(f"Сообщение {message.id} пустое, пропускаем.")
+        return
+
     logger.info(f"Проверяем сообщение {message.id}: {message.date}")
 
-    clean_text = message_text or "(без текста)"
-    message_link = get_message_link(message)
+    clean_text = message_text
     markdown_text = markdown_to_html(clean_text)
     html_text = message_to_html(markdown_text)
+    message_link = get_message_link(message)
 
-    if clean_text:
-        found_proffs = await find_job_func(vacancy_text=clean_text)
+    # Находим профессии
+    found_proffs = await find_job_func(vacancy_text=clean_text)
+    if not found_proffs:
+        logger.warning(f"⚠️ Вакансия не подходит ни под одну из профессий: {message.id}")
+        return
 
-    if found_proffs:
-        for prof_name, score in found_proffs:
-            logger.info(
-                f"Найдена профессия '{prof_name}' с оценкой {score:.2f} в сообщении {message.id}"
+    # Фильтруем дубли профессий
+    unique_proffs = {prof_name: score for prof_name, score in found_proffs}
+
+    for prof_name, score in unique_proffs.items():
+        logger.info(f"Найдена профессия '{prof_name}' с оценкой {score:.2f} в сообщении {message.id}")
+
+        # Пересылаем сообщение в канал
+        try:
+            forwarded_msg = await app.forward_messages(
+                entity=config.bot.wacancy_chat_id,
+                messages=message.id,
+                from_peer=message.chat_id
             )
-            try:
-                forwarded_msg = await app.forward_messages(
-                    entity=config.bot.wacancy_chat_id,   # канал для пересылки
-                    messages=message.id,         # ID сообщения
-                    from_peer=message.chat_id    # чат, откуда пересылаем
-                )
-                logger.info(f"Вакансия  переслана в канал через Telethon.")
-                chat_id = forwarded_msg.chat_id  # отрицательный chat_id приватного канала
-                msg_id = forwarded_msg.id
-                link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
-            except Exception as e:
-                logger.error(f"Ошибка пересылки вакансии: {e}")
-            # Сохраняем вакансию в БД
-            vacancy_id = await save_vacancy(
-                text=html_text,
-                profession_name=prof_name,
-                score=score,
-                url=link,
+            chat_id = forwarded_msg.chat_id
+            msg_id = forwarded_msg.id
+            link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
+            logger.info(f"Вакансия переслана в канал через Telethon: {link}")
+        except Exception as e:
+            logger.error(f"Ошибка пересылки вакансии: {e}")
+            link = None
+
+        # Сохраняем вакансию в БД
+        vacancy_id = await save_vacancy(
+            text=html_text,
+            profession_name=prof_name,
+            score=score,
+            url=link,
+        )
+
+        if vacancy_id:
+            logger.info(f"Вакансия по профессии '{prof_name}' сохранена в БД с ID {vacancy_id}.")
+            await bot.send_message(
+                config.bot.chat_id,
+                f"Новая вакансия по профессии '{prof_name}':\n{link}\nОценка: {score:.2f}\nID вакансии: {vacancy_id}\n\n\n{html_text}",
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                reply_markup=await get_delete_vacancy_kb(vacancy_id),
             )
-            if vacancy_id:
-                
-                
-                logger.info(f"Вакансия по профессии '{prof_name}' сохранена в БД.")
-                await bot.send_message(
-                    config.bot.chat_id,
-                    f"Новая вакансия по профессии '{prof_name}':\n{link}\nОценка: {score:.2f}\nID вакансии: {vacancy_id}\n\n\n{html_text}",
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                    reply_markup=await get_delete_vacancy_kb(vacancy_id),
-                )
-                await send_vacancy_to_users(vacancy_id)
-            else:
-                logger.info(
-                    f"Вакансия по профессии '{prof_name}' уже существует в БД, пропускаем сохранение."
-                )
+            await send_vacancy_to_users(vacancy_id)
+        else:
+            logger.info(f"Вакансия по профессии '{prof_name}' уже существует в БД, пропускаем.")
+
     # Задержка между обработкой сообщений
-    await asyncio.sleep(
-        random.uniform(config.parser.delay_min, config.parser.delay_max)
-    )
-
+    await asyncio.sleep(random.uniform(config.parser.delay_min, config.parser.delay_max))
 
 # ==================== Обработка новых сообщений в реальном времени ====================
 # Список чатов, которые нужно игнорировать
