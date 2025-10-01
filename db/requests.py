@@ -328,7 +328,8 @@ async def add_to_vacancy_queue(text: str, profession_id: UUID, user_id: int):
 async def add_to_two_hours(text: str, profession_id: UUID, user_id: int):
     async with Sessionmaker() as session:     
         stmt = select(VacancyTwoHours).where(
-            VacancyTwoHours.user_id == user_id and VacancyTwoHours.text == text
+            VacancyTwoHours.user_id == user_id,
+            VacancyTwoHours.text == text
         )
         result = await session.execute(stmt)
         existing = result.scalar_one_or_none()

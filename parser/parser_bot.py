@@ -351,6 +351,17 @@ async def process_message(message):
                 url=message_link,
             )
             if vacancy_id:
+                try:
+                    await bot.forward_message(
+                        chat_id=config.bot.chat_id,  # ID канала для пересылки
+                        from_chat_id=message.chat_id,          # откуда пересылаем
+                        message_id=message.id                   # ID сообщения
+                    )
+                    logger.info(f"Вакансия {vacancy_id} переслана в канал.")
+                except Exception as e:
+                    logger.error(f"Ошибка пересылки вакансии {vacancy_id}: {e}")
+                
+                
                 logger.info(f"Вакансия по профессии '{prof_name}' сохранена в БД.")
                 await bot.send_message(
                     config.bot.chat_id,

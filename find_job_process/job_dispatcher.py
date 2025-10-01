@@ -38,6 +38,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy) -> bool:
             message = await bot.send_message(
                 user_id, vacancy.text, disable_web_page_preview=True
             )
+            print(f"Vacancy sent to user {user_id}, message ID:🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶 {message.message_id}")
             await record_vacancy_sent(
                 user_id=user_id, vacancy_id=vacancy.id, message_id=message.message_id
             )
