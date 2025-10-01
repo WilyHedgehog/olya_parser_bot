@@ -16,9 +16,15 @@ stopwords_cache: set[str] = set()
 def count_stop_words(text: str) -> int:
     """
     Считает количество совпавших стоп-слов в тексте.
+    Логирует найденные стоп-слова.
     """
     text_lower = text.lower()
-    return sum(1 for stop_word in stopwords_cache if stop_word in text_lower)
+    text_words = set(re.findall(r"\b\w+\b", text_lower))  # разбиваем на слова
+    found_words = stopwords_cache.intersection(text_words)
+    print(f"Stop words cache: {stopwords_cache}")
+    print(f"Words in text: {text_words}")
+    print(f"Found stop words: {found_words}")
+    return len(found_words)
 
 
 async def load_professions():
@@ -51,36 +57,42 @@ def get_profession_embeddings() -> dict[str, any]:
 
 
 async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
-    """
-    Анализ вакансии через кэш профессий и ключевых слов.
-    embedding_weight регулирует важность эмбеддингов.
-    """
+    print("=== Анализ вакансии ===")
+    print(f"Текст вакансии: {text[:100]}...")  # первые 100 символов
+
     # --- стоп-слова ---
     stop_count = count_stop_words(text)
+    print(f"Количество стоп-слов: {stop_count}")
     if stop_count >= 1:
         return {"status": "blocked", "reason": f"{stop_count} stop words found"}
 
     lowered = text.lower()
 
     # --- очки по ключевым словам ---
-    keyword_scores = {
-        name: sum(weight for kw, weight in data["keywords"].items() if kw in lowered)
-        for name, data in professions_cache.items()
-    }
+    keyword_scores = {}
+    for name, data in professions_cache.items():
+        score = 0
+        for kw, weight in data["keywords"].items():
+            if kw.lower() in lowered:
+                score += weight
+        keyword_scores[name] = score
+    print(f"Очки по ключевым словам: {keyword_scores}")
 
     # --- сходство по эмбеддингам ---
     text_emb = model.encode(text, convert_to_tensor=True)
     embeddings = get_profession_embeddings()
-    embedding_scores = {
-        name: util.cos_sim(text_emb, prof_emb).item()
-        for name, prof_emb in embeddings.items()
-    }
+    embedding_scores = {}
+    for name, prof_emb in embeddings.items():
+        sim = util.cos_sim(text_emb, prof_emb).item()
+        embedding_scores[name] = sim
+    print(f"Сходство по эмбеддингам: {embedding_scores}")
 
     # --- итоговый рейтинг ---
     final_scores = {
         name: keyword_scores[name] + embedding_weight * embedding_scores[name]
         for name in professions_cache
     }
+    print(f"Итоговые рейтинги: {final_scores}")
 
     ranked = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
     return {"status": "ok", "ranked": ranked}
