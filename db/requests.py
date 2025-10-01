@@ -9,6 +9,7 @@ from uuid import UUID
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 from getcourse.gc_api import gc_request_no_payment_link
 from bot_setup import bot
+import hashlib
 
 from db.database import Sessionmaker
 from db.models import (
@@ -532,6 +533,52 @@ async def save_vacancy(
         await session.commit()
         await session.refresh(vacancy)
         return vacancy.id
+
+
+
+def make_message_hash(text: str) -> str:
+    """Создаем хэш для текста вакансии"""
+    return hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()
+
+async def get_vacancy_by_hash(session: AsyncSession, message_hash: str):
+    """Возвращает вакансию, если хэш уже существует"""
+    stmt = select(Vacancy).where(Vacancy.hash == message_hash)
+    result = await session.execute(stmt)
+    return result.scalars().first()
+
+async def save_vacancy_hash(
+    session: AsyncSession,
+    text: str,
+    profession_name: str,
+    score: float,
+    url: str,
+):
+    """Сохраняем вакансию, если такой ещё нет"""
+    message_hash = make_message_hash(text)
+
+    # проверяем ещё раз тут
+    existing = await get_vacancy_by_hash(session, message_hash)
+    if existing:
+        return None
+
+    vacancy = Vacancy(
+        text=text,
+        profession_name=profession_name,
+        score=score,
+        url=url,
+        hash=message_hash
+    )
+    session.add(vacancy)
+    await session.commit()
+    await session.refresh(vacancy)
+    return vacancy.id
+
+
+
+
+
+
+
 
 
 async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:

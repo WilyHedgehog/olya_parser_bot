@@ -2,9 +2,10 @@ from telethon import TelegramClient, events
 import asyncio
 from find_job_process.find_job import find_job_func
 import random
+import hashlib
 from config.config import load_config, Config
 import logging
-from db.requests import save_vacancy
+from db.requests import save_vacancy, get_vacancy_by_hash, save_vacancy_hash
 from find_job_process.job_dispatcher import send_vacancy_to_users
 from telethon.tl.types import (
     MessageEntityBold,
@@ -259,6 +260,9 @@ old_professions = {
 }
 
 
+
+processed_messages = set()
+
 app = TelegramClient("Telethon_UserBot", config.parser.api_id, config.parser.api_hash)
 
 
@@ -277,23 +281,30 @@ def get_message_link(message):
 import re
 
 
+def clean_vacancy_text(text: str) -> str:
+    """Чистим текст от хэштегов, @ и ссылок для нормализации"""
+    text = re.sub(r'@\w+', '', text)
+    text = re.sub(r'https?://t\.me/\S+', '', text)
+    text = re.sub(r'#\w+', '', text)
+    text = re.sub(r'\n\s*\n', '\n', text)
+    return text.strip()
+
+def text_hash(text: str) -> str:
+    return hashlib.md5(text.encode("utf-8")).hexdigest()
+
+
 def markdown_to_html(text: str) -> str:
-    # Жирный
     text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
-    # Курсив
     text = re.sub(r"_(.*?)_", r"<i>\1</i>", text)
     return text
 
 
 def message_to_html(message) -> str:
-
     html = message
     if not getattr(message, "entities", None):
-        return html  # просто возвращаем текст если нет entities
+        return html
 
-    # Сортируем entities по offset (от конца к началу чтобы корректно вставлять теги)
     entities = sorted(message.entities, key=lambda e: e.offset + e.length, reverse=True)
-
     for ent in entities:
         start, end = ent.offset, ent.offset + ent.length
         entity_text = html[start:end]
@@ -309,24 +320,20 @@ def message_to_html(message) -> str:
         elif isinstance(ent, MessageEntityCode):
             html = html[:start] + f"<code>{entity_text}</code>" + html[end:]
         elif isinstance(ent, MessageEntityPre):
-            # ent.language можно использовать для подсветки
             html = html[:start] + f"<pre>{entity_text}</pre>" + html[end:]
         elif isinstance(ent, MessageEntityTextUrl):
             html = html[:start] + f'<a href="{ent.url}">{entity_text}</a>' + html[end:]
-        # Можно добавить другие entity, если потребуется
-
     return html
 
-processed_messages = set() 
 
 async def process_message(message):
-    # Проверка, что сообщение ещё не обрабатывалось
+    # 1. Проверка дублей сообщений
     if message.id in processed_messages:
         logger.info(f"Сообщение {message.id} уже обработано, пропускаем.")
         return
     processed_messages.add(message.id)
 
-    # Собираем текст сообщения
+    # 2. Собираем текст
     message_text = (
         message.text
         or message.message
@@ -334,55 +341,59 @@ async def process_message(message):
         or getattr(message, "caption", "")
         or ""
     ).strip()
-
     if not message_text:
         logger.info(f"Сообщение {message.id} пустое, пропускаем.")
         return
 
     logger.info(f"Проверяем сообщение {message.id}: {message.date}")
 
-    clean_text = message_text
+    clean_text = clean_vacancy_text(message_text)
+    message_hash = text_hash(clean_text)
+
+    # 3. Проверка по хэшу в БД
+    existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
+    if existing:
+        logger.info(f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем.")
+        return
+
+    # 4. Конвертация текста
     markdown_text = markdown_to_html(clean_text)
     html_text = message_to_html(markdown_text)
-    message_link = get_message_link(message)
 
-    # Находим профессии
+    # 5. Поиск профессий
     found_proffs = await find_job_func(vacancy_text=clean_text)
     if not found_proffs:
         logger.warning(f"⚠️ Вакансия не подходит ни под одну из профессий: {message.id}")
         return
 
-    # Фильтруем дубли профессий
     unique_proffs = {prof_name: score for prof_name, score in found_proffs}
 
+    # 6. Форвард в канал (один раз)
+    try:
+        forwarded_msg = await app.forward_messages(
+            entity=config.bot.wacancy_chat_id,
+            messages=message.id,
+            from_peer=message.chat_id
+        )
+        chat_id = forwarded_msg.chat_id
+        msg_id = forwarded_msg.id
+        link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
+        logger.info(f"Вакансия переслана в канал: {link}")
+    except Exception as e:
+        logger.error(f"Ошибка пересылки вакансии: {e}")
+        return
+
+    # 7. Сохраняем для каждой профессии
     for prof_name, score in unique_proffs.items():
-        logger.info(f"Найдена профессия '{prof_name}' с оценкой {score:.2f} в сообщении {message.id}")
-
-        # Пересылаем сообщение в канал
-        try:
-            forwarded_msg = await app.forward_messages(
-                entity=config.bot.wacancy_chat_id,
-                messages=message.id,
-                from_peer=message.chat_id
-            )
-            chat_id = forwarded_msg.chat_id
-            msg_id = forwarded_msg.id
-            link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
-            logger.info(f"Вакансия переслана в канал через Telethon: {link}")
-        except Exception as e:
-            logger.error(f"Ошибка пересылки вакансии: {e}")
-            link = None
-
-        # Сохраняем вакансию в БД
-        vacancy_id = await save_vacancy(
+        vacancy_id = await save_vacancy_hash(
             text=html_text,
             profession_name=prof_name,
             score=score,
             url=link,
+            text_hash=message_hash
         )
-
         if vacancy_id:
-            logger.info(f"Вакансия по профессии '{prof_name}' сохранена в БД с ID {vacancy_id}.")
+            logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")
             await bot.send_message(
                 config.bot.chat_id,
                 f"Новая вакансия по профессии '{prof_name}':\n{link}\nОценка: {score:.2f}\nID вакансии: {vacancy_id}\n\n\n{html_text}",
@@ -392,9 +403,8 @@ async def process_message(message):
             )
             await send_vacancy_to_users(vacancy_id)
         else:
-            logger.info(f"Вакансия по профессии '{prof_name}' уже существует в БД, пропускаем.")
+            logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
 
-    # Задержка между обработкой сообщений
     await asyncio.sleep(random.uniform(config.parser.delay_min, config.parser.delay_max))
 
 # ==================== Обработка новых сообщений в реальном времени ====================
