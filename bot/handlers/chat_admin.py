@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 
-@router.chat_member_updated(ChatMemberUpdatedFilter(chat_id=CHANNEL_ID))
+@router.chat_member(ChatMemberUpdatedFilter(chat_id=CHANNEL_ID))
 async def handle_member_update(update: ChatMemberUpdated):
     user = update.from_user
     new_status = update.new_chat_member.status
@@ -47,7 +47,7 @@ async def handle_member_update(update: ChatMemberUpdated):
 # ============================
 # Обработка уже присоединившихся (на всякий случай) — chat_member updates
 # ============================
-@router.chat_member_updated(ChatMemberUpdatedFilter(chat_id=CHANNEL_ID))
+@router.chat_member(ChatMemberUpdatedFilter(chat_id=CHANNEL_ID))
 async def on_chat_member_update(update: ChatMemberUpdated):
     user = update.from_user
     new_status = update.new_chat_member.status
