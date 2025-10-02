@@ -483,6 +483,8 @@ async def delete_vacancy_evrerywhere(session: AsyncSession, vacancy_id: UUID):
         if not vacancy:
             logger.error(f"Vacancy with ID {vacancy_id} not found for deletion.")
             return False
+        
+        logger.warning(f"🥵Deleting vacancy ID {vacancy_id} everywhere.🥵")
 
         # Находим все отправленные вакансии
         stmt = select(VacancySent).where(VacancySent.vacancy_id == vacancy_id)
@@ -495,6 +497,7 @@ async def delete_vacancy_evrerywhere(session: AsyncSession, vacancy_id: UUID):
             for sent in sent_vacancies:
                 try:
                     await bot.delete_message(sent.user_id, sent.message_id)
+                    logger.warning(f"🥵Deleted message {sent.message_id} for user {sent.user_id}.🥵")
                 except Exception as e:
                     logger.warning(f"Failed to delete message {sent.message_id} for user {sent.user_id}: {e}")
 
