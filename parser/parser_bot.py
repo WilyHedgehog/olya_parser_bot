@@ -18,6 +18,7 @@ from telethon.tl.types import (
 )
 from bot_setup import bot
 from bot.keyboards.admin_keyboard import get_delete_vacancy_kb
+from bot.lexicon.lexicon import LEXICON_PARSER
 
 config: Config = load_config()
 logger = logging.getLogger(__name__)
@@ -326,6 +327,18 @@ def message_to_html(message) -> str:
     return html
 
 
+def get_message_link(message):
+    try:
+        if message.link:  # для публичных чатов
+            return message.link
+    except Exception:
+        pass
+
+    if str(message.chat_id).startswith("-100"):  # приватный канал/группа
+        return f"https://t.me/c/{str(message.chat_id)[4:]}/{message.id}"
+    return "ссылка недоступна"
+
+
 async def process_message(message):
     # 1. Проверка дублей сообщений
     if message.id in processed_messages:
@@ -346,6 +359,55 @@ async def process_message(message):
         return
 
     logger.info(f"Проверяем сообщение {message.id}: {message.date}")
+    
+    original_link = get_message_link(message)
+    
+    try:
+        user = await message.get_sender()
+        if user:
+            username = user.username  # либо None, если юзер без ника
+            if username:
+                print('Ник автора: @' + username)
+            else:
+                print('Ника нет, имя автора:', user.first_name or 'Unknown')
+        else:
+            print('Не удалось определить автора (анонимный/канал)')
+            
+        if message.from_id:
+            entity = await app.get_entity(message.from_id) 
+            entity_name = entity.title if hasattr(entity, 'title') else (entity.first_name or 'Unknown')
+            entity_username = getattr(entity, 'username', None)
+    except Exception as e:
+        print(f"Ошибка получения информации об авторе: {e}")
+        entity_name = "Unknown"
+        entity_username = None
+
+    
+    if message.forward:
+        try:
+            fwd_info = []
+            if message.forward.sender_id:
+                fwd_entity = await app.get_entity(message.forward.sender_id)
+                fwd_name = fwd_entity.title if hasattr(fwd_entity, 'title') else (fwd_entity.first_name or 'Unknown')
+                fwd_username = getattr(fwd_entity, 'username', None)
+                if fwd_username:
+                    fwd_info.append(f"@{fwd_username}")
+                else:
+                    fwd_info.append(fwd_name)
+            elif message.forward.channel_id:
+                fwd_entity = await app.get_entity(message.forward.channel_id)
+                fwd_name = fwd_entity.title if hasattr(fwd_entity, 'title') else (fwd_entity.first_name or 'Unknown')
+                fwd_info.append(fwd_name)
+            elif message.forward.chat_id:
+                fwd_entity = await app.get_entity(message.forward.chat_id)
+                fwd_name = fwd_entity.title if hasattr(fwd_entity, 'title') else (fwd_entity.first_name or 'Unknown')
+                fwd_info.append(fwd_name)
+            if message.forward.date:
+                fwd_info.append(f"от {message.forward.date.strftime('%Y-%m-%d %H:%M')}")
+        except Exception as e:
+            logger.info(f"Ошибка получения информации о пересылке: {e}")
+            fwd_info = ["Неизвестный источник"]
+            
 
     clean_text = message_text
     message_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
@@ -353,7 +415,7 @@ async def process_message(message):
     # 3. Проверка по хэшу в БД
     existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
     if existing:
-        logger.info(f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем.")
+        logger.warning(f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем.")
         return
 
     # 4. Конвертация текста
@@ -396,7 +458,16 @@ async def process_message(message):
             logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")
             await bot.send_message(
                 config.bot.chat_id,
-                f"Новая вакансия по профессии '{prof_name}':\n{link}\nОценка: {score:.2f}\nID вакансии: {vacancy_id}\n\n\n{html_text}",
+                text=LEXICON_PARSER["vacancy_data"].format(
+                    profession_name=prof_name,
+                    vacancy_id=vacancy_id,
+                    score=score,
+                    orig_vacancy_link=original_link,
+                    source=entity_name if not entity_username else f"@{entity_username}",
+                    vacancy_link=link,
+                    fwd_info = ' '.join(fwd_info) if message.forward else 'Нет',
+                    vacancy_text=html_text,
+                ),
                 parse_mode="HTML",
                 disable_web_page_preview=True,
                 reply_markup=await get_delete_vacancy_kb(vacancy_id),
@@ -409,7 +480,7 @@ async def process_message(message):
 
 # ==================== Обработка новых сообщений в реальном времени ====================
 # Список чатов, которые нужно игнорировать
-EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]  # примеры chat_id
+EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
 @app.on(events.NewMessage())
 async def on_new_message(event):

@@ -213,6 +213,17 @@ LEXICON_PARSER = {
     "add_stopword_prompt": (
         "Пожалуйста, введите стоп-слово (выражение) для добавления:"
     ),
+    "vacancy_data": (
+        "<b>Профессия:</b> {profession_name}\n"
+        "<b>ID вакансии:</b> {vacancy_id}"
+        "<b>Оценка:</b> {score:.2f}\n"
+        "<b>Оригинальная ссылка на вакансию:</b> {orig_vacancy_link}\n"
+        "<b>Источник:</b> {source}\n"
+        "<b>Ссылка на вакансию в чате:</b> {vacancy_link}\n\n"
+        "Данные пересылки:\n"
+        "{fwd_info}"
+        "<b>Текст вакансии:</b>\n{vacancy_text}"
+    ),
 }
 
 LEXICON_BUTTONS = {}
