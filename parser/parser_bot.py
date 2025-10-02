@@ -365,20 +365,18 @@ async def process_message(message):
     try:
         user = await message.get_sender()
         if user:
-            username = user.username  # либо None, если юзер без ника
-            if username:
-                print('Ник автора: @' + username)
-            else:
-                print('Ника нет, имя автора:', user.first_name or 'Unknown')
+            username = user.username
+            entity_name = user.first_name or "Unknown"
+            entity_username = username
+        elif message.from_id:
+            entity = await app.get_entity(message.from_id)
+            entity_name = getattr(entity, "title", None) or getattr(entity, "first_name", "Unknown")
+            entity_username = getattr(entity, "username", None)
         else:
-            print('Не удалось определить автора (анонимный/канал)')
-            
-        if message.from_id:
-            entity = await app.get_entity(message.from_id) 
-            entity_name = entity.title if hasattr(entity, 'title') else (entity.first_name or 'Unknown')
-            entity_username = getattr(entity, 'username', None)
+            entity_name = "Unknown"
+            entity_username = None
+
     except Exception as e:
-        print(f"Ошибка получения информации об авторе: {e}")
         entity_name = "Unknown"
         entity_username = None
 
@@ -386,24 +384,35 @@ async def process_message(message):
     if message.forward:
         try:
             fwd_info = []
-            if message.forward.sender_id:
-                fwd_entity = await app.get_entity(message.forward.sender_id)
-                fwd_name = fwd_entity.title if hasattr(fwd_entity, 'title') else (fwd_entity.first_name or 'Unknown')
-                fwd_username = getattr(fwd_entity, 'username', None)
+
+            # 1. Если переслали от конкретного пользователя (и Telethon уже вернул объект)
+            if message.forward.sender:
+                fwd_user = message.forward.sender
+                fwd_username = fwd_user.username
                 if fwd_username:
                     fwd_info.append(f"@{fwd_username}")
                 else:
-                    fwd_info.append(fwd_name)
-            elif message.forward.channel_id:
-                fwd_entity = await app.get_entity(message.forward.channel_id)
-                fwd_name = fwd_entity.title if hasattr(fwd_entity, 'title') else (fwd_entity.first_name or 'Unknown')
-                fwd_info.append(fwd_name)
-            elif message.forward.chat_id:
-                fwd_entity = await app.get_entity(message.forward.chat_id)
-                fwd_name = fwd_entity.title if hasattr(fwd_entity, 'title') else (fwd_entity.first_name or 'Unknown')
-                fwd_info.append(fwd_name)
-            if message.forward.date:
-                fwd_info.append(f"от {message.forward.date.strftime('%Y-%m-%d %H:%M')}")
+                    fwd_info.append(fwd_user.first_name or "Unknown User")
+
+            # 2. Если переслали из чата/канала
+            elif message.forward.chat:
+                fwd_chat = message.forward.chat
+                fwd_info.append(fwd_chat.title)
+
+            # 3. В крайнем случае — from_id (но это ненадёжно)
+            elif message.forward.from_id:
+                try:
+                    fwd_entity = await app.get_entity(message.forward.from_id)
+                    fwd_name = getattr(fwd_entity, "title", None) or getattr(fwd_entity, "first_name", "Unknown")
+                    fwd_username = getattr(fwd_entity, "username", None)
+                    fwd_info.append(f"@{fwd_username}" if fwd_username else fwd_name)
+                except Exception as e:
+                    logger.info(f"Не удалось получить entity для from_id: {e}")
+                    fwd_info.append("Неизвестный источник")
+
+            else:
+                fwd_info.append("Неизвестный источник")
+
         except Exception as e:
             logger.info(f"Ошибка получения информации о пересылке: {e}")
             fwd_info = ["Неизвестный источник"]

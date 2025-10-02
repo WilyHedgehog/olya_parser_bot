@@ -38,8 +38,10 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
         if url == True:
             main_vacancy = await get_vacancy_by_text(vacancy.text)
             vacancy_url = main_vacancy.url
+            vacancy_id = main_vacancy.id
         else:
             vacancy_url = vacancy.url
+            vacancy_id = vacancy.id
         try:
             msg = vacancy.text + f"\n\nСсылка на вакансию в чате: {vacancy_url}"
             message = await bot.send_message(
@@ -47,7 +49,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
             )
             print(f"Vacancy sent to user {user_id}, message ID:🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶 {message.message_id}")
             await record_vacancy_sent(
-                user_id=user_id, vacancy_id=main_vacancy.id, message_id=message.message_id
+                user_id=user_id, vacancy_id=vacancy_id, message_id=message.message_id
             )
             await asyncio.sleep(1)
             return True

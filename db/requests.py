@@ -464,13 +464,13 @@ async def record_vacancy_sent(user_id: int, vacancy_id: UUID, message_id: int):
 async def cleanup_old_data(days: int = 2):
     threshold = datetime.now(MOSCOW_TZ) - timedelta(days=days)
     async with Sessionmaker() as session:
-        await session.execute(delete(Vacancy).where(Vacancy.created_at < threshold))
         await session.execute(
             delete(VacancyQueue).where(VacancyQueue.created_at < threshold)
         )
         await session.execute(
             delete(VacancyTwoHours).where(VacancyTwoHours.created_at < threshold)
         )
+        await session.execute(delete(Vacancy).where(Vacancy.created_at < threshold))
         await session.commit()
         
         
