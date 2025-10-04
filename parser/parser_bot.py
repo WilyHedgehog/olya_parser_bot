@@ -5,7 +5,12 @@ import random
 import hashlib
 from config.config import load_config, Config
 import logging
-from db.requests import save_vacancy, get_vacancy_by_hash, save_vacancy_hash
+from db.requests import (
+    save_vacancy,
+    get_vacancy_by_hash,
+    save_vacancy_hash,
+    record_vacancy_sent,
+)
 from find_job_process.job_dispatcher import send_vacancy_to_users
 from telethon.tl.types import (
     MessageEntityBold,
@@ -261,7 +266,6 @@ old_professions = {
 }
 
 
-
 processed_messages = set()
 
 app = TelegramClient("Telethon_UserBot", config.parser.api_id, config.parser.api_hash)
@@ -284,11 +288,12 @@ import re
 
 def clean_vacancy_text(text: str) -> str:
     """Чистим текст от хэштегов, @ и ссылок для нормализации"""
-    text = re.sub(r'@\w+', '', text)
-    text = re.sub(r'https?://t\.me/\S+', '', text)
-    text = re.sub(r'#\w+', '', text)
-    text = re.sub(r'\n\s*\n', '\n', text)
+    text = re.sub(r"@\w+", "", text)
+    text = re.sub(r"https?://t\.me/\S+", "", text)
+    text = re.sub(r"#\w+", "", text)
+    text = re.sub(r"\n\s*\n", "\n", text)
     return text.strip()
+
 
 def text_hash(text: str) -> str:
     return hashlib.md5(text.encode("utf-8")).hexdigest()
@@ -359,9 +364,9 @@ async def process_message(message):
         return
 
     logger.info(f"Проверяем сообщение {message.id}: {message.date}")
-    
+
     original_link = get_message_link(message)
-    
+
     try:
         user = await message.get_sender()
         if user:
@@ -370,7 +375,9 @@ async def process_message(message):
             entity_username = username
         elif message.from_id:
             entity = await app.get_entity(message.from_id)
-            entity_name = getattr(entity, "title", None) or getattr(entity, "first_name", "Unknown")
+            entity_name = getattr(entity, "title", None) or getattr(
+                entity, "first_name", "Unknown"
+            )
             entity_username = getattr(entity, "username", None)
         else:
             entity_name = "Unknown"
@@ -380,7 +387,6 @@ async def process_message(message):
         entity_name = "Unknown"
         entity_username = None
 
-    
     if message.forward:
         try:
             fwd_info = []
@@ -403,7 +409,9 @@ async def process_message(message):
             elif message.forward.from_id:
                 try:
                     fwd_entity = await app.get_entity(message.forward.from_id)
-                    fwd_name = getattr(fwd_entity, "title", None) or getattr(fwd_entity, "first_name", "Unknown")
+                    fwd_name = getattr(fwd_entity, "title", None) or getattr(
+                        fwd_entity, "first_name", "Unknown"
+                    )
                     fwd_username = getattr(fwd_entity, "username", None)
                     fwd_info.append(f"@{fwd_username}" if fwd_username else fwd_name)
                 except Exception as e:
@@ -416,7 +424,6 @@ async def process_message(message):
         except Exception as e:
             logger.info(f"Ошибка получения информации о пересылке: {e}")
             fwd_info = ["Неизвестный источник"]
-            
 
     clean_text = message_text
     message_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
@@ -424,7 +431,9 @@ async def process_message(message):
     # 3. Проверка по хэшу в БД
     existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
     if existing:
-        logger.warning(f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем.")
+        logger.warning(
+            f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем."
+        )
         return
 
     # 4. Конвертация текста
@@ -444,7 +453,7 @@ async def process_message(message):
         forwarded_msg = await app.forward_messages(
             entity=config.bot.wacancy_chat_id,
             messages=message.id,
-            from_peer=message.chat_id
+            from_peer=message.chat_id,
         )
         chat_id = forwarded_msg.chat_id
         msg_id = forwarded_msg.id
@@ -460,36 +469,43 @@ async def process_message(message):
             text=html_text,
             proffname=prof_name,
             score=score,
-            url=link,
-            text_hash=message_hash
+            url=original_link,
+            text_hash=message_hash,
         )
         if vacancy_id:
             logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")
-            await bot.send_message(
+            reply = await bot.send_message(
                 config.bot.chat_id,
                 text=LEXICON_PARSER["vacancy_data"].format(
                     profession_name=prof_name,
                     vacancy_id=vacancy_id,
                     score=score,
                     orig_vacancy_link=original_link,
-                    source=entity_name if not entity_username else f"@{entity_username}",
+                    source=(
+                        entity_name if not entity_username else f"@{entity_username}"
+                    ),
                     vacancy_link=link,
-                    fwd_info = ' '.join(fwd_info) if message.forward else 'Нет',
+                    fwd_info=" ".join(fwd_info) if message.forward else "Нет",
                     vacancy_text=html_text,
                 ),
                 parse_mode="HTML",
                 disable_web_page_preview=True,
                 reply_markup=await get_delete_vacancy_kb(vacancy_id),
             )
+            await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
             await send_vacancy_to_users(vacancy_id)
         else:
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
 
-    await asyncio.sleep(random.uniform(config.parser.delay_min, config.parser.delay_max))
+    await asyncio.sleep(
+        random.uniform(config.parser.delay_min, config.parser.delay_max)
+    )
+
 
 # ==================== Обработка новых сообщений в реальном времени ====================
 # Список чатов, которые нужно игнорировать
 EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
+
 
 @app.on(events.NewMessage())
 async def on_new_message(event):
@@ -501,6 +517,10 @@ async def on_new_message(event):
     if event.chat_id in EXCLUDED_CHAT_IDS:
         return
 
+    sender = await event.get_sender()
+    if sender and sender.bot:
+        logger.info(f"⚙️ Игнорируем сообщение от бота: {sender.username or sender.id}")
+        return
     await process_message(event.message)
 
 

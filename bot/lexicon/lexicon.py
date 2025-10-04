@@ -215,7 +215,7 @@ LEXICON_PARSER = {
     ),
     "vacancy_data": (
         "<b>Профессия:</b> {profession_name}\n"
-        "<b>ID вакансии:</b> {vacancy_id}"
+        "<b>ID вакансии:</b> {vacancy_id}\n"
         "<b>Оценка:</b> {score:.2f}\n"
         "<b>Оригинальная ссылка на вакансию:</b> {orig_vacancy_link}\n"
         "<b>Источник:</b> {source}\n"
