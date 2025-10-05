@@ -50,6 +50,11 @@ class GetcourseSettings:
 
 
 @dataclass
+class NatsSettings:
+    servers: list[str]
+
+
+@dataclass
 class Config:
     bot: TgBot
     app: AppSettings
@@ -57,6 +62,7 @@ class Config:
     parser: ParserSettings
     database: DatabaseSettings
     getcourse: GetcourseSettings
+    nats: NatsSettings
 
 
 def load_config(path: str | None = None) -> Config:
@@ -96,4 +102,7 @@ def load_config(path: str | None = None) -> Config:
             group_id=env("GETCOURSE_GROUP_ID"),
             gc_name=env("GETCOURSE_ACCOUNT"),
         ),
+        nats=NatsSettings(
+            servers=env.list("NATS_SERVERS"),
+        )
     )

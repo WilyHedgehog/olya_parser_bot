@@ -13,8 +13,10 @@ bot = Bot(
     session=AiohttpSession(),
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
-storage = MemoryStorage()
-dp = Dispatcher(storage=storage)
+
+async def get_db(storage) -> Dispatcher:
+    dp = Dispatcher(storage=storage)
+    return dp
 
 _bot_id_cache = None  # глобальная переменная для кеша
 
