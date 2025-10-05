@@ -97,7 +97,7 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
             if kw.lower() in lowered:
                 score += weight
         keyword_scores[name] = score
-    #print(f"Очки по ключевым словам: {keyword_scores}")
+    print(f"Очки по ключевым словам: {keyword_scores}")
 
     # --- сходство по эмбеддингам ---
     text_emb = model.encode(text, convert_to_tensor=True)
@@ -106,14 +106,14 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
     for name, prof_emb in embeddings.items():
         sim = util.cos_sim(text_emb, prof_emb).item()
         embedding_scores[name] = sim
-    #print(f"Сходство по эмбеддингам: {embedding_scores}")
+    print(f"Сходство по эмбеддингам: {embedding_scores}")
 
     # --- итоговый рейтинг ---
     final_scores = {
         name: keyword_scores[name] + embedding_weight * embedding_scores[name]
         for name in professions_cache
     }
-    #print(f"Итоговые рейтинги: {final_scores}")
+    print(f"Итоговые рейтинги: {final_scores}")
 
     ranked = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
     return {"status": "ok", "ranked": ranked}
