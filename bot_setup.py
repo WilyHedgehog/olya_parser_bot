@@ -14,7 +14,7 @@ bot = Bot(
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 
-async def get_db(storage) -> Dispatcher:
+def get_db(storage) -> Dispatcher:
     dp = Dispatcher(storage=storage)
     return dp
 
