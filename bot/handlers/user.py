@@ -362,7 +362,7 @@ async def add_email_prompt(message: Message, state: FSMContext):
     await state.set_state(Main.add_email)  # Переходим в состояние ожидания email
 
 
-@router.message(F.data.startswith("check_author_"))
+@router.callback_query(F.data.startswith("check_author_"))
 async def check_author(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     vacancy_id = callback.data.split("_")[-1]
