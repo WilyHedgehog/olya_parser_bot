@@ -11,6 +11,7 @@ class TgBot:
     )
     chat_id: int = None  # ID чата для отправки уведомлений
     wacancy_chat_id: int = None  # ID чата для отправки вакансий
+    support_chat_id: int = None  # ID чата для поддержки
 
 
 @dataclass
@@ -75,6 +76,7 @@ def load_config(path: str | None = None) -> Config:
             admin_ids=env.list("ADMIN_IDS"),
             chat_id=env.int("CHAT_ID"),
             wacancy_chat_id=env.int("WACANCY_CHAT_ID"),
+            support_chat_id=env.int("SUPPORT_CHAT_ID"),
         ),
         app=AppSettings(
             host=env.str("HOST", "0.0.0.0"),

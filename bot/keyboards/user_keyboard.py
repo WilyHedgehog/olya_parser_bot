@@ -237,6 +237,12 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
     return keyboard
 
 
+async def get_need_author_kb(UUID: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Уточнить автора =>", callback_data=f"check_author_{UUID}"))
+    return builder.as_markup()
+
+
 confirm_email_button_kb = InlineKeyboardMarkup(
     inline_keyboard=[[confirm_email_button], [back_to_main_button]]
 )

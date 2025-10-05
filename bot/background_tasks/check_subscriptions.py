@@ -14,7 +14,6 @@ from bot.states.user import Main
 
 from db.requests import get_all_users, update_user_access, update_autopay_status
 from find_job_process.job_dispatcher import send_two_hours_vacancies
-from bot.handlers.chat_admin import remove_expired_subscribers
 
 logger = logging.getLogger(__name__)
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
@@ -46,7 +45,6 @@ async def check_subscriptions():
                 logger.info(f"User {user.telegram_id} subscription expired, revoking access.")
                 await update_user_access(user.telegram_id, False)
                 await update_autopay_status(user.telegram_id, False)
-                await remove_expired_subscribers(user.telegram_id)
 
                 photo = FSInputFile("bot/assets/Подписка закончилась-1.png")
                 key = StorageKey(bot_id=bot_id, user_id=user.telegram_id, chat_id=user.telegram_id)

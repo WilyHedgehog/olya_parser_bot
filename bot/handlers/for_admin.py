@@ -577,12 +577,11 @@ async def process_delete_stopword(
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("delete_vacancy_"))
-async def process_delete_vacancy(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    print(f"🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵🥵{callback.data}")
+async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession):
     vacancy_id = callback.data.split("_")[2]
     result = await delete_vacancy_evrerywhere(session, vacancy_id)
     if result:
-        await callback.message.answer("Вакансия успешно удалена.")
+        await callback.message.edit_text("Вакансия успешно удалена.")
         logger.info(f"Vacancy {vacancy_id} deleted successfully.")
     else:
         await callback.message.answer("Ошибка при удалении вакансии.")

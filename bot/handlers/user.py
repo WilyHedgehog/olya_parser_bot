@@ -8,6 +8,7 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.utils.deep_linking import create_start_link
+from bot_setup import bot
 
 MOSCOW_TZ = zoneinfo.ZoneInfo("Europe/Moscow")
 
@@ -40,7 +41,8 @@ from bot.filters.filters import (
     UserHaveProfessions,
     IsNewUser,
 )
-from bot.lexicon.lexicon import LEXICON_USER
+from bot.lexicon.lexicon import LEXICON_USER, LEXICON_ADMIN
+from config.config import load_config
 from bot.states.user import Main
 from bot.states.admin import Prof
 from bot.keyboards.user_keyboard import (
@@ -56,6 +58,7 @@ from bot.keyboards.user_keyboard import (
 
 # Инициализируем логгер модуля
 logger = logging.getLogger(__name__)
+config = load_config()
 
 # Инициализируем роутер уровня модуля
 router = Router(name="main router")
@@ -68,10 +71,10 @@ async def try_delete_message_old(message: Message, state: FSMContext):
         )
     except Exception as e:
         pass
-    
-    
+
+
 async def try_delete_message(message: Message):
-    try: 
+    try:
         await message.delete()
     except Exception as e:
         pass
@@ -98,9 +101,9 @@ async def start_cmd_new_user(
     message: Message,
     state: FSMContext,
     session: AsyncSession,
-    command: CommandStart,   # <-- вот тут прилетает объект команды
+    command: CommandStart,  # <-- вот тут прилетает объект команды
 ):
-    payload = command.args   # в aiogram3 вместо message.args
+    payload = command.args  # в aiogram3 вместо message.args
     if payload and payload.startswith("referral_"):
         try:
             referrer_id = int(payload.split("_")[1])
@@ -175,9 +178,9 @@ async def change_delivery_mode(
     # Если нажали на уже выбранный режим
     if mode == user_mode:
         return
-    
+
     if mode == "two_hours":
-        await callback.answer("Режим скоро будет доступен",show_alert=True)
+        await callback.answer("Режим скоро будет доступен", show_alert=True)
         return
 
     # Сохраняем новый режим в базе
@@ -357,6 +360,25 @@ async def add_email_prompt(message: Message, state: FSMContext):
     )
     await state.update_data(reply_id=reply.message_id)
     await state.set_state(Main.add_email)  # Переходим в состояние ожидания email
+
+
+@router.message(F.data.startswith("check_author_"), Main.main)
+async def check_author(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    UUID = callback.data.split("_")[-1]
+    await callback.message.answer(
+        "Запрос на уточнение автора вакансии получен. Мы свяжемся с вами в ближайшее время.",
+        show_alert=True,
+    )
+    if callback.from_user.username is None:
+        username = "Не указан"
+    else:
+        username = "@" + callback.from_user.username
+        
+    await bot.send_message(
+        chat_id=config.bot.support_chat_id,
+        text=LEXICON_ADMIN["need_author"].format(vacancy_id=UUID, user_id=callback.from_user.id, username=username)
+    )
 
 
 @router.message(Main.add_email, F.text)
@@ -608,15 +630,14 @@ async def referal(message: Message, state: FSMContext):
     )
     await state.update_data(reply_id=reply.message_id)
 
+
 @router.message(Command("help"))
 @router.message(Command("help"), Main.main)
 async def help_cmd(message: Message, state: FSMContext):
     await try_delete_message_old(message, state)
     await try_delete_message(message)
     await state.set_state(Main.main)
-    reply = await message.answer(
-        LEXICON_USER["help_cmd"], reply_markup=back_to_main_kb
-    )
+    reply = await message.answer(LEXICON_USER["help_cmd"], reply_markup=back_to_main_kb)
     await state.update_data(reply_id=reply.message_id)
 
 

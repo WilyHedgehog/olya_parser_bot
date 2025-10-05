@@ -6,8 +6,9 @@ from zoneinfo import ZoneInfo
 from uuid import UUID
 import asyncio
 from bot_setup import scheduler
-
 from bot_setup import bot
+
+from bot.keyboards.user_keyboard import get_need_author_kb
 
 from db.models import Vacancy
 
@@ -45,7 +46,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
         try:
             msg = vacancy.text + f"\n\nСсылка на вакансию в чате: {vacancy_url}"
             message = await bot.send_message(
-                user_id, msg, disable_web_page_preview=True
+                user_id, msg, disable_web_page_preview=True, reply_markup=await get_need_author_kb(str(vacancy_id))
             )
             print(f"Vacancy sent to user {user_id}, message ID:🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶 {message.message_id}")
             await record_vacancy_sent(
