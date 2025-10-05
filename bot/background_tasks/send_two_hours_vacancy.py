@@ -6,7 +6,7 @@ from bot_setup import scheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from zoneinfo import ZoneInfo
-from bot_setup import bot, dp, get_bot_id
+from bot_setup import bot, get_bot_id
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 from bot.states.user import Main
 import asyncio

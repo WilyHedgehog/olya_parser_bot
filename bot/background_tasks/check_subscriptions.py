@@ -8,7 +8,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from aiogram.types import FSInputFile
 from aiogram.fsm.storage.base import StorageKey
-from bot_setup import bot, dp, get_bot_id
+from bot_setup import bot, get_bot_id
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 from bot.states.user import Main
 
@@ -50,13 +50,13 @@ async def check_subscriptions():
 
                 photo = FSInputFile("bot/assets/Подписка закончилась-1.png")
                 key = StorageKey(bot_id=bot_id, user_id=user.telegram_id, chat_id=user.telegram_id)
-                await dp.storage.set_state(key=key, state=Main.main)
+                #await dp.storage.set_state(key=key, state=Main.main)
                 message = await bot.send_photo(
                     chat_id=user.telegram_id,
                     photo=photo,
                     caption=LEXICON_SUBSCRIBE["subscription_ended"]
                 )
-                await dp.storage.update_data(key=key, data={"reply_id": message.message_id})
+                #await dp.storage.update_data(key=key, data={"reply_id": message.message_id})
                 await asyncio.sleep(0.5)
 
         except Exception as e:
