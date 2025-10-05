@@ -24,6 +24,8 @@ from bot_setup import bot
 from bot.keyboards.admin_keyboard import get_delete_vacancy_kb
 from bot.lexicon.lexicon import LEXICON_PARSER
 
+from utils.nats_connect import connect_to_nats, setup_vacancy_stream
+
 config: Config = load_config()
 logger = logging.getLogger(__name__)
 
@@ -521,7 +523,7 @@ EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
 import json
 import logging
-from main import js
+
 from config.config import load_config
 
 logger = logging.getLogger(__name__)
@@ -529,15 +531,19 @@ config = load_config()
 
 EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
+
 @app.on(events.NewMessage())
 async def on_new_message(event):
     if event.out or event.chat_id in EXCLUDED_CHAT_IDS:
         return
 
+
     sender = await event.get_sender()
     if sender and sender.bot:
         return
 
+    nc, js = await connect_to_nats()
+    
     task = {"message_id": event.message.id, "chat_id": event.chat_id}
     await js.publish("vacancy.queue", json.dumps(task).encode())
     logger.info(f"📨 Задача добавлена в очередь: {task}")
