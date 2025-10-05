@@ -362,10 +362,10 @@ async def add_email_prompt(message: Message, state: FSMContext):
     await state.set_state(Main.add_email)  # Переходим в состояние ожидания email
 
 
-@router.message(F.data.startswith("check_author_"), Main.main)
+@router.message(F.data.startswith("check_author_"))
 async def check_author(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    UUID = callback.data.split("_")[-1]
+    vacancy_id = callback.data.split("_")[-1]
     await callback.message.answer(
         "Запрос на уточнение автора вакансии получен. Мы свяжемся с вами в ближайшее время.",
         show_alert=True,
@@ -377,7 +377,7 @@ async def check_author(callback: CallbackQuery, state: FSMContext):
         
     await bot.send_message(
         chat_id=config.bot.support_chat_id,
-        text=LEXICON_ADMIN["need_author"].format(vacancy_id=UUID, user_id=callback.from_user.id, username=username)
+        text=LEXICON_ADMIN["need_author"].format(vacancy_id=vacancy_id, user_id=callback.from_user.id, username=username)
     )
 
 
