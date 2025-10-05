@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from utils.nats_connect import connect_to_nats
+from utils.nats_connect import connect_to_nats, setup_vacancy_stream
 from storage.nats_storage import NatsStorage
 
 from datetime import datetime, timedelta
@@ -25,6 +25,7 @@ from parser.parser_bot import main as parser_main
 
 from db.database import Sessionmaker
 from db.requests import set_new_days, update_user_is_pay_status, load_stopwords
+from bot.background_tasks.worker import vacancy_worker
 
 from find_job_process.find_job import load_professions
 
@@ -37,6 +38,7 @@ from bot.middlewares.middlewares import (
     FreeThreeDaysMiddleware,
     UserProfessionsMiddleware,
 )
+
 
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
 
@@ -73,12 +75,16 @@ def create_app(config: Config) -> FastAPI:
             format=config.log.format,
         )
 
-        
+        global js
         # Подключаем NATS и настраиваем хранилище
         nc, js = await connect_to_nats(servers=config.nats.servers)
         storage: NatsStorage = await NatsStorage(nc=nc, js=js).create_storage()
-    
 
+        
+        
+        asyncio.create_task(vacancy_worker(js))
+        await setup_vacancy_stream(js)
+        
         global dp
         dp = dispatcher_factory(storage)
         me = await bot.me()
@@ -125,6 +131,8 @@ def create_app(config: Config) -> FastAPI:
         return {"ok": True}
 
     return app
+
+
 
 
 # --- Загружаем конфиг и создаём приложение --

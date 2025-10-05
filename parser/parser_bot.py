@@ -28,6 +28,16 @@ config: Config = load_config()
 logger = logging.getLogger(__name__)
 
 
+
+config = load_config()
+logger = logging.getLogger(__name__)
+
+processed_messages = set()
+
+
+
+
+
 old_professions = {
     "Технический специалист онлайн-школ": {
         "keywords": {
@@ -508,21 +518,34 @@ async def process_message(message):
 EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
 
+
+import json
+import logging
+from main import js
+from config.config import load_config
+
+logger = logging.getLogger(__name__)
+config = load_config()
+
+EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
+
 @app.on(events.NewMessage())
 async def on_new_message(event):
-    # Игнорируем исходящие сообщения
-    if event.out:
-        return
-    print(event.get_sender())
-    # Игнорируем сообщения из определённых чатов
-    if event.chat_id in EXCLUDED_CHAT_IDS:
+    if event.out or event.chat_id in EXCLUDED_CHAT_IDS:
         return
 
     sender = await event.get_sender()
     if sender and sender.bot:
-        logger.info(f"⚙️ Игнорируем сообщение от бота: {sender.username or sender.id}")
         return
-    await process_message(event.message)
+
+    task = {"message_id": event.message.id, "chat_id": event.chat_id}
+    await js.publish("vacancy.queue", json.dumps(task).encode())
+    logger.info(f"📨 Задача добавлена в очередь: {task}")
+
+
+
+
+
 
 
 # ==================== Главная функция ====================
