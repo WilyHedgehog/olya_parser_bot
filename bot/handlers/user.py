@@ -364,7 +364,6 @@ async def add_email_prompt(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("check_author_"))
 async def check_author(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
     vacancy_id = callback.data.split("_")[-1]
     await callback.answer(
         "Запрос на уточнение автора вакансии получен. Мы свяжемся с вами в ближайшее время.",
