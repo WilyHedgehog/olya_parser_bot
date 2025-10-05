@@ -513,7 +513,7 @@ async def on_new_message(event):
     # Игнорируем исходящие сообщения
     if event.out:
         return
-
+    print(event.get_sender())
     # Игнорируем сообщения из определённых чатов
     if event.chat_id in EXCLUDED_CHAT_IDS:
         return
