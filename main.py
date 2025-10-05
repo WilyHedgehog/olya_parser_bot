@@ -7,6 +7,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from utils.nats_connect import connect_to_nats
+from storage.nats_storage import NatsStorage
+
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -15,7 +18,7 @@ from aiogram.types import Update
 from aiogram.enums import ParseMode
 from aiogram.types import FSInputFile
 
-from bot_setup import bot, dp
+from bot_setup import bot, get_db
 from config.config import Config, load_config
 from bot.handlers import get_routers
 from parser.parser_bot import main as parser_main
@@ -47,7 +50,9 @@ MONTHS = {
 }
 
 
-def dispatcher_factory() -> Dispatcher:
+def dispatcher_factory(storage) -> Dispatcher:
+    dp = get_db(storage)
+    
     dp.update.middleware(DbSessionMiddleware(Sessionmaker))
     dp.update.middleware(TrackAllUsersMiddleware())
     dp.update.middleware(ShadowBanMiddleware())
@@ -60,19 +65,6 @@ def dispatcher_factory() -> Dispatcher:
 
 
 def create_app(config: Config) -> FastAPI:
-
-    async def wait_for_postgres(url: str, retries: int = 10, delay: int = 2):
-        for i in range(retries):
-            try:
-                conn = await asyncpg.connect(url)
-                await conn.close()
-                print("Postgres ready!")
-                return
-            except Exception:
-                print(f"Waiting for Postgres... attempt {i+1}")
-                await asyncio.sleep(delay)
-        raise RuntimeError("Postgres did not start in time!")
-
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # --- Startup ---
@@ -81,10 +73,14 @@ def create_app(config: Config) -> FastAPI:
             format=config.log.format,
         )
 
-        # Ждем Postgres
-        #await wait_for_postgres(config.database.url)
+        
+        # Подключаем NATS и настраиваем хранилище
+        nc, js = await connect_to_nats(servers=config.nats.servers)
+        storage: NatsStorage = await NatsStorage(nc=nc, js=js).create_storage()
+    
 
-        dispatcher_factory()
+        global dp
+        dp = dispatcher_factory(storage)
         me = await bot.me()
         logger.info(f"Bot {me.first_name} starting with webhook: {WEBHOOK_PATH}")
 
@@ -116,6 +112,7 @@ def create_app(config: Config) -> FastAPI:
         # --- Shutdown ---
         await bot.delete_webhook()
         await bot.session.close()
+        await nc.close()
         logger.info("Bot stopped")
 
     app = FastAPI(title="Telegram Bot API", lifespan=lifespan)

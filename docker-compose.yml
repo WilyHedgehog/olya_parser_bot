@@ -3,7 +3,7 @@ services:
     image: postgres:15-alpine
     restart: always
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: superolyauser
       POSTGRES_PASSWORD: 2StDRkCeJJJTNtd
@@ -29,6 +29,33 @@ services:
     networks:
       - botnet
 
+
+  nats:
+    image: nats:latest
+    entrypoint: /nats-server
+    command: "-c /config/server.conf"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./nats/data:/data
+      - ./nats/config:/config
+    networks:
+      - botnet
+  
+  nats-nui:
+    image: ghcr.io/nats-nui/nui:latest
+    container_name: nats-nui
+    ports:
+      - "31311:31311"  # Порт для доступа к NATS NUI
+    volumes:
+      - ./nui/db:/db
+    depends_on:
+      - nats
+    networks:
+      - botnet
+
+
   bot_app:
     build: 
       context: ./  
@@ -47,7 +74,8 @@ services:
       - botnet
     volumes:
       - ./:/app
-      
+
+
 volumes:
   db_data:
   pgadmin_data:
