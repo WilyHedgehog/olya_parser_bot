@@ -6,7 +6,6 @@ import hashlib
 from config.config import load_config, Config
 import logging
 from db.requests import (
-    save_vacancy,
     get_vacancy_by_hash,
     save_vacancy_hash,
     record_vacancy_sent,
@@ -471,6 +470,8 @@ async def process_message(message):
             score=score,
             url=original_link,
             text_hash=message_hash,
+            vacancy_source=entity_name if not entity_username else f"@{entity_username}",
+            forwarding_source=" ".join(fwd_info) if message.forward else "Нет",
         )
         if vacancy_id:
             logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")

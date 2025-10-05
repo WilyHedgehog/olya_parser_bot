@@ -235,7 +235,6 @@ async def activate_promo(
     return text
 
 
-
 async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode | None:
     try:
         stmt = select(User).where(User.telegram_id == user_id)
@@ -266,8 +265,6 @@ async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode |
     except Exception as e:
         logger.error(f"Error fetching user ID {user_id}: {e}")
         return False
-
-
 
 
 async def set_new_days(mail: str, days: int):
@@ -341,8 +338,7 @@ stopwords_cache = {}
 async def add_to_vacancy_queue(text: str, profession_id: UUID, user_id: int):
     async with Sessionmaker() as session:
         stmt = select(VacancyQueue).where(
-            VacancyQueue.user_id == user_id,
-            VacancyQueue.text == text
+            VacancyQueue.user_id == user_id, VacancyQueue.text == text
         )
         result = await session.execute(stmt)
         existing = result.scalar_one_or_none()
@@ -363,10 +359,9 @@ async def add_to_vacancy_queue(text: str, profession_id: UUID, user_id: int):
 
 
 async def add_to_two_hours(text: str, profession_id: UUID, user_id: int):
-    async with Sessionmaker() as session:     
+    async with Sessionmaker() as session:
         stmt = select(VacancyTwoHours).where(
-            VacancyTwoHours.user_id == user_id,
-            VacancyTwoHours.text == text
+            VacancyTwoHours.user_id == user_id, VacancyTwoHours.text == text
         )
         result = await session.execute(stmt)
         existing = result.scalar_one_or_none()
@@ -384,6 +379,7 @@ async def add_to_two_hours(text: str, profession_id: UUID, user_id: int):
             logger.error(f"Error adding vacancy to two hours: {e}")
             await session.rollback()
             return False
+
 
 async def get_unsent_vacancies_by_user(user_id: int) -> list[VacancyQueue]:
     async with Sessionmaker() as session:
@@ -454,7 +450,7 @@ async def record_vacancy_sent(user_id: int, vacancy_id: UUID, message_id: int):
             .values(user_id=user_id, vacancy_id=vacancy_id, message_id=message_id)
             .on_conflict_do_update(
                 index_elements=["user_id", "vacancy_id"],
-                set_={"message_id": message_id}
+                set_={"message_id": message_id},
             )
         )
         await session.execute(stmt)
@@ -472,8 +468,8 @@ async def cleanup_old_data(days: int = 2):
         )
         await session.execute(delete(Vacancy).where(Vacancy.created_at < threshold))
         await session.commit()
-        
-        
+
+
 async def delete_vacancy_evrerywhere(session: AsyncSession, vacancy_id: UUID):
     try:
         # Получаем вакансию
@@ -483,7 +479,7 @@ async def delete_vacancy_evrerywhere(session: AsyncSession, vacancy_id: UUID):
         if not vacancy:
             logger.error(f"Vacancy with ID {vacancy_id} not found for deletion.")
             return False
-        
+
         logger.warning(f"🥵Deleting vacancy ID {vacancy_id} everywhere.🥵")
 
         # Находим все отправленные вакансии
@@ -497,16 +493,26 @@ async def delete_vacancy_evrerywhere(session: AsyncSession, vacancy_id: UUID):
             for sent in sent_vacancies:
                 try:
                     await bot.delete_message(sent.user_id, sent.message_id)
-                    logger.warning(f"🥵Deleted message {sent.message_id} for user {sent.user_id}.🥵")
+                    logger.warning(
+                        f"🥵Deleted message {sent.message_id} for user {sent.user_id}.🥵"
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to delete message {sent.message_id} for user {sent.user_id}: {e}")
+                    logger.warning(
+                        f"Failed to delete message {sent.message_id} for user {sent.user_id}: {e}"
+                    )
 
             # Удаляем записи из VacancySent
-            await session.execute(delete(VacancySent).where(VacancySent.vacancy_id == vacancy_id))
+            await session.execute(
+                delete(VacancySent).where(VacancySent.vacancy_id == vacancy_id)
+            )
 
         # Удаляем из очередей по vacancy_id
-        await session.execute(delete(VacancyQueue).where(VacancyQueue.text == vacancy.text))
-        await session.execute(delete(VacancyTwoHours).where(VacancyTwoHours.text == vacancy.text))
+        await session.execute(
+            delete(VacancyQueue).where(VacancyQueue.text == vacancy.text)
+        )
+        await session.execute(
+            delete(VacancyTwoHours).where(VacancyTwoHours.text == vacancy.text)
+        )
 
         # Теперь удаляем саму вакансию
         await session.execute(delete(Vacancy).where(Vacancy.id == vacancy_id))
@@ -541,43 +547,10 @@ async def dublicate_check(user_id: int, vacancy: Vacancy) -> bool:
     return True
 
 
-async def save_vacancy(
-    text: str, profession_name: str, url: str, score: float
-) -> int | None:
-    async with Sessionmaker() as session:
-        # Получаем профессию
-        stmt = select(Profession).where(Profession.name == profession_name)
-        result = await session.execute(stmt)
-        profession = result.scalar_one_or_none()
-        if not profession:
-            logger.error(f"Profession '{profession_name}' not found, skipping save.")
-            return None
-
-        # Проверяем существование вакансии
-        stmt = select(Vacancy).where(
-            Vacancy.text == text,
-            Vacancy.profession_id == profession.id,
-        )
-        result = await session.execute(stmt)
-        vacancy = result.scalar_one_or_none()
-        if vacancy:
-            logger.info(
-                f"Vacancy for profession '{profession_name}' already exists, using existing ID."
-            )
-            return vacancy.id  # возвращаем существующий ID
-
-        # Создаём новую
-        vacancy = Vacancy(text=text, profession_id=profession.id, url=url, score=score)
-        session.add(vacancy)
-        await session.commit()
-        await session.refresh(vacancy)
-        return vacancy.id
-
-
-
 def make_message_hash(text: str) -> str:
     """Создаем хэш для текста вакансии"""
     return hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()
+
 
 async def get_vacancy_by_hash(text_hash: str):
     async with Sessionmaker() as session:
@@ -585,13 +558,16 @@ async def get_vacancy_by_hash(text_hash: str):
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
-async def save_vacancy_hash(text, proffname, score, url, text_hash):
+
+async def save_vacancy_hash(
+    text, proffname, score, url, text_hash, vacancy_source=None, forwarding_source=None
+) -> UUID | None:
     async with Sessionmaker() as session:
         # Проверяем, есть ли вакансия с таким хэшем
         existing = await get_vacancy_by_hash(text_hash)
         if existing:
             return existing.id
-        
+
         res = select(Profession).where(Profession.name == proffname)
         result = await session.execute(res)
         profession = result.scalar_one_or_none()
@@ -606,6 +582,8 @@ async def save_vacancy_hash(text, proffname, score, url, text_hash):
             score=score,
             url=url,
             hash=text_hash,
+            vacancy_source=vacancy_source,
+            forwarding_source=forwarding_source,
         )
         session.add(vacancy)
         try:
@@ -618,19 +596,11 @@ async def save_vacancy_hash(text, proffname, score, url, text_hash):
             return existing.id if existing else None
 
 
-
-
-
-
-
-
-
 async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:
     async with Sessionmaker() as session:
         vacancy = await session.get(Vacancy, vacancy_id)
         await session.commit()
         return vacancy
-
 
 
 async def load_stopwords():
@@ -929,20 +899,23 @@ async def select_two_hours_users() -> list[User]:
     async with Sessionmaker() as session:
         result = await session.execute(
             select(User).where(
-                User.is_banned == False,
-                User.delivery_mode == "two_hours"
+                User.is_banned == False, User.delivery_mode == "two_hours"
             )
         )
         return result.scalars().all()
-    
-    
+
+
 async def check_user_has_active_subscription(telegram_id: int) -> bool:
     async with Sessionmaker() as session:
         user = await session.get(User, telegram_id)
-        if user and user.subscription_until and user.subscription_until > datetime.now(MOSCOW_TZ):
+        if (
+            user
+            and user.subscription_until
+            and user.subscription_until > datetime.now(MOSCOW_TZ)
+        ):
             return True
         return False
-    
+
 
 async def get_vacancy_by_text(text: str) -> Vacancy | None:
     async with Sessionmaker() as session:

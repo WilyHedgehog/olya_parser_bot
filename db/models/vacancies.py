@@ -18,6 +18,8 @@ class Vacancy(TimestampMixin, Base):
     score: Mapped[float] = mapped_column(Float, nullable=True)
     url: Mapped[str] = mapped_column(Text, nullable=True)
     hash: Mapped[str] = mapped_column(Text, nullable=True, unique=True, index=True)
+    vacancy_source: Mapped[str] = mapped_column(Text, nullable=True)
+    forwarding_source: Mapped[str] = mapped_column(Text, nullable=True)
 
     profession: Mapped["Profession"] = relationship(back_populates="vacancies")
     sent_to_users: Mapped[list["VacancySent"]] = relationship(back_populates="vacancy", cascade="all, delete-orphan")

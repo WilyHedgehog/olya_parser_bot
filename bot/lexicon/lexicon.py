@@ -224,6 +224,12 @@ LEXICON_PARSER = {
         "{fwd_info}\n\n"
         "<b>Текст вакансии:</b>\n{vacancy_text}"
     ),
+    "msg_for_user": (
+        "Для тебя нашлась вакансия.\n"
+        "Автор: {author}\n"
+        "Пересылка: {forwarded}\n\n"
+        "{vacancy_text}"
+    )
 }
 
 LEXICON_BUTTONS = {}

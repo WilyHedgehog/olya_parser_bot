@@ -7,7 +7,7 @@ from uuid import UUID
 import asyncio
 from bot_setup import scheduler
 from bot_setup import bot
-
+from bot.lexicon.lexicon import LEXICON_PARSER
 from bot.keyboards.user_keyboard import get_need_author_kb
 
 from db.models import Vacancy
@@ -34,21 +34,26 @@ TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
 
 
 # --- 2. Отправка вакансии пользователю ---
-async def send_vacancy(user_id: int, vacancy: Vacancy, url = None) -> bool:
+async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
     if await dublicate_check(user_id, vacancy):
         if url == True:
             main_vacancy = await get_vacancy_by_text(vacancy.text)
-            vacancy_url = main_vacancy.url
+            #vacancy_url = main_vacancy.url
             vacancy_id = main_vacancy.id
         else:
-            vacancy_url = vacancy.url
+            #vacancy_url = vacancy.url
             vacancy_id = vacancy.id
         try:
-            msg = vacancy.text + f"\n\nСсылка на вакансию в чате: {vacancy_url}"
             message = await bot.send_message(
-                user_id, msg, disable_web_page_preview=True, reply_markup=await get_need_author_kb(str(vacancy_id))
+                chat_id=user_id,
+                text=LEXICON_PARSER["msg_for_user"].format(
+                    author=vacancy.vacancy_source,
+                    forwarded=vacancy.forwarding_source,
+                    vacancy_text=vacancy.text,
+                ),
+                disable_web_page_preview=True,
+                reply_markup=await get_need_author_kb(str(vacancy_id)),
             )
-            print(f"Vacancy sent to user {user_id}, message ID:🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶🥶 {message.message_id}")
             await record_vacancy_sent(
                 user_id=user_id, vacancy_id=vacancy_id, message_id=message.message_id
             )
@@ -119,7 +124,9 @@ async def send_vacancy_from_queue(user_id: int):
         return
 
     for item in result:
-        sent = await send_vacancy(user_id, item, url=True)  # True, если реально отправили
+        sent = await send_vacancy(
+            user_id, item, url=True
+        )  # True, если реально отправили
         if sent:
             await mark_vacancy_as_sent(user_id, item.id)
 
