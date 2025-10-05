@@ -1,5 +1,5 @@
 from aiogram import Router
-from . import commands, for_admin, other, user, chat_admin
+from . import commands, for_admin, other, user
 
 
 def get_routers() -> list[Router]:
@@ -8,5 +8,4 @@ def get_routers() -> list[Router]:
         commands.router,
         other.router,
         user.router,
-        chat_admin.router,
     ]
