@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from parser.parser_bot import process_message
 from parser.telethon_client import app
 from telethon.errors import MessageIdInvalidError
@@ -63,3 +64,4 @@ async def vacancy_worker(js):
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки задачи: {e}")
                 await msg.nak()
+        await asyncio.sleep(0.5)  # Небольшая пауза между задачами
