@@ -1,12 +1,10 @@
-import asyncio
 import json
 import logging
 from parser.parser_bot import process_message
-from main import app  # твой Telethon клиент
 
 logger = logging.getLogger(__name__)
 
-async def vacancy_worker(js):
+async def vacancy_worker(app, js):
     sub = await js.pull_subscribe("vacancy.queue", durable="vacancy_worker")
     while True:
         msgs = await sub.fetch(batch=1, timeout=5)

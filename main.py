@@ -80,9 +80,9 @@ def create_app(config: Config) -> FastAPI:
         nc, js = await connect_to_nats()
         storage: NatsStorage = await NatsStorage(nc=nc, js=js).create_storage()
 
-        
-        
-        asyncio.create_task(vacancy_worker(js))
+
+        # Запускаем воркер для обработки вакансий
+        asyncio.create_task(vacancy_worker(app, js))
         await setup_vacancy_stream(js)
         
         global dp
