@@ -2,6 +2,7 @@ import json
 import logging
 from parser.parser_bot import process_message
 from parser.telethon_client import app
+from telethon.tl.types import InputPeerChannel, PeerChannel
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ async def vacancy_worker(js):
                 message_id = data["message_id"]
                 chat_id = data["chat_id"]
 
-                message = await app.get_messages(chat_id, ids=message_id)
+                entity = await app.get_entity(chat_id)
+                message = await app.get_messages(entity, ids=message_id)
                 await process_message(message)
 
                 await msg.ack()
