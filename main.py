@@ -80,9 +80,6 @@ def create_app(config: Config) -> FastAPI:
         storage: NatsStorage = await NatsStorage(nc=nc, js=js).create_storage()
 
 
-        # Запускаем воркер для обработки вакансий
-        await setup_vacancy_stream(js)
-        asyncio.create_task(vacancy_worker(js))
         
         global dp
         dp = dispatcher_factory(storage)
@@ -111,6 +108,9 @@ def create_app(config: Config) -> FastAPI:
         #start_scheduler_two_hours_vacancy_send()
         logger.info("Two hours vacancy scheduler started")
         
+        # Запускаем воркер для обработки вакансий
+        await setup_vacancy_stream(js)
+        asyncio.create_task(vacancy_worker(js))
 
         yield
 
