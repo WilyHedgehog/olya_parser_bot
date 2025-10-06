@@ -1,10 +1,11 @@
 import json
 import logging
 from parser.parser_bot import process_message
+from parser.parser_bot import app
 
 logger = logging.getLogger(__name__)
 
-async def vacancy_worker(app, js):
+async def vacancy_worker(js):
     sub = await js.pull_subscribe("vacancy.queue", durable="vacancy_worker")
     logger.info("🚀 Воркер запущен и слушает очередь 'vacancy.queue'")
     while True:
