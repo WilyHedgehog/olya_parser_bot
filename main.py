@@ -82,7 +82,7 @@ def create_app(config: Config) -> FastAPI:
 
         # Запускаем воркер для обработки вакансий
         await setup_vacancy_stream(js)
-        asyncio.create_task(vacancy_worker(app, js))
+        asyncio.create_task(vacancy_worker(js))
         
         global dp
         dp = dispatcher_factory(storage)
