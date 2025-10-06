@@ -13,7 +13,7 @@ class VacancySent(SentMixin, Base):
     __tablename__ = "vacancy_sent"
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    vacancy_id: Mapped[UUID] = mapped_column(ForeignKey("vacancies.id"))
+    vacancy_id: Mapped[UUID] = mapped_column(ForeignKey("vacancies.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.telegram_id"))
     message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     vacancy_text: Mapped[str | None] = mapped_column(nullable=True)

@@ -14,7 +14,7 @@ class Vacancy(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    profession_id: Mapped[UUID] = mapped_column(ForeignKey("professions.id"))
+    profession_id: Mapped[UUID] = mapped_column(ForeignKey("professions.id", ondelete="CASCADE"), nullable=False)
     score: Mapped[float] = mapped_column(Float, nullable=True)
     url: Mapped[str] = mapped_column(Text, nullable=True)
     hash: Mapped[str] = mapped_column(Text, nullable=True, unique=True, index=True)

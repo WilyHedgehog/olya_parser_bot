@@ -10,7 +10,7 @@ class Keyword(Base):
     __tablename__ = "keywords"
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    profession_id: Mapped[int] = mapped_column(ForeignKey("professions.id"))
+    profession_id: Mapped[int] = mapped_column(ForeignKey("professions.id", ondelete="CASCADE"))
     profession_name: Mapped[str] = mapped_column(String, nullable=False)
     word: Mapped[str] = mapped_column(Text, nullable=False)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)

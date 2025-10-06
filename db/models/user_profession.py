@@ -13,7 +13,7 @@ class UserProfession(Base):
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.telegram_id"))
-    profession_id: Mapped[UUID] = mapped_column(ForeignKey("professions.id"))
+    profession_id: Mapped[UUID] = mapped_column(ForeignKey("professions.id", ondelete="CASCADE"))
     is_selected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     
     __table_args__ = (
