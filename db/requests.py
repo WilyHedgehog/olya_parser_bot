@@ -302,12 +302,23 @@ async def delete_old_vacancies(session: AsyncSession):
 
 async def db_delete_profession(session: AsyncSession, profession_id: int) -> bool:
     try:
-        # Удаляем зависимые таблицы
+        # Удаляем зависимости
         await session.execute(delete(UserProfession).where(UserProfession.profession_id == profession_id))
         await session.execute(delete(VacancyQueue).where(VacancyQueue.profession_id == profession_id))
-        await session.execute(delete(Vacancy).where(Vacancy.profession_id == profession_id))
-        await session.execute(delete(Keyword).where(Keyword.profession_id == profession_id))  # добавляем ключевые слова
+        await session.execute(delete(Keyword).where(Keyword.profession_id == profession_id))
         
+        # Получаем вакансии профессии
+        vacancy_ids = await session.scalars(
+            select(Vacancy.id).where(Vacancy.profession_id == profession_id)
+        )
+        vacancy_ids = vacancy_ids.all()
+
+        if vacancy_ids:
+            # Удаляем связанные VacancySent
+            await session.execute(delete(VacancySent).where(VacancySent.vacancy_id.in_(vacancy_ids)))
+            # Удаляем сами вакансии
+            await session.execute(delete(Vacancy).where(Vacancy.id.in_(vacancy_ids)))
+
         # Удаляем профессию
         result = await session.execute(delete(Profession).where(Profession.id == profession_id))
         if result.rowcount == 0:
