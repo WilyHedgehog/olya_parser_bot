@@ -264,7 +264,7 @@ async def get_delete_vacancy_kb(vacancy_id) -> InlineKeyboardMarkup:
 async def get_vacancy_list_kb(vacancy_id: str) -> InlineKeyboardMarkup:
     vacancy = await get_vacancy_by_id(vacancy_id)
     builder = InlineKeyboardBuilder()
-    if not vacancy:
+    if not vacancy or vacancy.admin_chat_url is None:
         builder.row(
             InlineKeyboardButton(text="Ошика с получением ссылки", callback_data="noop")
         )
