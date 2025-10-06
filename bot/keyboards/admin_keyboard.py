@@ -261,7 +261,7 @@ async def get_delete_vacancy_kb(vacancy_id) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-async def get_vacancy_list_kb(vacancy_id: str) -> InlineKeyboardMarkup:
+async def get_vacancy_url_kb(vacancy_id: str) -> InlineKeyboardMarkup:
     vacancy = await get_vacancy_by_id(vacancy_id)
     builder = InlineKeyboardBuilder()
     if not vacancy or vacancy.admin_chat_url is None:
@@ -274,6 +274,7 @@ async def get_vacancy_list_kb(vacancy_id: str) -> InlineKeyboardMarkup:
             text="Оригинальная ссылка на вакансию", url=vacancy.admin_chat_url
         )
     )
+    return builder.as_markup()
 
 
 back_to_choosen_prof_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_choosen_prof]])
