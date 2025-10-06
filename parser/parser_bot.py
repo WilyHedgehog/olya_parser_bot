@@ -534,6 +534,8 @@ async def on_new_message(event):
     if event.out or event.chat_id in EXCLUDED_CHAT_IDS:
         return
 
+    nc, js = await connect_to_nats()
+
     sender = await event.get_sender()
     if sender and sender.bot:
         return
