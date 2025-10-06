@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from utils.nats_connect import connect_to_nats, setup_vacancy_stream
+from utils.nats_connect import get_nats_connection, setup_vacancy_stream
 from storage.nats_storage import NatsStorage
 
 from datetime import datetime, timedelta
@@ -76,7 +76,7 @@ def create_app(config: Config) -> FastAPI:
         )
 
         # Подключаем NATS и настраиваем хранилище
-        nc, js = await connect_to_nats()
+        nc, js = await get_nats_connection()
         storage: NatsStorage = await NatsStorage(nc=nc, js=js).create_storage()
 
 

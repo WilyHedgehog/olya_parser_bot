@@ -10,7 +10,7 @@ from db.requests import (
     save_vacancy_hash,
     record_vacancy_sent,
 )
-from utils.nats_connect import connect_to_nats
+from utils.nats_connect import get_nats_connection
 from find_job_process.job_dispatcher import send_vacancy_to_users
 from telethon.tl.types import (
     MessageEntityBold,
@@ -557,7 +557,7 @@ async def on_new_message(event):
 
     # Пробуем подключиться к NATS
     try:
-        nc, js = await connect_to_nats()
+        nc, js = await get_nats_connection()
     except Exception as e:
         logger.error(f"❌ Ошибка подключения к NATS: {e}")
         return
