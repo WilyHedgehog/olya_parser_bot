@@ -531,22 +531,46 @@ config = load_config()
 EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
 
+from telethon import events
+from telethon.tl.types import User
+
 @app.on(events.NewMessage())
 async def on_new_message(event):
+    # Игнорируем исходящие сообщения (наши собственные)
     if event.out or event.chat_id in EXCLUDED_CHAT_IDS:
         return
 
+    try:
+        sender = await event.get_sender()
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось получить отправителя: {e}")
+        sender = None
 
-    sender = await event.get_sender()
-    if sender and sender.bot:
+    # Проверяем: если это пользователь-бот — пропускаем
+    if isinstance(sender, User) and sender.bot:
         return
 
-    nc, js = await connect_to_nats()
-    
-    task = {"message_id": event.message.id, "chat_id": event.chat_id}
-    await js.publish("vacancy.queue", json.dumps(task).encode())
-    logger.info(f"📨 Задача добавлена в очередь: {task}")
+    # Проверяем системные сообщения (служебные события, join/leave и т.п.)
+    if event.message.action:
+        logger.debug("🟡 Системное сообщение — пропускаем")
+        return
 
+    # Пробуем подключиться к NATS
+    try:
+        nc, js = await connect_to_nats()
+    except Exception as e:
+        logger.error(f"❌ Ошибка подключения к NATS: {e}")
+        return
+
+    # Формируем задачу для очереди
+    task = {"message_id": event.message.id, "chat_id": event.chat_id}
+
+    # Отправляем задачу в NATS
+    try:
+        await js.publish("vacancy.queue", json.dumps(task).encode())
+        logger.info(f"📨 Задача добавлена в очередь: {task}")
+    except Exception as e:
+        logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
 
 
 
