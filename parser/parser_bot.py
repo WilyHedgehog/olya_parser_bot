@@ -508,9 +508,9 @@ async def process_message(message):
         else:
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
 
-    await asyncio.sleep(
-        random.uniform(config.parser.delay_min, config.parser.delay_max)
-    )
+    #await asyncio.sleep(
+    #    random.uniform(config.parser.delay_min, config.parser.delay_max)
+    #)
 
 
 # ==================== Обработка новых сообщений в реальном времени ====================
