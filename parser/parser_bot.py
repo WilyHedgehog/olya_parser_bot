@@ -10,6 +10,7 @@ from db.requests import (
     save_vacancy_hash,
     record_vacancy_sent,
 )
+from utils.nats_connect import connect_to_nats
 from find_job_process.job_dispatcher import send_vacancy_to_users
 from telethon.tl.types import (
     MessageEntityBold,
@@ -23,8 +24,7 @@ from telethon.tl.types import (
 from bot_setup import bot
 from bot.keyboards.admin_keyboard import get_delete_vacancy_kb
 from bot.lexicon.lexicon import LEXICON_PARSER
-
-from utils.nats_connect import connect_to_nats, setup_vacancy_stream
+from parser.telethon_client import app
 
 config: Config = load_config()
 logger = logging.getLogger(__name__)
@@ -279,7 +279,6 @@ old_professions = {
 
 processed_messages = set()
 
-app = TelegramClient("Telethon_UserBot", config.parser.api_id, config.parser.api_hash)
 
 
 def get_message_link(message):
@@ -523,6 +522,49 @@ EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
 import json
 import logging
+from main import js
+from config.config import load_config
+
+logger = logging.getLogger(__name__)
+config = load_config()
+
+EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
+
+@app.on(events.NewMessage())
+async def on_new_message(event):
+    if event.out or event.chat_id in EXCLUDED_CHAT_IDS:
+        return
+
+    sender = await event.get_sender()
+    if sender and sender.bot:
+        return
+
+    task = {"message_id": event.message.id, "chat_id": event.chat_id}
+    await js.publish("vacancy.queue", json.dumps(task).encode())
+    logger.info(f"📨 Задача добавлена в очередь: {task}")
+
+
+
+
+@app.on(events.NewMessage())
+async def on_new_message(event):
+    # Игнорируем исходящие сообщения
+    if event.out:
+        return
+    
+    # Игнорируем сообщения из определённых чатов
+    if event.chat_id in EXCLUDED_CHAT_IDS:
+        return
+
+    sender = await event.get_sender()
+    if sender and sender.bot:
+        logger.info(f"⚙️ Игнорируем сообщение от бота: {sender.username or sender.id}")
+        return
+    await process_message(event.message)
+
+
+import json
+import logging
 
 from config.config import load_config
 
@@ -547,8 +589,6 @@ async def on_new_message(event):
     task = {"message_id": event.message.id, "chat_id": event.chat_id}
     await js.publish("vacancy.queue", json.dumps(task).encode())
     logger.info(f"📨 Задача добавлена в очередь: {task}")
-
-
 
 
 

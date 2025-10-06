@@ -1,7 +1,7 @@
 import json
 import logging
 from parser.parser_bot import process_message
-from parser.parser_bot import app
+from parser.telethon_client import app
 
 logger = logging.getLogger(__name__)
 
