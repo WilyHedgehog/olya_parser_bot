@@ -33,36 +33,46 @@ logger = logging.getLogger(__name__)
 TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
 
 
+from aiogram.exceptions import TelegramRetryAfter
+
+
+
 # --- 2. Отправка вакансии пользователю ---
 async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
     if await dublicate_check(user_id, vacancy):
-        if url == True:
-            main_vacancy = await get_vacancy_by_text(vacancy.text)
-            #vacancy_url = main_vacancy.url
-            vacancy_id = main_vacancy.id
-        else:
-            #vacancy_url = vacancy.url
-            vacancy_id = vacancy.id
-        try:
-            message = await bot.send_message(
-                chat_id=user_id,
-                text=LEXICON_PARSER["msg_for_user"].format(
-                    author=vacancy.vacancy_source,
-                    forwarded=vacancy.forwarding_source,
-                    vacancy_text=vacancy.text,
-                ),
-                disable_web_page_preview=True,
-                reply_markup=await get_need_author_kb(str(vacancy_id)),
-            )
-            await record_vacancy_sent(
-                user_id=user_id, vacancy_id=vacancy_id, message_id=message.message_id
-            )
-            await asyncio.sleep(1)
-            return True
-        except Exception as e:
-            logger.error(f"Error sending vacancy to user {user_id}: {e}")
-            return False
+        return False  # Уже отправляли такую вакансию этому пользователю
+    
+    if url == True:
+        main_vacancy = await get_vacancy_by_text(vacancy.text)
+        #vacancy_url = main_vacancy.url
+        vacancy_id = main_vacancy.id
     else:
+        #vacancy_url = vacancy.url
+        vacancy_id = vacancy.id
+        
+    try:
+        while True:
+            try:
+                message = await bot.send_message(
+                    chat_id=user_id,
+                    text=LEXICON_PARSER["msg_for_user"].format(
+                        author=vacancy.vacancy_source,
+                        forwarded=vacancy.forwarding_source,
+                        vacancy_text=vacancy.text,
+                    ),
+                    disable_web_page_preview=True,
+                    reply_markup=await get_need_author_kb(str(vacancy_id)),
+                )
+                await record_vacancy_sent(
+                    user_id=user_id, vacancy_id=vacancy_id, message_id=message.message_id
+                )
+                await asyncio.sleep(1)
+                return True
+            except TelegramRetryAfter as e:
+                logger.warning(f"Flood control hit for user {user_id}, retry in {e.timeout}s")
+                await asyncio.sleep(e.timeout)  # ждем столько, сколько указал Telegram
+    except Exception as e:
+        logger.error(f"Error sending vacancy to user {user_id}: {e}")
         return False
 
 
