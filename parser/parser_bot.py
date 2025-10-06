@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 config = load_config()
 logger = logging.getLogger(__name__)
 
-processed_messages = set()
 
 
 
@@ -517,32 +516,6 @@ async def process_message(message):
 # ==================== Обработка новых сообщений в реальном времени ====================
 # Список чатов, которые нужно игнорировать
 EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
-
-
-
-import json
-import logging
-from config.config import load_config
-
-logger = logging.getLogger(__name__)
-config = load_config()
-
-EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
-
-@app.on(events.NewMessage())
-async def on_new_message(event):
-    if event.out or event.chat_id in EXCLUDED_CHAT_IDS:
-        return
-
-    nc, js = await connect_to_nats()
-
-    sender = await event.get_sender()
-    if sender and sender.bot:
-        return
-
-    task = {"message_id": event.message.id, "chat_id": event.chat_id}
-    await js.publish("vacancy.queue", json.dumps(task).encode())
-    logger.info(f"📨 Задача добавлена в очередь: {task}")
 
 
 
