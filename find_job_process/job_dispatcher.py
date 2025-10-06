@@ -39,6 +39,7 @@ from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 
 # --- 2. Отправка вакансии пользователю ---
 async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
+    print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
     if await dublicate_check(user_id, vacancy):
         return False  # Уже отправляли такую вакансию этому пользователю
     print("🤖 Отправка вакансии пользователю:", user_id)
@@ -118,6 +119,7 @@ async def send_vacancy_to_users(vacancy_id: UUID):
             continue
 
         if user.delivery_mode == "instant":
+            print("🚀 Instant delivery for user:", user.telegram_id)
             await send_vacancy(user.telegram_id, vacancy)
         elif user.delivery_mode == "two_hours":
             await add_to_two_hours(
@@ -126,6 +128,7 @@ async def send_vacancy_to_users(vacancy_id: UUID):
                 user_id=user.telegram_id,
             )
         elif user.delivery_mode == "button_click":
+            print("⏳ Button click delivery for user:", user.telegram_id)
             await add_to_vacancy_queue(
                 text=vacancy.text,
                 user_id=user.telegram_id,
