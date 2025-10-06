@@ -9,6 +9,8 @@ from db.requests import (
     get_vacancy_by_hash,
     save_vacancy_hash,
     record_vacancy_sent,
+    dublicate_check,
+    get_vacancy_by_id
 )
 from utils.nats_connect import get_nats_connection
 from find_job_process.job_dispatcher import send_vacancy_to_users
@@ -482,28 +484,31 @@ async def process_message(message):
             text_hash=message_hash,
             vacancy_source=entity_name if not entity_username else f"@{entity_username}",
             forwarding_source=" ".join(fwd_info) if message.forward else "Нет",
+            admin_chat_url=link
         )
         if vacancy_id:
             logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")
-            reply = await bot.send_message(
-                config.bot.chat_id,
-                text=LEXICON_PARSER["vacancy_data"].format(
-                    profession_name=prof_name,
-                    vacancy_id=vacancy_id,
-                    score=score,
-                    orig_vacancy_link=original_link,
-                    source=(
-                        entity_name if not entity_username else f"@{entity_username}"
+            vacancy = await get_vacancy_by_id(vacancy_id)
+            if await dublicate_check(config.bot.chat_id, vacancy):
+                reply = await bot.send_message(
+                    config.bot.chat_id,
+                    text=LEXICON_PARSER["vacancy_data"].format(
+                        profession_name=prof_name,
+                        vacancy_id=vacancy_id,
+                        score=score,
+                        orig_vacancy_link=original_link,
+                        source=(
+                            entity_name if not entity_username else f"@{entity_username}"
+                        ),
+                        vacancy_link=link,
+                        fwd_info=" ".join(fwd_info) if message.forward else "Нет",
+                        vacancy_text=html_text,
                     ),
-                    vacancy_link=link,
-                    fwd_info=" ".join(fwd_info) if message.forward else "Нет",
-                    vacancy_text=html_text,
-                ),
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-                reply_markup=await get_delete_vacancy_kb(vacancy_id),
-            )
-            await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                    reply_markup=await get_delete_vacancy_kb(vacancy_id),
+                )
+                await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
             await send_vacancy_to_users(vacancy_id)
         else:
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")

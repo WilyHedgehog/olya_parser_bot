@@ -586,7 +586,7 @@ async def get_vacancy_by_hash(text_hash: str):
 
 
 async def save_vacancy_hash(
-    text, proffname, score, url, text_hash, vacancy_source=None, forwarding_source=None
+    text, proffname, score, url, text_hash, vacancy_source=None, forwarding_source=None, admin_chat_url=None
 ) -> UUID | None:
     async with Sessionmaker() as session:
         # Проверяем, есть ли вакансия с таким хэшем
@@ -610,6 +610,7 @@ async def save_vacancy_hash(
             hash=text_hash,
             vacancy_source=vacancy_source,
             forwarding_source=forwarding_source,
+            admin_chat_url=admin_chat_url,
         )
         session.add(vacancy)
         try:

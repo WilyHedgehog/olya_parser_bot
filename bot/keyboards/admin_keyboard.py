@@ -1,7 +1,13 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from config.config import load_config
-from db.requests import get_all_professions, get_all_keywords_from_profession, get_profession_by_id, get_all_stopwords
+from db.requests import (
+    get_all_professions,
+    get_all_keywords_from_profession,
+    get_profession_by_id,
+    get_all_stopwords,
+    get_vacancy_by_id,
+)
 
 config = load_config()  # Загружаем конфигурацию
 
@@ -121,12 +127,12 @@ async def choosen_prof_keyboard(profession_id: int) -> InlineKeyboardMarkup:
         builder.button(text="Профессия не найдена", callback_data="noop")
         builder.row(back_to_proffs_kb_button)
         return builder.as_markup()
-    
+
     if not profession.keywords:
         builder.row(from_admin_add_keyword)
     else:
         builder.row(from_admin_add_keyword, from_admin_delete_keyword)
-        
+
     if profession.desc:
         builder.row(from_admin_delete_proffs_desc)
     else:
@@ -142,7 +148,6 @@ async def keywords_keyboard(
     per_page: int = 8,  # 2 columns * 4 rows (остальные 2 строки под навигацию и back)
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    
 
     keywords = await get_all_keywords_from_profession(profession_id)
     total = len(keywords)
@@ -199,7 +204,7 @@ async def stopwords_keyboard(
     per_page: int = 8,  # 2 columns * 4 rows (остальные 2 строки под навигацию и back)
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    
+
     stopwords = await get_all_stopwords()
     total = len(stopwords)
 
@@ -221,9 +226,7 @@ async def stopwords_keyboard(
         nav_buttons = []
         if page > 1:
             nav_buttons.append(
-                InlineKeyboardButton(
-                    text="⬅️", callback_data=f"swpage_{page-1}"
-                )
+                InlineKeyboardButton(text="⬅️", callback_data=f"swpage_{page-1}")
             )
         else:
             nav_buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
@@ -234,9 +237,7 @@ async def stopwords_keyboard(
 
         if page < total_pages:
             nav_buttons.append(
-                InlineKeyboardButton(
-                    text="➡️", callback_data=f"swpage_{page+1}"
-                )
+                InlineKeyboardButton(text="➡️", callback_data=f"swpage_{page+1}")
             )
         else:
             nav_buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
@@ -252,14 +253,29 @@ async def stopwords_keyboard(
 
 async def get_delete_vacancy_kb(vacancy_id) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="Удалить вакансию", callback_data="delete_vacancy_" + str(vacancy_id)))
+    builder.row(
+        InlineKeyboardButton(
+            text="Удалить вакансию", callback_data="delete_vacancy_" + str(vacancy_id)
+        )
+    )
     return builder.as_markup()
 
 
-back_to_choosen_prof_kb = InlineKeyboardMarkup(
-    inline_keyboard=[[back_to_choosen_prof]]
-)
+async def get_vacancy_list_kb(vacancy_id: str) -> InlineKeyboardMarkup:
+    vacancy = await get_vacancy_by_id(vacancy_id)
+    builder = InlineKeyboardBuilder()
+    if not vacancy:
+        builder.row(
+            InlineKeyboardButton(text="Ошика с получением ссылки", callback_data="noop")
+        )
+        return builder.as_markup()
+    builder.row(
+        InlineKeyboardButton(
+            text="Оригинальная ссылка на вакансию", url=vacancy.admin_chat_url
+        )
+    )
 
-back_to_proffs_kb = InlineKeyboardMarkup(
-    inline_keyboard=[[back_to_proffs_kb_button]]
-)
+
+back_to_choosen_prof_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_choosen_prof]])
+
+back_to_proffs_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_proffs_kb_button]])

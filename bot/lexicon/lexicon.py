@@ -286,8 +286,8 @@ LEXICON_ADMIN = {
     ),
     "need_author": (
         "❗️ Пользователь запросил уточнение автора для вакансии.\n\n"
-        "ID вакансии: {vacancy_id}.\n\n"
-        "ID пользователя: {user_id}.\n\n"
-        "Username пользователя: {username}."
+        "ID вакансии: {vacancy_id}\n\n"
+        "ID пользователя: {user_id}\n\n"
+        "Username пользователя: {username}"
     ),
 }

@@ -55,6 +55,7 @@ from bot.keyboards.user_keyboard import (
     get_main_reply_kb,
     get_pay_subscription_kb,
 )
+from bot.keyboards.admin_keyboard import get_vacancy_list_kb
 
 # Инициализируем логгер модуля
 logger = logging.getLogger(__name__)
@@ -122,7 +123,7 @@ async def start_cmd_no_prof(message: Message, state: FSMContext):
 
 async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
-    await try_delete_message_old(message, state)
+    #await try_delete_message_old(message, state)
 
     await try_delete_message(message)
 
@@ -376,7 +377,8 @@ async def check_author(callback: CallbackQuery, state: FSMContext):
         
     await bot.send_message(
         chat_id=config.bot.support_chat_id,
-        text=LEXICON_ADMIN["need_author"].format(vacancy_id=vacancy_id, user_id=callback.from_user.id, username=username)
+        text=LEXICON_ADMIN["need_author"].format(vacancy_id=vacancy_id, user_id=callback.from_user.id, username=username),
+        reply_markup=get_vacancy_list_kb(vacancy_id)
     )
 
 
