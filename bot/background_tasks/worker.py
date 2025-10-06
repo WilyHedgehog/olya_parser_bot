@@ -19,15 +19,34 @@ async def vacancy_worker(js):
             try:
                 data = json.loads(msg.data.decode())
                 logger.info(f"📥 Получена задача: {data}")
-                message_id = data["message_id"]
-                chat_id = data["chat_id"]
+                message_id = data.get("message_id")
+                chat_id = data.get("chat_id")
 
-                entity = await app.get_entity(chat_id)
-                message = await app.get_messages(entity, ids=message_id)
+                # Получаем entity
+                try:
+                    entity = await app.get_entity(chat_id)
+                except Exception as e:
+                    logger.error(f"❌ Не удалось получить entity для chat_id={chat_id}: {e}")
+                    await msg.nak()
+                    continue
+
+                # Получаем сообщение
+                try:
+                    message = await app.get_messages(entity, ids=message_id)
+                except Exception as e:
+                    logger.error(f"❌ Не удалось получить сообщение {message_id} из {chat_id}: {e}")
+                    await msg.nak()
+                    continue
+
+                if not message:
+                    logger.warning(f"⚠️ Сообщение {message_id} из чата {chat_id} не найдено")
+                    await msg.nak()
+                    continue
+
                 await process_message(message)
-
                 await msg.ack()
                 logger.info(f"✅ Задача выполнена: {data}")
+
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки задачи: {e}")
                 await msg.nak()
