@@ -19,4 +19,4 @@ class Keyword(Base):
         UniqueConstraint("profession_id", "word", name="uq_profession_word"),
     )
 
-    profession: Mapped["Profession"] = relationship(back_populates="keywords", cascade="all, delete-orphan")
+    profession: Mapped["Profession"] = relationship(back_populates="keywords")
