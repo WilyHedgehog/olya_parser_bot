@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
 
 
-from aiogram.exceptions import TelegramRetryAfter
+from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 
 
 
@@ -50,30 +50,41 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         #vacancy_url = vacancy.url
         vacancy_id = vacancy.id
         
-    try:
-        while True:
-            try:
-                message = await bot.send_message(
-                    chat_id=user_id,
-                    text=LEXICON_PARSER["msg_for_user"].format(
-                        author=vacancy.vacancy_source,
-                        forwarded=vacancy.forwarding_source,
-                        vacancy_text=vacancy.text,
-                    ),
-                    disable_web_page_preview=True,
-                    reply_markup=await get_need_author_kb(str(vacancy_id)),
-                )
-                await record_vacancy_sent(
-                    user_id=user_id, vacancy_id=vacancy_id, message_id=message.message_id
-                )
-                await asyncio.sleep(1)
-                return True
-            except TelegramRetryAfter as e:
-                logger.warning(f"Flood control hit for user {user_id}, retry in {e.timeout}s")
-                await asyncio.sleep(e.timeout)  # ждем столько, сколько указал Telegram
-    except Exception as e:
-        logger.error(f"Error sending vacancy to user {user_id}: {e}")
-        return False
+    while True:
+        try:
+            message = await bot.send_message(
+                chat_id=user_id,
+                text=LEXICON_PARSER["msg_for_user"].format(
+                    author=vacancy.vacancy_source,
+                    forwarded=vacancy.forwarding_source,
+                    vacancy_text=vacancy.text,
+                ),
+                disable_web_page_preview=True,
+                reply_markup=await get_need_author_kb(str(vacancy_id)),
+            )
+
+            await record_vacancy_sent(
+                user_id=user_id,
+                vacancy_id=vacancy_id,
+                message_id=message.message_id
+            )
+
+            # Пауза между сообщениями, чтобы снизить риск flood control
+            await asyncio.sleep(1)
+            return True
+
+        except TelegramRetryAfter as e:
+            logger.warning(f"Flood control hit for user {user_id}, retry in {e.timeout}s")
+            await asyncio.sleep(e.timeout)  # ждем указанное Telegram время
+
+        except TelegramForbiddenError:
+            # Пользователь заблокировал бота или не начал чат
+            logger.warning(f"Cannot send vacancy to user {user_id}: bot is blocked or user hasn't started the chat.")
+            return False
+
+        except Exception as e:
+            logger.error(f"Unexpected error sending vacancy to user {user_id}: {e}")
+            return False
 
 
 # --- 4. Отправка вакансии всем пользователям с учётом delivery_mode ---
