@@ -100,6 +100,7 @@ async def send_vacancy_to_users(vacancy_id: UUID):
     now_msk = datetime.now(TZ_MOSCOW)
 
     for user in users:
+        print("👤 Проверка пользователя:", user.telegram_id)
         # Приводим subscription_until к aware datetime
         if user.subscription_until is None:
             logger.info(f"User {user.telegram_id} subscription expired, skipping.")
