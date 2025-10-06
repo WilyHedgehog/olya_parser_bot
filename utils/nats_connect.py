@@ -1,7 +1,7 @@
 import nats
 from nats.aio.client import Client
 from nats.js import JetStreamContext
-from nats.js.api import StreamConfig
+from nats.js.api import StreamConfig, RetentionPolicy
 from logging import getLogger
 from config.config import load_config
 config = load_config()
@@ -28,7 +28,7 @@ async def setup_vacancy_stream(js):
         StreamConfig(
             name="VACANCY_TASKS",
             subjects=["vacancy.queue"],
-            retention="workq",
+            retention=RetentionPolicy.WORK_QUEUE,
         )
     )
     logger.info("🚀 Stream VACANCY_TASKS создан")
