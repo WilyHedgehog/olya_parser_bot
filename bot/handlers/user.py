@@ -378,7 +378,7 @@ async def check_author(callback: CallbackQuery, state: FSMContext):
     await bot.send_message(
         chat_id=config.bot.support_chat_id,
         text=LEXICON_ADMIN["need_author"].format(vacancy_id=vacancy_id, user_id=callback.from_user.id, username=username),
-        reply_markup=get_vacancy_list_kb(vacancy_id)
+        reply_markup=await get_vacancy_list_kb(vacancy_id)
     )
 
 
