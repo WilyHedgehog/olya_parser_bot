@@ -581,7 +581,7 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
     vacancy_id = callback.data.split("_")[2]
     result = await delete_vacancy_evrerywhere(session, vacancy_id)
     if result:
-        await callback.message.edit_text("Вакансия успешно удалена.")
+        await callback.message.answer("Вакансия успешно удалена.")
         logger.info(f"Vacancy {vacancy_id} deleted successfully.")
     else:
         await callback.message.answer("Ошибка при удалении вакансии.")
