@@ -522,7 +522,6 @@ EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
 import json
 import logging
-from main import js
 from config.config import load_config
 
 logger = logging.getLogger(__name__)
@@ -544,23 +543,6 @@ async def on_new_message(event):
     logger.info(f"📨 Задача добавлена в очередь: {task}")
 
 
-
-
-@app.on(events.NewMessage())
-async def on_new_message(event):
-    # Игнорируем исходящие сообщения
-    if event.out:
-        return
-    
-    # Игнорируем сообщения из определённых чатов
-    if event.chat_id in EXCLUDED_CHAT_IDS:
-        return
-
-    sender = await event.get_sender()
-    if sender and sender.bot:
-        logger.info(f"⚙️ Игнорируем сообщение от бота: {sender.username or sender.id}")
-        return
-    await process_message(event.message)
 
 
 import json
