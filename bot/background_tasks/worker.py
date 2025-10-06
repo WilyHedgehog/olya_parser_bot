@@ -48,7 +48,7 @@ async def vacancy_worker(js):
                     message = None
 
                 if not message:
-                    logger.warning(f"⚠️ Сообщение {message_id} из чата {chat_id} не найдено")
+                    logger.warning(f"❗️ Сообщение {message_id} из чата {chat_id} не найдено")
                     if retries < MAX_RETRIES:
                         data["retries"] = retries + 1
                         await js.publish("vacancy.queue", json.dumps(data).encode())
