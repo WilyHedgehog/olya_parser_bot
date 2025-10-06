@@ -299,15 +299,30 @@ async def delete_old_vacancies(session: AsyncSession):
     await session.commit()
 
 
-async def db_delete_profession(session: AsyncSession, profession_id: int):
-    stmt = delete(Profession).where(Profession.id == profession_id)
+
+async def db_delete_profession(session: AsyncSession, profession_id: int) -> bool:
     try:
-        await session.execute(stmt)
+        # 1️⃣ Удаляем связанные записи (детей)
+        await session.execute(delete(Keyword).where(Keyword.profession_id == profession_id))
+        await session.execute(delete(UserProfession).where(UserProfession.profession_id == profession_id))
+        await session.execute(delete(VacancyQueue).where(VacancyQueue.profession_id == profession_id))
+        
+        # 2️⃣ Теперь удаляем саму профессию
+        result = await session.execute(delete(Profession).where(Profession.id == profession_id))
+        if result.rowcount == 0:
+            logger.warning(f"⚠️ Профессия с ID={profession_id} не найдена.")
+            await session.rollback()
+            return False
+        
+        # 3️⃣ Коммитим изменения
+        await session.commit()
+        logger.info(f"✅ Профессия ID={profession_id} и связанные записи успешно удалены.")
+        return True
+
     except Exception as e:
-        logger.error(f"Error deleting profession ID {profession_id}: {e}")
+        await session.rollback()
+        logger.error(f"❌ Ошибка при удалении профессии ID={profession_id}: {e}")
         return False
-    await session.commit()
-    return True
 
 
 async def get_all_professions_parser() -> list[dict]:
