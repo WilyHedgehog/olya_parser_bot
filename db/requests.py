@@ -305,6 +305,7 @@ async def db_delete_profession(session: AsyncSession, profession_id: int) -> boo
         # Удаляем зависимые таблицы
         await session.execute(delete(UserProfession).where(UserProfession.profession_id == profession_id))
         await session.execute(delete(VacancyQueue).where(VacancyQueue.profession_id == profession_id))
+        await session.execute(delete(Vacancy).where(Vacancy.profession_id == profession_id))
         await session.execute(delete(Keyword).where(Keyword.profession_id == profession_id))  # добавляем ключевые слова
         
         # Удаляем профессию
