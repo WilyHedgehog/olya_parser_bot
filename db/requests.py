@@ -302,20 +302,20 @@ async def delete_old_vacancies(session: AsyncSession):
 
 async def db_delete_profession(session: AsyncSession, profession_id: int) -> bool:
     try:
-        # 1️⃣ Удаляем связанные записи (детей)
+        # Удаляем зависимые таблицы
         await session.execute(delete(UserProfession).where(UserProfession.profession_id == profession_id))
         await session.execute(delete(VacancyQueue).where(VacancyQueue.profession_id == profession_id))
+        await session.execute(delete(Keyword).where(Keyword.profession_id == profession_id))  # добавляем ключевые слова
         
-        # 2️⃣ Теперь удаляем саму профессию
+        # Удаляем профессию
         result = await session.execute(delete(Profession).where(Profession.id == profession_id))
         if result.rowcount == 0:
             logger.warning(f"⚠️ Профессия с ID={profession_id} не найдена.")
             await session.rollback()
             return False
-        
-        # 3️⃣ Коммитим изменения
+
         await session.commit()
-        logger.info(f"✅ Профессия ID={profession_id} и связанные записи успешно удалены.")
+        logger.info(f"✅ Профессия ID={profession_id} и все связанные записи успешно удалены.")
         return True
 
     except Exception as e:
