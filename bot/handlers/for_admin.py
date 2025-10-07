@@ -606,14 +606,18 @@ async def process_delete_stopword(
 @router.callback_query(IsAdminFilter(), F.data.startswith("delete_vacancy_"))
 async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession):
     vacancy_id = callback.data.split("_")[2]
-    result = await delete_vacancy_everywhere(session, vacancy_id)
-    if result:
-        await callback.message.answer("Вакансия успешно удалена.")
-        logger.info(f"Vacancy {vacancy_id} deleted successfully.")
-    else:
-        await callback.message.answer("Ошибка при удалении вакансии.")
-        logger.error(f"Failed to delete vacancy {vacancy_id}.")
     await callback.answer()
+    try:
+        result = await delete_vacancy_everywhere(session, vacancy_id)
+        if result:
+            await callback.message.answer("Вакансия успешно удалена.")
+            logger.info(f"Vacancy {vacancy_id} deleted successfully.")
+        else:
+            await callback.message.answer("Ошибка при удалении вакансии.")
+            logger.error(f"Failed to delete vacancy {vacancy_id}.")
+    except Exception as e:
+        logger.error(f"Exception while deleting vacancy {vacancy_id}: {e}")
+        await callback.message.answer("Произошла ошибка при удалении вакансии.")
     
     
 @router.message(Command("adminsub"), IsAdminFilter())
