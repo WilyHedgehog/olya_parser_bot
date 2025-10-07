@@ -301,9 +301,9 @@ async def process_delete_keyword(
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("kwpage_"))
 async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext):   
-    await state.set_state(Prof.main)
     await callback.answer()
-    page = int(callback.data.split("_")[1])
+    await state.set_state(Prof.main)
+    page = int(callback.data.split("_")[-1])
     data = await state.get_data()
     profession_id = data.get("profession_id")
     try:
