@@ -198,11 +198,13 @@ async def change_delivery_mode(
 
     # Обновляем стейт
     await state.update_data(delivery_mode=mode)
-
+    try:
     # Обновляем клавиатуру
-    await callback.message.edit_reply_markup(
-        reply_markup=await get_delivery_mode_kb(user_id=callback.from_user.id)
-    )
+        await callback.message.edit_reply_markup(
+            reply_markup=await get_delivery_mode_kb(user_id=callback.from_user.id)
+        )
+    except Exception as e:
+        pass
 
 
 @router.callback_query(F.data.startswith("profession_"), Main.main)
@@ -228,11 +230,14 @@ async def change_user_chosen_professions(
     # Обновляем клавиатуру
     data = await state.get_data()
     page = data.get("current_page")
-    await callback.message.edit_reply_markup(
-        reply_markup=await get_all_professions_kb(
-            user_id=callback.from_user.id, page=page
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await get_all_professions_kb(
+                user_id=callback.from_user.id, page=page
+            )
         )
-    )
+    except Exception as e:
+        logger.error(f"Error updating professions keyboard: {e}")
 
 
 @router.callback_query(F.data == "back_to_main")
@@ -315,12 +320,15 @@ async def choose_all_professions(
 async def change_page(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     page = int(callback.data.split("_")[1])
-    await callback.message.edit_reply_markup(
-        reply_markup=await get_all_professions_kb(
-            user_id=callback.from_user.id, page=page
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await get_all_professions_kb(
+                user_id=callback.from_user.id, page=page
+            )
         )
-    )
-    await state.update_data({"current_page": page})
+        await state.update_data({"current_page": page})
+    except Exception as e:
+        logger.error(f"Error changing page: {e}")
 
 
 @router.callback_query(F.data == "noop")
@@ -380,9 +388,12 @@ async def check_author(callback: CallbackQuery, state: FSMContext):
         "Для уточнения автора вакансии позовут админа. Подведите запрос нажав на кнопку 'Позвать админа' под вакансией.",
         show_alert=True,
     )
-    await callback.message.edit_reply_markup(
-        reply_markup=await need_admin_for_author_kb(vacancy_id)
-    )
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await need_admin_for_author_kb(vacancy_id)
+        )
+    except Exception as e:
+        logger.error(f"Error updating reply markup: {e}")
     await callback.answer()
 
 

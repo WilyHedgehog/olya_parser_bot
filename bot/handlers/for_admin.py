@@ -93,9 +93,12 @@ async def process_profession_pagination(callback: CallbackQuery, state: FSMConte
     await state.set_state(Prof.main)
     await callback.answer()
     page = int(callback.data.split("_")[1])
-    await callback.message.edit_reply_markup(
-        reply_markup=await professions_keyboard(page=page)
-    )
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await professions_keyboard(page=page)
+        )
+    except Exception as e:
+        logger.error(f"Error updating professions keyboard: {e}")
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("kpage_"))
@@ -105,9 +108,12 @@ async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext)
     page = int(callback.data.split("_")[1])
     data = await state.get_data()
     profession_id = data.get("profession_id")
-    await callback.message.edit_reply_markup(
-        reply_markup=await keywords_keyboard(profession_id, page=page)
-    )
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await keywords_keyboard(profession_id, page=page)
+        )
+    except Exception as e:
+        logger.error(f"Error updating keywords keyboard: {e}")
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("swpage_"))
@@ -115,9 +121,12 @@ async def process_stopword_pagination(callback: CallbackQuery, state: FSMContext
     await state.set_state(Prof.main)
     await callback.answer()
     page = int(callback.data.split("_")[1])
-    await callback.message.edit_reply_markup(
-        reply_markup=await stopwords_keyboard(page=page)
-    )
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await stopwords_keyboard(page=page)
+        )
+    except Exception as e:
+        logger.error(f"Error updating stopwords keyboard: {e}")
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("proff_"))
@@ -288,6 +297,21 @@ async def process_delete_keyword(
 
     await load_professions()
     await callback.answer()
+
+
+@router.callback_query(IsAdminFilter(), F.data.startswith("kwpage_"))
+async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext):   
+    await state.set_state(Prof.main)
+    await callback.answer()
+    page = int(callback.data.split("_")[1])
+    data = await state.get_data()
+    profession_id = data.get("profession_id")
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await keywords_keyboard(profession_id, page=page)
+        )
+    except Exception as e:
+        logger.error(f"Error updating keywords keyboard: {e}")
 
 
 @router.callback_query(IsAdminFilter(), F.data == "add_proff")
@@ -503,11 +527,14 @@ async def back_to_choosen_prof(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(IsAdminFilter(), F.data == "stopwords_add")
 async def stopwords_add(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        LEXICON_PARSER["add_stopword_prompt"], reply_markup=back_to_proffs_kb
-    )
-    await state.set_state(Prof.adding_stopwords)
     await callback.answer()
+    try:
+        await callback.message.edit_text(
+            LEXICON_PARSER["add_stopword_prompt"], reply_markup=back_to_proffs_kb
+        )
+        await state.set_state(Prof.adding_stopwords)
+    except Exception as e:
+        logger.error(f"Error in stopwords_add: {e}")
 
 
 @router.message(Prof.adding_stopwords, IsAdminFilter())
@@ -555,6 +582,7 @@ async def process_delete_stopword(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
     stopword_id = callback.data.split("_")[1]
+    await callback.answer()
 
     success = await db_delete_stopword(session=session, stopword_id=stopword_id)
 
@@ -573,7 +601,6 @@ async def process_delete_stopword(
         logger.error(f"Failed to delete stop-word ID {stopword_id}")
 
     await load_stopwords()
-    await callback.answer()
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("delete_vacancy_"))
