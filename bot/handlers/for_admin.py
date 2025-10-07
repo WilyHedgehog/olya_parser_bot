@@ -25,7 +25,7 @@ from db.requests import (
     db_add_stopword,
     db_delete_stopword,
     get_all_stopwords,
-    delete_vacancy_evrerywhere,
+    delete_vacancy_everywhere,
     update_user_access,
 )
 
@@ -579,7 +579,7 @@ async def process_delete_stopword(
 @router.callback_query(IsAdminFilter(), F.data.startswith("delete_vacancy_"))
 async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession):
     vacancy_id = callback.data.split("_")[2]
-    result = await delete_vacancy_evrerywhere(session, vacancy_id)
+    result = await delete_vacancy_everywhere(session, vacancy_id)
     if result:
         await callback.message.answer("Вакансия успешно удалена.")
         logger.info(f"Vacancy {vacancy_id} deleted successfully.")
