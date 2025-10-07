@@ -47,17 +47,21 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         main_vacancy = await get_vacancy_by_text(vacancy.text)
         # vacancy_url = main_vacancy.url
         vacancy_id = main_vacancy.id
+        author = main_vacancy.vacancy_source
+        forwarded = main_vacancy.forwarding_source
     else:
         # vacancy_url = vacancy.url
         vacancy_id = vacancy.id
+        author = vacancy.vacancy_source
+        forwarded = vacancy.forwarding_source
 
     while True:
         try:
             message = await bot.send_message(
                 chat_id=user_id,
                 text=LEXICON_PARSER["msg_for_user"].format(
-                    author=vacancy.vacancy_source,
-                    forwarded=vacancy.forwarding_source,
+                    author=author if author else "Не указан",
+                    forwarded=forwarded if forwarded else "Не указан",
                     vacancy_text=vacancy.text,
                 ),
                 disable_web_page_preview=True,
