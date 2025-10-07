@@ -429,7 +429,6 @@ async def add_email(message: Message, state: FSMContext):
 async def confirm_email(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
-    await callback.answer()
     user_data = await state.get_data()
     email = user_data.get("email")
     if not is_valid_email(email):
