@@ -7,7 +7,6 @@ from config.config import load_config
 from bot_setup import bot
 from db.requests import (
     get_user_by_admin_chat_message_id,
-    update_support_message_reply,
 )
 
 config = load_config()
@@ -23,17 +22,6 @@ async def support_message_reply_from_admin(message: Message, session: AsyncSessi
     admin_id = message.from_user.id
     admin_response = message.text
     user_id = await get_user_by_admin_chat_message_id(reply_id)
-    try:
-        await update_support_message_reply(
-            session=session,
-            user_id=user_id,
-            user_message_id=reply_id,
-            admin_id=admin_id,
-            admin_response=admin_response,
-        )
-    except Exception as e:
-        logger.error(f"Ошибка при обновлении ответа админа в БД: {e}")
-        return
     
     if user_id:
         try:
