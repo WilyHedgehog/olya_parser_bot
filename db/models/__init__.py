@@ -10,6 +10,7 @@ from .stopwords import StopWord
 from .vacancy_queue import VacancyQueue
 from .pricing_plans import PricingPlan
 from .vacancy_two_hours import VacancyTwoHours
+from .support_message import SupportMessage
 
 __all__ = [
     "User",
@@ -24,4 +25,5 @@ __all__ = [
     "VacancyQueue",
     "PricingPlan",
     "VacancyTwoHours",
+    "SupportMessage",
 ]

@@ -32,6 +32,7 @@ from db.requests import (
     get_all_users_professions,
     update_autopay_status,
     get_promo_24_hours,
+    save_support_message,
 )
 
 from find_job_process.job_dispatcher import send_vacancy_from_queue
@@ -666,6 +667,32 @@ async def referal(message: Message, state: FSMContext):
         caption=LEXICON_USER["referal"].format(referral_link=link),
         reply_markup=back_to_main_kb,
     )
+    await state.update_data(reply_id=reply.message_id)
+
+
+@router.message(Command("support"), Main.main)
+async def support_cmd(message: Message, state: FSMContext):
+    await try_delete_message_old(message, state)
+    await try_delete_message(message)
+    await state.set_state(Main.support)
+    reply = await message.answer(LEXICON_USER["support_cmd"], reply_markup=back_to_main_kb)
+    await state.update_data(reply_id=reply.message_id)
+    
+    
+@router.message(Main.support)
+async def support_message(message: Message, state: FSMContext, session: AsyncSession):
+    fwd = await bot.copy_message(
+        chat_id=config.bot.support_chat_id,
+        from_chat_id=message.chat.id,
+        message_id=message.message_id,  
+    )
+    await save_support_message(
+        session=session,    
+        user_id=message.from_user.id,
+        user_message_id=message.message_id,
+        admin_chat_message_id=fwd.message_id,
+    )
+    reply = await message.answer(LEXICON_USER["support_received"], reply_markup=back_to_main_kb)
     await state.update_data(reply_id=reply.message_id)
 
 

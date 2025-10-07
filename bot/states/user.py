@@ -8,4 +8,5 @@ class Main(StatesGroup):
     activate_promo = State()
     payment_link = State()
     first_time_choose_prof = State()
+    support = State()
     

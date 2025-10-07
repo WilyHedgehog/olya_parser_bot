@@ -27,6 +27,7 @@ from db.models import (
     VacancyQueue,
     PricingPlan,
     VacancyTwoHours,
+    SupportMessage,
 )
 
 
@@ -300,14 +301,19 @@ async def delete_old_vacancies(session: AsyncSession):
     await session.commit()
 
 
-
 async def db_delete_profession(session: AsyncSession, profession_id: int) -> bool:
     try:
         # Удаляем зависимости
-        await session.execute(delete(UserProfession).where(UserProfession.profession_id == profession_id))
-        await session.execute(delete(VacancyQueue).where(VacancyQueue.profession_id == profession_id))
-        await session.execute(delete(Keyword).where(Keyword.profession_id == profession_id))
-        
+        await session.execute(
+            delete(UserProfession).where(UserProfession.profession_id == profession_id)
+        )
+        await session.execute(
+            delete(VacancyQueue).where(VacancyQueue.profession_id == profession_id)
+        )
+        await session.execute(
+            delete(Keyword).where(Keyword.profession_id == profession_id)
+        )
+
         # Получаем вакансии профессии
         vacancy_ids = await session.scalars(
             select(Vacancy.id).where(Vacancy.profession_id == profession_id)
@@ -316,19 +322,25 @@ async def db_delete_profession(session: AsyncSession, profession_id: int) -> boo
 
         if vacancy_ids:
             # Удаляем связанные VacancySent
-            await session.execute(delete(VacancySent).where(VacancySent.vacancy_id.in_(vacancy_ids)))
+            await session.execute(
+                delete(VacancySent).where(VacancySent.vacancy_id.in_(vacancy_ids))
+            )
             # Удаляем сами вакансии
             await session.execute(delete(Vacancy).where(Vacancy.id.in_(vacancy_ids)))
 
         # Удаляем профессию
-        result = await session.execute(delete(Profession).where(Profession.id == profession_id))
+        result = await session.execute(
+            delete(Profession).where(Profession.id == profession_id)
+        )
         if result.rowcount == 0:
             logger.warning(f"⚠️ Профессия с ID={profession_id} не найдена.")
             await session.rollback()
             return False
 
         await session.commit()
-        logger.info(f"✅ Профессия ID={profession_id} и все связанные записи успешно удалены.")
+        logger.info(
+            f"✅ Профессия ID={profession_id} и все связанные записи успешно удалены."
+        )
         return True
 
     except Exception as e:
@@ -497,7 +509,6 @@ async def cleanup_old_data(days: int = 2):
         await session.commit()
 
 
-
 async def delete_vacancy_everywhere(session: AsyncSession, vacancy_id: UUID) -> bool:
     """Удаляет вакансию и все дубликаты с одинаковым текстом, включая связанную рассылку."""
 
@@ -536,7 +547,9 @@ async def delete_vacancy_everywhere(session: AsyncSession, vacancy_id: UUID) -> 
                 for sent in sent_vacancies:
                     try:
                         await bot.delete_message(sent.user_id, sent.message_id)
-                        logger.info(f"Удалено сообщение {sent.message_id} у пользователя {sent.user_id}")
+                        logger.info(
+                            f"Удалено сообщение {sent.message_id} у пользователя {sent.user_id}"
+                        )
                         await asyncio.sleep(0.2)  # избегаем flood limit
                     except Exception as e:
                         logger.warning(
@@ -549,8 +562,12 @@ async def delete_vacancy_everywhere(session: AsyncSession, vacancy_id: UUID) -> 
                 )
 
                 # --- Удаляем из очередей (по тексту) ---
-                await session.execute(delete(VacancyQueue).where(VacancyQueue.text == text))
-                await session.execute(delete(VacancyTwoHours).where(VacancyTwoHours.text == text))
+                await session.execute(
+                    delete(VacancyQueue).where(VacancyQueue.text == text)
+                )
+                await session.execute(
+                    delete(VacancyTwoHours).where(VacancyTwoHours.text == text)
+                )
 
                 # --- Удаляем саму вакансию ---
                 await session.execute(delete(Vacancy).where(Vacancy.id == vac_id))
@@ -605,7 +622,14 @@ async def get_vacancy_by_hash(text_hash: str):
 
 
 async def save_vacancy_hash(
-    text, proffname, score, url, text_hash, vacancy_source=None, forwarding_source=None, admin_chat_url=None
+    text,
+    proffname,
+    score,
+    url,
+    text_hash,
+    vacancy_source=None,
+    forwarding_source=None,
+    admin_chat_url=None,
 ) -> UUID | None:
     async with Sessionmaker() as session:
         # Проверяем, есть ли вакансия с таким хэшем
@@ -968,3 +992,67 @@ async def get_vacancy_by_text(text: str) -> Vacancy | None:
         stmt = select(Vacancy).where(Vacancy.text == text)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+
+async def save_support_message(
+    session: AsyncSession,
+    user_id: int,
+    user_message_id: int,
+    admin_chat_message_id: int,
+):
+    try:
+        support_msg = SupportMessage(
+            user_id=user_id,
+            user_message_id=user_message_id,
+            admin_chat_message_id=admin_chat_message_id,
+        )
+
+        session.add(support_msg)
+        await session.commit()
+        return True
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to save support message: {e}")
+        return False
+
+
+async def update_support_message_reply(
+    session: AsyncSession,
+    user_id: int,
+    user_message_id: int,
+    admin_id: int,
+    admin_response: str,
+):
+    try:
+        stmt = (
+            update(SupportMessage)
+            .where(
+                SupportMessage.user_id == user_id,
+                SupportMessage.user_message_id == user_message_id,
+            )
+            .values(admin_id=admin_id, admin_response=admin_response)
+        )
+        await session.execute(stmt)
+        await session.commit()
+        return True
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to update support message reply: {e}")
+        return False
+
+
+async def get_user_by_admin_chat_message_id(
+    admin_chat_message_id: int,
+) -> SupportMessage | None:
+    async with Sessionmaker() as session:
+        try:
+            stmt = select(SupportMessage.user_id).where(
+                SupportMessage.admin_chat_message_id == admin_chat_message_id
+            )
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(
+                f"Failed to get user by admin chat message ID {admin_chat_message_id}: {e}"
+            )
+            return None

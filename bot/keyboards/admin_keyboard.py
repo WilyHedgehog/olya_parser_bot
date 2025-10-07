@@ -246,7 +246,7 @@ async def stopwords_keyboard(
 
     builder.row(button_divider)
     # Кнопка Назад к профессиям
-    builder.row(back_to_admin_kb)
+    builder.row(back_to_proffs_kb_button)
 
     return builder.as_markup()
 
