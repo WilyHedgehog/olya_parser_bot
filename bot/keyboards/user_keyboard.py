@@ -175,6 +175,7 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
     delivery_settings_text = "📬 Настройки параметров доставки вакансий 📬"
     promo_text = "🎟️ Активировать промокод 🎟️"
     referal_text = "👫 Пригласить друга 👭"
+    support_text = "🆘 Обратиться в поддержку 🆘"
     if user.active_promo and user.active_promo.lower() in [
         "club2425vip",
         "club2425",
@@ -193,6 +194,7 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
                 ],
                 [KeyboardButton(text=promo_text)],
                 [KeyboardButton(text=buy_subscription_text)],
+                [KeyboardButton(text=support_text)],
             ]
         else:
             buttons = [
@@ -202,7 +204,7 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
                     KeyboardButton(text=buy_subscription_text),
                     KeyboardButton(text=referal_text),
                 ],
-                [KeyboardButton(text=promo_text)],
+                [KeyboardButton(text=promo_text), KeyboardButton(text=support_text)],
             ]
     else:
         if user_delivery_mode == "button_click":
@@ -217,6 +219,7 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
                     KeyboardButton(text=buy_subscription_text),
                     KeyboardButton(text=referal_text),
                 ],
+                [KeyboardButton(text=support_text)],
             ]
         else:
             buttons = [
@@ -226,7 +229,7 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
                     KeyboardButton(text=promo_text),
                     KeyboardButton(text=buy_subscription_text),
                 ],
-                [KeyboardButton(text=referal_text)],
+                [KeyboardButton(text=referal_text), KeyboardButton(text=support_text)],
             ]
     keyboard = ReplyKeyboardMarkup(
         keyboard=buttons,

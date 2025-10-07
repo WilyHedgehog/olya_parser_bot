@@ -139,6 +139,13 @@ async def send_vacancy_to_users(vacancy_id: UUID):
                 user_id=user.telegram_id,
                 profession_id=vacancy.profession_id,
             )
+        elif user.delivery_mode == "support":
+            logger.info(f"User {user.telegram_id} is using support mode, skipping vacancy.")
+            pass  # Техподдержка не получает вакансии
+        else:
+            logger.warning(
+                f"Unknown delivery mode '{user.delivery_mode}' for user {user.telegram_id}, skipping."
+            )
 
 
 # --- 5. Отложенная отправка для two_hours ---

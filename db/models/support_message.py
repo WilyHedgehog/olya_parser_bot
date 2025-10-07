@@ -12,5 +12,3 @@ class SupportMessage(Base, TimestampMixin):
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     user_message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     admin_chat_message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    admin_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
-    admin_response: Mapped[str] = mapped_column(String, nullable=True)

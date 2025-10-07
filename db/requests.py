@@ -1016,30 +1016,6 @@ async def save_support_message(
         return False
 
 
-async def update_support_message_reply(
-    session: AsyncSession,
-    user_id: int,
-    user_message_id: int,
-    admin_id: int,
-    admin_response: str,
-):
-    try:
-        stmt = (
-            update(SupportMessage)
-            .where(
-                SupportMessage.user_id == user_id,
-                SupportMessage.user_message_id == user_message_id,
-            )
-            .values(admin_id=admin_id, admin_response=admin_response)
-        )
-        await session.execute(stmt)
-        await session.commit()
-        return True
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Failed to update support message reply: {e}")
-        return False
-
 
 async def get_user_by_admin_chat_message_id(
     admin_chat_message_id: int,

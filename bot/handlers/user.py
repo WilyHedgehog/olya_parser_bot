@@ -33,6 +33,7 @@ from db.requests import (
     update_autopay_status,
     get_promo_24_hours,
     save_support_message,
+    get_user_delivery_mode,
 )
 
 from find_job_process.job_dispatcher import send_vacancy_from_queue
@@ -67,9 +68,8 @@ config = load_config()
 router = Router(name="main router")
 
 
-EMAIL_REGEX = re.compile(
-    r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-)
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+
 
 def is_valid_email(email: str) -> bool:
     return bool(EMAIL_REGEX.match(email))
@@ -133,7 +133,7 @@ async def start_cmd_no_prof(message: Message, state: FSMContext):
 
 async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
-    #await try_delete_message_old(message, state)
+    # await try_delete_message_old(message, state)
 
     await try_delete_message(message)
 
@@ -200,7 +200,7 @@ async def change_delivery_mode(
     # Обновляем стейт
     await state.update_data(delivery_mode=mode)
     try:
-    # Обновляем клавиатуру
+        # Обновляем клавиатуру
         await callback.message.edit_reply_markup(
             reply_markup=await get_delivery_mode_kb(user_id=callback.from_user.id)
         )
@@ -246,7 +246,19 @@ async def change_user_chosen_professions(
 @router.callback_query(
     F.data == "confirm_choice", Main.first_time_choose_prof, UserHaveProfessions()
 )
-async def confirm_choice(callback: CallbackQuery, state: FSMContext):
+async def confirm_choice(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+):
+    try:
+        data = await state.get_data()
+        user_delivery_mode = data.get("user_delivery_mode")
+        if user_delivery_mode:
+            await update_delivery_mode(session, callback.from_user.id, user_delivery_mode)
+        else:
+            pass
+    except Exception as e:
+        logger.error(f"Error updating delivery mode on confirm choice: {e}")
+
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
 
     await callback.answer()
@@ -384,7 +396,7 @@ async def add_email_prompt(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("check_author_"))
 async def check_author(callback: CallbackQuery, state: FSMContext):
     vacancy_id = callback.data.split("_")[-1]
-    #сообщение в котором говортися, что буду звать админа
+    # сообщение в котором говортися, что буду звать админа
     await callback.answer(
         "Для уточнения автора вакансии позовут админа. Подведите запрос нажав на кнопку 'Позвать админа' под вакансией.",
         show_alert=True,
@@ -409,11 +421,13 @@ async def check_author_admin(callback: CallbackQuery, state: FSMContext):
         username = "Не указан"
     else:
         username = "@" + callback.from_user.username
-        
+
     await bot.send_message(
         chat_id=config.bot.support_chat_id,
-        text=LEXICON_ADMIN["need_author"].format(vacancy_id=vacancy_id, user_id=callback.from_user.id, username=username),
-        reply_markup=await get_vacancy_url_kb(vacancy_id)
+        text=LEXICON_ADMIN["need_author"].format(
+            vacancy_id=vacancy_id, user_id=callback.from_user.id, username=username
+        ),
+        reply_markup=await get_vacancy_url_kb(vacancy_id),
     )
 
 
@@ -444,7 +458,9 @@ async def confirm_email(
     user_data = await state.get_data()
     email = user_data.get("email")
     if not is_valid_email(email):
-        await callback.answer("Некорректный email. Попробуйте еще раз.", show_alert=True)
+        await callback.answer(
+            "Некорректный email. Попробуйте еще раз.", show_alert=True
+        )
         await state.set_state(Main.add_email)
         return
     if not email:
@@ -670,29 +686,41 @@ async def referal(message: Message, state: FSMContext):
     await state.update_data(reply_id=reply.message_id)
 
 
+@router.message(F.text == "🆘 Обратиться в поддержку 🆘", Main.main)
 @router.message(Command("support"), Main.main)
-async def support_cmd(message: Message, state: FSMContext):
+async def support_cmd(message: Message, state: FSMContext, session: AsyncSession):
     await try_delete_message_old(message, state)
     await try_delete_message(message)
     await state.set_state(Main.support)
-    reply = await message.answer(LEXICON_USER["support_cmd"], reply_markup=back_to_main_kb)
+    reply = await message.answer(
+        LEXICON_USER["support_cmd"], reply_markup=back_to_main_kb
+    )
+    user_delivery_mode = await get_user_delivery_mode(message.from_user.id)
+    await update_delivery_mode(session, message.from_user.id, "support")
+    await state.update_data(user_delivery_mode=user_delivery_mode)
     await state.update_data(reply_id=reply.message_id)
-    
-    
+
+
 @router.message(Main.support)
 async def support_message(message: Message, state: FSMContext, session: AsyncSession):
+    await bot.send_message(
+        chat_id=config.bot.support_chat_id,
+        text=f"💬 Новое сообщение в поддержку от {message.from_user.full_name}\nID пользователя: {message.from_user.id}",
+    )
     fwd = await bot.copy_message(
         chat_id=config.bot.support_chat_id,
         from_chat_id=message.chat.id,
-        message_id=message.message_id,  
+        message_id=message.message_id,
     )
     await save_support_message(
-        session=session,    
+        session=session,
         user_id=message.from_user.id,
         user_message_id=message.message_id,
         admin_chat_message_id=fwd.message_id,
     )
-    reply = await message.answer(LEXICON_USER["support_received"], reply_markup=back_to_main_kb)
+    reply = await message.answer(
+        LEXICON_USER["support_received"], reply_markup=back_to_main_kb
+    )
     await state.update_data(reply_id=reply.message_id)
 
 
