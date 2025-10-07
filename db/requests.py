@@ -11,6 +11,7 @@ from getcourse.gc_api import gc_request_no_payment_link
 from bot_setup import bot
 from sqlalchemy.exc import IntegrityError
 import hashlib
+import asyncio
 
 from db.database import Sessionmaker
 from db.models import (
@@ -496,59 +497,77 @@ async def cleanup_old_data(days: int = 2):
         await session.commit()
 
 
-async def delete_vacancy_evrerywhere(session: AsyncSession, vacancy_id: UUID):
+
+async def delete_vacancy_everywhere(session: AsyncSession, vacancy_id: UUID) -> bool:
+    """Удаляет вакансию и все дубликаты с одинаковым текстом, включая связанную рассылку."""
+
     try:
-        # Получаем вакансию
-        stmt = select(Vacancy).where(Vacancy.id == vacancy_id)
-        result = await session.execute(stmt)
+        # 1️⃣ Находим исходную вакансию
+        result = await session.execute(select(Vacancy).where(Vacancy.id == vacancy_id))
         vacancy = result.scalar_one_or_none()
+
         if not vacancy:
-            logger.error(f"Vacancy with ID {vacancy_id} not found for deletion.")
+            logger.warning(f"⚠️ Вакансия с ID {vacancy_id} не найдена.")
             return False
 
-        logger.warning(f"🥵Deleting vacancy ID {vacancy_id} everywhere.🥵")
+        text = vacancy.text
 
-        # Находим все отправленные вакансии
-        stmt = select(VacancySent).where(VacancySent.vacancy_id == vacancy_id)
-        result = await session.execute(stmt)
-        sent_vacancies = result.scalars().all()
+        # 2️⃣ Получаем все вакансии с тем же текстом (включая основную)
+        result = await session.execute(select(Vacancy).where(Vacancy.text == text))
+        vacancies = result.scalars().all()
 
-        if not sent_vacancies:
-            logger.info(f"No sent vacancies found for vacancy ID {vacancy_id}.")
-        else:
-            for sent in sent_vacancies:
-                try:
-                    await bot.delete_message(sent.user_id, sent.message_id)
-                    logger.warning(
-                        f"🥵Deleted message {sent.message_id} for user {sent.user_id}.🥵"
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to delete message {sent.message_id} for user {sent.user_id}: {e}"
-                    )
+        if not vacancies:
+            logger.info(f"Нет вакансий с текстом '{text}' — нечего удалять.")
+            return False
 
-            # Удаляем записи из VacancySent
-            await session.execute(
-                delete(VacancySent).where(VacancySent.vacancy_id == vacancy_id)
-            )
+        logger.warning(f"🥵 Удаляем {len(vacancies)} вакансий с одинаковым текстом. 🥵")
 
-        # Удаляем из очередей по vacancy_id
-        await session.execute(
-            delete(VacancyQueue).where(VacancyQueue.text == vacancy.text)
-        )
-        await session.execute(
-            delete(VacancyTwoHours).where(VacancyTwoHours.text == vacancy.text)
-        )
+        # 3️⃣ Удаляем связанные данные для каждой вакансии
+        for vac in vacancies:
+            vac_id = vac.id
 
-        # Теперь удаляем саму вакансию
-        await session.execute(delete(Vacancy).where(Vacancy.id == vacancy_id))
+            try:
+                # --- Удаляем отправленные вакансии ---
+                sent_result = await session.execute(
+                    select(VacancySent).where(VacancySent.vacancy_id == vac_id)
+                )
+                sent_vacancies = sent_result.scalars().all()
 
+                for sent in sent_vacancies:
+                    try:
+                        await bot.delete_message(sent.user_id, sent.message_id)
+                        logger.info(f"Удалено сообщение {sent.message_id} у пользователя {sent.user_id}")
+                        await asyncio.sleep(0.2)  # избегаем flood limit
+                    except Exception as e:
+                        logger.warning(
+                            f"Не удалось удалить сообщение {sent.message_id} у {sent.user_id}: {e}"
+                        )
+
+                # --- Удаляем записи из VacancySent ---
+                await session.execute(
+                    delete(VacancySent).where(VacancySent.vacancy_id == vac_id)
+                )
+
+                # --- Удаляем из очередей (по тексту) ---
+                await session.execute(delete(VacancyQueue).where(VacancyQueue.text == text))
+                await session.execute(delete(VacancyTwoHours).where(VacancyTwoHours.text == text))
+
+                # --- Удаляем саму вакансию ---
+                await session.execute(delete(Vacancy).where(Vacancy.id == vac_id))
+                logger.info(f"✅ Удалена вакансия {vac_id}")
+
+            except Exception as e:
+                logger.error(f"Ошибка при удалении вакансии {vac_id}: {e}")
+                await session.rollback()
+                return False
+
+        # 4️⃣ Коммитим изменения один раз после цикла
         await session.commit()
-        logger.info(f"Vacancy {vacancy_id} deleted successfully everywhere.")
+        logger.info(f"🎉 Все вакансии с текстом '{text}' успешно удалены.")
         return True
 
     except Exception as e:
-        logger.error(f"Error deleting vacancy ID {vacancy_id} everywhere: {e}")
+        logger.error(f"Ошибка при удалении вакансий по ID {vacancy_id}: {e}")
         await session.rollback()
         return False
 

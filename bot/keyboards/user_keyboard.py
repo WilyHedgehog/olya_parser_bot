@@ -243,6 +243,14 @@ async def get_need_author_kb(UUID: str) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+async def need_admin_for_author_kb(UUID: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Позвать админа", callback_data=f"need_admin_for_author_{UUID}"))
+    return builder.as_markup()
+
+
+
+
 confirm_email_button_kb = InlineKeyboardMarkup(
     inline_keyboard=[[confirm_email_button], [back_to_main_button]]
 )

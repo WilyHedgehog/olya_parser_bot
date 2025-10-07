@@ -1,5 +1,5 @@
 import logging
-
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 import zoneinfo
@@ -54,6 +54,7 @@ from bot.keyboards.user_keyboard import (
     get_delivery_mode_kb,
     get_main_reply_kb,
     get_pay_subscription_kb,
+    need_admin_for_author_kb,
 )
 from bot.keyboards.admin_keyboard import get_vacancy_url_kb
 
@@ -63,6 +64,14 @@ config = load_config()
 
 # Инициализируем роутер уровня модуля
 router = Router(name="main router")
+
+
+EMAIL_REGEX = re.compile(
+    r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+)
+
+def is_valid_email(email: str) -> bool:
+    return bool(EMAIL_REGEX.match(email))
 
 
 async def try_delete_message_old(message: Message, state: FSMContext):
@@ -366,6 +375,20 @@ async def add_email_prompt(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("check_author_"))
 async def check_author(callback: CallbackQuery, state: FSMContext):
     vacancy_id = callback.data.split("_")[-1]
+    #сообщение в котором говортися, что буду звать админа
+    await callback.answer(
+        "Для уточнения автора вакансии позовут админа. Подведите запрос нажав на кнопку 'Позвать админа' под вакансией.",
+        show_alert=True,
+    )
+    await callback.message.edit_reply_markup(
+        reply_markup=await need_admin_for_author_kb(vacancy_id)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("need_admin_for_author_"))
+async def check_author_admin(callback: CallbackQuery, state: FSMContext):
+    vacancy_id = callback.data.split("_")[-1]
     await callback.answer(
         "Запрос на уточнение автора вакансии получен. Мы свяжемся с вами в ближайшее время.",
         show_alert=True,
@@ -409,6 +432,10 @@ async def confirm_email(
     await callback.answer()
     user_data = await state.get_data()
     email = user_data.get("email")
+    if not is_valid_email(email):
+        await callback.answer("Некорректный email. Попробуйте еще раз.", show_alert=True)
+        await state.set_state(Main.add_email)
+        return
     if not email:
         await callback.message.edit_text(LEXICON_USER["add_email_fail"])
         await state.set_state(Main.add_email)
