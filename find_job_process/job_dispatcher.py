@@ -78,9 +78,9 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
 
         except TelegramRetryAfter as e:
             logger.warning(
-                f"Flood control hit for user {user_id}, retry in {e.timeout}s"
+                f"Flood control hit for user {user_id}, retry in {e.retry_after}s"
             )
-            await asyncio.sleep(e.timeout)  # ждем указанное Telegram время
+            await asyncio.sleep(e.retry_after)  # ждем указанное Telegram время
 
         except TelegramForbiddenError:
             # Пользователь заблокировал бота или не начал чат
