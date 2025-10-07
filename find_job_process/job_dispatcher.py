@@ -36,22 +36,21 @@ TZ_MOSCOW = zoneinfo.ZoneInfo("Europe/Moscow")
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 
 
-
 # --- 2. Отправка вакансии пользователю ---
 async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
     print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
     if not await dublicate_check(user_id, vacancy):
         return False  # Уже отправляли такую вакансию этому пользователю
     print("🤖 Отправка вакансии пользователю:", user_id)
-    
+
     if url == True:
         main_vacancy = await get_vacancy_by_text(vacancy.text)
-        #vacancy_url = main_vacancy.url
+        # vacancy_url = main_vacancy.url
         vacancy_id = main_vacancy.id
     else:
-        #vacancy_url = vacancy.url
+        # vacancy_url = vacancy.url
         vacancy_id = vacancy.id
-        
+
     while True:
         try:
             message = await bot.send_message(
@@ -66,9 +65,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
             )
 
             await record_vacancy_sent(
-                user_id=user_id,
-                vacancy_id=vacancy_id,
-                message_id=message.message_id
+                user_id=user_id, vacancy_id=vacancy_id, message_id=message.message_id
             )
 
             # Пауза между сообщениями, чтобы снизить риск flood control
@@ -76,12 +73,16 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
             return True
 
         except TelegramRetryAfter as e:
-            logger.warning(f"Flood control hit for user {user_id}, retry in {e.timeout}s")
+            logger.warning(
+                f"Flood control hit for user {user_id}, retry in {e.timeout}s"
+            )
             await asyncio.sleep(e.timeout)  # ждем указанное Telegram время
 
         except TelegramForbiddenError:
             # Пользователь заблокировал бота или не начал чат
-            logger.warning(f"Cannot send vacancy to user {user_id}: bot is blocked or user hasn't started the chat.")
+            logger.warning(
+                f"Cannot send vacancy to user {user_id}: bot is blocked or user hasn't started the chat."
+            )
             return False
 
         except Exception as e:
@@ -148,8 +149,9 @@ async def send_vacancy_from_queue(user_id: int):
         await bot.send_message(user_id, "Нет накопленных вакансий.")
         logger.info(f"No queued vacancies for user {user_id}.")
         return
-
+    print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
     for item in result:
+        print(f"🎃 Отправка вакансии {item.id} пользователю:", user_id)
         sent = await send_vacancy(
             user_id, item, url=True
         )  # True, если реально отправили
