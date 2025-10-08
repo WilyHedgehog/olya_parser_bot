@@ -379,40 +379,48 @@ async def process_message(message):
     original_link = get_message_link(message)
 
     try:
+        # 1️⃣ Основная попытка — достать реального отправителя
         user = await message.get_sender()
+
         if user:
-            entity_username = getattr(user, "username", None)
-            entity_name = (
-                getattr(user, "first_name", None)
-                or getattr(user, "title", None)
-                or "Unknown"
-            )
+            # Если это реальный пользователь (а не чат)
+            if not getattr(user, "bot", False) and getattr(user, "first_name", None):
+                entity_username = getattr(user, "username", None)
+                entity_name = user.first_name or "Unknown"
+            else:
+                # Это бот или чат — fallback на title
+                entity_username = getattr(user, "username", None)
+                entity_name = (
+                    getattr(user, "title", None)
+                    or getattr(user, "first_name", "Unknown")
+                )
 
-            # Дополнительно пробуем достать username через peer_id (если почему-то пусто)
-            if not entity_username and getattr(message, "peer_id", None):
-                try:
-                    peer_entity = await app.get_entity(message.peer_id)
-                    entity_username = getattr(peer_entity, "username", None)
-                    if not entity_name or entity_name == "Unknown":
-                        entity_name = (
-                            getattr(peer_entity, "title", None)
-                            or getattr(peer_entity, "first_name", "Unknown")
-                        )
-                except Exception:
-                    pass
-
-        elif message.from_id:
-            # Попытка достать по from_id (если get_sender() не сработал)
+        # 2️⃣ Если get_sender() ничего не вернул — пробуем по from_id
+        elif getattr(message, "from_id", None):
             try:
                 entity = await app.get_entity(message.from_id)
-                entity_name = (
-                    getattr(entity, "title", None)
-                    or getattr(entity, "first_name", "Unknown")
-                )
-                entity_username = getattr(entity, "username", None)
+                # Если это пользователь, а не канал
+                if getattr(entity, "first_name", None):
+                    entity_name = entity.first_name
+                    entity_username = getattr(entity, "username", None)
+                else:
+                    # Это канал или чат
+                    entity_name = getattr(entity, "title", "Unknown")
+                    entity_username = getattr(entity, "username", None)
             except Exception:
                 entity_name = "Unknown"
                 entity_username = None
+
+        # 3️⃣ Если и from_id нет — возможно, сообщение от канала
+        elif getattr(message, "peer_id", None):
+            try:
+                peer_entity = await app.get_entity(message.peer_id)
+                entity_name = getattr(peer_entity, "title", "Unknown")
+                entity_username = getattr(peer_entity, "username", None)
+            except Exception:
+                entity_name = "Unknown"
+                entity_username = None
+
         else:
             entity_name = "Unknown"
             entity_username = None
@@ -425,12 +433,11 @@ async def process_message(message):
     # -------------------------------------------------------------------
     # Блок обработки пересланных сообщений
     # -------------------------------------------------------------------
-
     if message.forward:
         try:
             fwd_info = []
 
-            # 1️⃣ Если переслали от пользователя (и Telethon отдал sender)
+            # 1️⃣ Переслано от конкретного пользователя
             if message.forward.sender:
                 fwd_user = message.forward.sender
                 fwd_username = getattr(fwd_user, "username", None)
@@ -439,7 +446,7 @@ async def process_message(message):
                 else:
                     fwd_info.append(fwd_user.first_name or "Unknown User")
 
-            # 2️⃣ Если переслали из канала / чата
+            # 2️⃣ Переслано из канала / чата
             elif message.forward.chat:
                 fwd_chat = message.forward.chat
                 chat_name = getattr(fwd_chat, "title", None) or "Unknown Chat"
