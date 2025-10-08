@@ -27,6 +27,7 @@ from bot_setup import bot
 from bot.keyboards.admin_keyboard import get_delete_vacancy_kb
 from bot.lexicon.lexicon import LEXICON_PARSER
 from parser.telethon_client import app
+from .extract_sender import extract_sender_info
 
 config: Config = load_config()
 logger = logging.getLogger(__name__)
@@ -378,103 +379,7 @@ async def process_message(message):
 
     original_link = get_message_link(message)
 
-    try:
-        # 1️⃣ Основная попытка — достать реального отправителя
-        user = await message.get_sender()
-
-        if user:
-            # Если это реальный пользователь (а не чат)
-            if not getattr(user, "bot", False) and getattr(user, "first_name", None):
-                entity_username = getattr(user, "username", None)
-                entity_name = user.first_name or "Unknown"
-            else:
-                # Это бот или чат — fallback на title
-                entity_username = getattr(user, "username", None)
-                entity_name = (
-                    getattr(user, "title", None)
-                    or getattr(user, "first_name", "Unknown")
-                )
-
-        # 2️⃣ Если get_sender() ничего не вернул — пробуем по from_id
-        elif getattr(message, "from_id", None):
-            try:
-                entity = await app.get_entity(message.from_id)
-                # Если это пользователь, а не канал
-                if getattr(entity, "first_name", None):
-                    entity_name = entity.first_name
-                    entity_username = getattr(entity, "username", None)
-                else:
-                    # Это канал или чат
-                    entity_name = getattr(entity, "title", "Unknown")
-                    entity_username = getattr(entity, "username", None)
-            except Exception:
-                entity_name = "Unknown"
-                entity_username = None
-
-        # 3️⃣ Если и from_id нет — возможно, сообщение от канала
-        elif getattr(message, "peer_id", None):
-            try:
-                peer_entity = await app.get_entity(message.peer_id)
-                entity_name = getattr(peer_entity, "title", "Unknown")
-                entity_username = getattr(peer_entity, "username", None)
-            except Exception:
-                entity_name = "Unknown"
-                entity_username = None
-
-        else:
-            entity_name = "Unknown"
-            entity_username = None
-
-    except Exception as e:
-        logger.warning(f"Ошибка получения данных отправителя: {e}")
-        entity_name = "Unknown"
-        entity_username = None
-
-    # -------------------------------------------------------------------
-    # Блок обработки пересланных сообщений
-    # -------------------------------------------------------------------
-    if message.forward:
-        try:
-            fwd_info = []
-
-            # 1️⃣ Переслано от конкретного пользователя
-            if message.forward.sender:
-                fwd_user = message.forward.sender
-                fwd_username = getattr(fwd_user, "username", None)
-                if fwd_username:
-                    fwd_info.append(f"@{fwd_username}")
-                else:
-                    fwd_info.append(fwd_user.first_name or "Unknown User")
-
-            # 2️⃣ Переслано из канала / чата
-            elif message.forward.chat:
-                fwd_chat = message.forward.chat
-                chat_name = getattr(fwd_chat, "title", None) or "Unknown Chat"
-                chat_username = getattr(fwd_chat, "username", None)
-                fwd_info.append(f"@{chat_username}" if chat_username else chat_name)
-
-            # 3️⃣ Последняя попытка — forward.from_id
-            elif message.forward.from_id:
-                try:
-                    fwd_entity = await app.get_entity(message.forward.from_id)
-                    fwd_name = (
-                        getattr(fwd_entity, "title", None)
-                        or getattr(fwd_entity, "first_name", "Unknown")
-                    )
-                    fwd_username = getattr(fwd_entity, "username", None)
-                    fwd_info.append(f"@{fwd_username}" if fwd_username else fwd_name)
-                except Exception as e:
-                    logger.info(f"Не удалось получить entity для from_id: {e}")
-                    fwd_info.append("Неизвестный источник")
-
-            else:
-                fwd_info.append("Неизвестный источник")
-
-        except Exception as e:
-            logger.info(f"Ошибка получения информации о пересылке: {e}")
-            fwd_info = ["Неизвестный источник"]
-    else:
-        fwd_info = []
+    entity_name, entity_username, fwd_info = await extract_sender_info(app, message)
 
     clean_text = message_text
     message_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
