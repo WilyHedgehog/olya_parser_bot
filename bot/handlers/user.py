@@ -152,13 +152,20 @@ async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
 
 
 @router.message(CommandStart(), ~IsNewUser(), UserHaveProfessions())
-async def start_cmd_existing_user(message: Message, state: FSMContext):
+async def start_cmd_existing_user(message: Message, state: FSMContext, session: AsyncSession):
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
     await try_delete_message_old(message, state)
 
     await try_delete_message(message)
 
     professions_list_name = await get_user_professions_list(message.from_user.id)
+    
+    try:
+        data = await state.get_data()
+        user_delivery_mode = data.get("delivery_mode")
+        await update_delivery_mode(session, message.from_user.id, user_delivery_mode)
+    except Exception as e:
+        pass
 
     reply = await message.answer_photo(
         photo=photo,
@@ -180,7 +187,6 @@ async def start_cmd_existing_user(message: Message, state: FSMContext):
 async def change_delivery_mode(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
-    await callback.answer()
     data = await state.get_data()
     user_mode = data.get("delivery_mode")  # текущий сохранённый режим
 
@@ -196,7 +202,7 @@ async def change_delivery_mode(
 
     # Сохраняем новый режим в базе
     await update_delivery_mode(session, callback.from_user.id, mode)
-
+    await callback.answer()
     # Обновляем стейт
     await state.update_data(delivery_mode=mode)
     try:
