@@ -381,47 +381,78 @@ async def process_message(message):
     try:
         user = await message.get_sender()
         if user:
-            username = user.username
-            entity_name = user.first_name or "Unknown"
-            entity_username = username
-        elif message.from_id:
-            entity = await app.get_entity(message.from_id)
-            entity_name = getattr(entity, "title", None) or getattr(
-                entity, "first_name", "Unknown"
+            entity_username = getattr(user, "username", None)
+            entity_name = (
+                getattr(user, "first_name", None)
+                or getattr(user, "title", None)
+                or "Unknown"
             )
-            entity_username = getattr(entity, "username", None)
+
+            # Дополнительно пробуем достать username через peer_id (если почему-то пусто)
+            if not entity_username and getattr(message, "peer_id", None):
+                try:
+                    peer_entity = await app.get_entity(message.peer_id)
+                    entity_username = getattr(peer_entity, "username", None)
+                    if not entity_name or entity_name == "Unknown":
+                        entity_name = (
+                            getattr(peer_entity, "title", None)
+                            or getattr(peer_entity, "first_name", "Unknown")
+                        )
+                except Exception:
+                    pass
+
+        elif message.from_id:
+            # Попытка достать по from_id (если get_sender() не сработал)
+            try:
+                entity = await app.get_entity(message.from_id)
+                entity_name = (
+                    getattr(entity, "title", None)
+                    or getattr(entity, "first_name", "Unknown")
+                )
+                entity_username = getattr(entity, "username", None)
+            except Exception:
+                entity_name = "Unknown"
+                entity_username = None
         else:
             entity_name = "Unknown"
             entity_username = None
 
     except Exception as e:
+        logger.warning(f"Ошибка получения данных отправителя: {e}")
         entity_name = "Unknown"
         entity_username = None
+
+    # -------------------------------------------------------------------
+    # Блок обработки пересланных сообщений
+    # -------------------------------------------------------------------
 
     if message.forward:
         try:
             fwd_info = []
 
-            # 1. Если переслали от конкретного пользователя (и Telethon уже вернул объект)
+            # 1️⃣ Если переслали от пользователя (и Telethon отдал sender)
             if message.forward.sender:
                 fwd_user = message.forward.sender
-                fwd_username = fwd_user.username
+                fwd_username = getattr(fwd_user, "username", None)
                 if fwd_username:
                     fwd_info.append(f"@{fwd_username}")
                 else:
                     fwd_info.append(fwd_user.first_name or "Unknown User")
 
-            # 2. Если переслали из чата/канала
+            # 2️⃣ Если переслали из канала / чата
             elif message.forward.chat:
                 fwd_chat = message.forward.chat
-                fwd_info.append(fwd_chat.title)
+                chat_name = getattr(fwd_chat, "title", None) or "Unknown Chat"
+                chat_username = getattr(fwd_chat, "username", None)
+                fwd_info.append(f"@{chat_username}" if chat_username else chat_name)
 
-            # 3. В крайнем случае — from_id (но это ненадёжно)
+            # 3️⃣ Последняя попытка — forward.from_id
             elif message.forward.from_id:
                 try:
                     fwd_entity = await app.get_entity(message.forward.from_id)
-                    fwd_name = getattr(fwd_entity, "title", None) or getattr(
-                        fwd_entity, "first_name", "Unknown"
+                    fwd_name = (
+                        getattr(fwd_entity, "title", None)
+                        or getattr(fwd_entity, "first_name", "Unknown")
                     )
                     fwd_username = getattr(fwd_entity, "username", None)
                     fwd_info.append(f"@{fwd_username}" if fwd_username else fwd_name)
@@ -435,6 +466,8 @@ async def process_message(message):
         except Exception as e:
             logger.info(f"Ошибка получения информации о пересылке: {e}")
             fwd_info = ["Неизвестный источник"]
+    else:
+        fwd_info = []
 
     clean_text = message_text
     message_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
