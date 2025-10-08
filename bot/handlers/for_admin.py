@@ -605,8 +605,12 @@ async def process_delete_stopword(
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("delete_vacancy_"))
 async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession):
+    try:
+        await callback.answer()
+    except Exception as e:
+        logger.error(f"Error answering callback: {e}")
+        pass
     vacancy_id = callback.data.split("_")[2]
-    await callback.answer()
     try:
         result = await delete_vacancy_everywhere(session, vacancy_id)
         if result:
