@@ -37,6 +37,7 @@ from bot.background_tasks.check_subscriptions import start_all_schedulers
 from bot.background_tasks.send_two_hours_vacancy import (
     start_scheduler_two_hours_vacancy_send,
 )
+from bot.background_tasks.broker import broker
 from bot.middlewares.middlewares import (
     DbSessionMiddleware,
     TrackAllUsersMiddleware,
@@ -127,6 +128,9 @@ def create_app(config: Config) -> FastAPI:
         await setup_vacancy_stream(js)
         await setup_tasks_stream(js)
         asyncio.create_task(vacancy_worker(js))
+        logger.info("Vacancy worker started")
+        await broker.startup()
+        logger.info("Taskiq broker started")
 
         yield
 
