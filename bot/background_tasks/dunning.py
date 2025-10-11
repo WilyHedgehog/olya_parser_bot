@@ -61,7 +61,7 @@ async def schedule_dunning(chat_id: int):
         print(
             f"Scheduled dunning task {scheduled.id} with Taskiq id {task.schedule_id} to run at {run_at}"
         )
-        await set_taskiq_id(scheduled.id, task.id)
+        await set_taskiq_id(scheduled.id, task.schedule_id)
 
 
 async def cancel_dunning_tasks(chat_id: int):
