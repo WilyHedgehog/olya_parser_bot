@@ -210,7 +210,7 @@ async def process_mailing_datetime(message: Message, state: FSMContext):
 
     if not datetime_str:
         await message.answer(
-            LEXICON_ADMIN["add_mailing_stg4_error"], reply_markup=back_to_mailing_kb
+            LEXICON_ADMIN["add_mailing_stg4_error1"], reply_markup=back_to_mailing_kb
         )
         return
 
@@ -221,14 +221,13 @@ async def process_mailing_datetime(message: Message, state: FSMContext):
         )
     except ValueError:
         await message.answer(
-            LEXICON_ADMIN["add_mailing_stg4_error"], reply_markup=back_to_mailing_kb
+            LEXICON_ADMIN["add_mailing_stg4_error2"], reply_markup=back_to_mailing_kb
         )
         return
 
     if mailing_datetime < datetime.now(MOSCOW_TZ) + timedelta(minutes=10):
         await message.answer(
-            LEXICON_ADMIN["add_mailing_stg4_error"]
-            + "<br>Время рассылки должно быть не менее чем через 10 минут.",
+            LEXICON_ADMIN["add_mailing_stg4_error3"],
             reply_markup=back_to_mailing_kb,
         )
         return
