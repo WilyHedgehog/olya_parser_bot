@@ -52,7 +52,10 @@ async def schedule_dunning(chat_id: int):
         )
 
         # 2) ставим задачу в Taskiq, передаём scheduled.id как аргумент
-        task = await send_followup.kiq(scheduled_task_id=scheduled.id, delay=delay_seconds)
+        task = await send_followup.schedule_by_time(
+            scheduled_task_id=scheduled.id, time=run_at
+        )
+    
 
         # 3) сохраняем taskiq id (необязательно, но полезно для трассировки)
         print(
