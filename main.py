@@ -130,10 +130,10 @@ def create_app(config: Config) -> FastAPI:
         await setup_tasks_stream(js)
         asyncio.create_task(vacancy_worker(js))
         logger.info("Vacancy worker started")
+        await schedule_source.startup()
         await broker.startup()
         logger.info("Taskiq broker started")
         
-        await schedule_source.startup()
         logger.info("Taskiq schedule source started")
 
         yield

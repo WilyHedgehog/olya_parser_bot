@@ -16,6 +16,7 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 @broker.task
 async def send_followup(scheduled_task_id: int):
+    print(f"send_followup called with scheduled_task_id={scheduled_task_id}")
     """
     Воркeром выполняется эта функция. Она получает id записи в БД,
     проверяет флаг cancelled и только потом шлёт сообщение.

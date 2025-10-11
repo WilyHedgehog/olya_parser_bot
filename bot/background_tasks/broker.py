@@ -1,5 +1,5 @@
 # bot/background_tasks/broker.py
-from taskiq_nats import PullBasedJetStreamBroker
+from taskiq_nats import PullBasedJetStreamBroker, PushBasedJetStreamBroker
 from taskiq_nats.schedule_source import NATSKeyValueScheduleSource
 from config.config import load_config
 
