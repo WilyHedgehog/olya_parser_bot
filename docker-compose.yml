@@ -79,7 +79,7 @@ services:
   worker:
     build: .
     container_name: olya_bot_worker
-    command: python -m taskiq_worker bot.background_tasks.broker --log-level=INFO
+    command: python bot/background_tasks/worker.py
     depends_on:
       - nats
       - bot_app
