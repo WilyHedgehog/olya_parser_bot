@@ -11,6 +11,7 @@ from .vacancy_queue import VacancyQueue
 from .pricing_plans import PricingPlan
 from .vacancy_two_hours import VacancyTwoHours
 from .support_message import SupportMessage
+from .sheduler_tasks import ScheduledTask
 
 __all__ = [
     "User",
@@ -26,4 +27,5 @@ __all__ = [
     "PricingPlan",
     "VacancyTwoHours",
     "SupportMessage",
+    "ScheduledTask",
 ]

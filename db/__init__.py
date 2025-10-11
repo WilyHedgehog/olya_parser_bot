@@ -13,6 +13,7 @@ from .models import (
     PricingPlan,
     VacancyTwoHours,
     SupportMessage,
+    ScheduledTask,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "PricingPlan",
     "VacancyTwoHours",
     "SupportMessage",
+    "ScheduledTask",
 ]

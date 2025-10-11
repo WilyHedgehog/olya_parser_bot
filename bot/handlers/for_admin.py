@@ -3,6 +3,7 @@ from aiogram import F, Router
 from aiogram.filters import Command, MagicData
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
+from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
@@ -627,3 +628,14 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
 @router.message(Command("adminsub"), IsAdminFilter())
 async def admin_subs_cmd(message: Message):
     await update_user_access(message.from_user.id, True)
+    
+    
+@router.message(Command("check1"), IsAdminFilter())
+async def check1_cmd(message: Message):
+    await schedule_dunning(message.chat.id)
+    await message.answer("Команда check1 выполнена.")
+    
+@router.message(Command("check2"), IsAdminFilter())
+async def check2_cmd(message: Message):
+    await cancel_dunning_tasks(message.chat.id)
+    await message.answer("Команда check2 выполнена.")
