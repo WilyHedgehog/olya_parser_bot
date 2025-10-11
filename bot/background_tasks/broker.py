@@ -8,3 +8,5 @@ broker = PullBasedJetStreamBroker(
     servers=config.nats.servers,
     queue="taskiq_broadcasts",
 )
+
+import bot.background_tasks.dunning
