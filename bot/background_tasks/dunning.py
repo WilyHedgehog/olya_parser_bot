@@ -45,7 +45,8 @@ async def schedule_dunning(chat_id: int):
         task = await send_followup.kiq(scheduled.id, eta=run_at)
 
         # 3) сохраняем taskiq id (необязательно, но полезно для трассировки)
-        await set_taskiq_id(scheduled.id, task.id)
+        print(f"Scheduled dunning task {scheduled.id} with Taskiq id {task.task_id} to run at {run_at}")
+        await set_taskiq_id(scheduled.id, task.task_id)
 
 
 async def cancel_dunning_tasks(chat_id: int):

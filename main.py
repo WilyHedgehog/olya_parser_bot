@@ -7,7 +7,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from utils.nats_connect import get_nats_connection, setup_vacancy_stream
+from utils.nats_connect import (
+    get_nats_connection,
+    setup_vacancy_stream,
+    setup_tasks_stream,
+)
 from storage.nats_storage import NatsStorage
 
 from datetime import datetime, timedelta
@@ -25,12 +29,14 @@ from parser.parser_bot import main as parser_main
 
 from db.database import Sessionmaker
 from db.requests import set_new_days, update_user_is_pay_status, load_stopwords
-from bot.background_tasks.worker import vacancy_worker
+from parser.worker import vacancy_worker
 
 from find_job_process.find_job import load_professions
 
 from bot.background_tasks.check_subscriptions import start_all_schedulers
-from bot.background_tasks.send_two_hours_vacancy import start_scheduler_two_hours_vacancy_send
+from bot.background_tasks.send_two_hours_vacancy import (
+    start_scheduler_two_hours_vacancy_send,
+)
 from bot.middlewares.middlewares import (
     DbSessionMiddleware,
     TrackAllUsersMiddleware,
@@ -47,14 +53,25 @@ config: Config = load_config()
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 WEBHOOK_PATH = "/webhook"
 MONTHS = {
-    "янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "июн": 6,
-    "июл": 7, "авг": 8, "сен": 9, "сент": 9, "окт": 10, "ноя": 11, "дек": 12
+    "янв": 1,
+    "фев": 2,
+    "мар": 3,
+    "апр": 4,
+    "май": 5,
+    "июн": 6,
+    "июл": 7,
+    "авг": 8,
+    "сен": 9,
+    "сент": 9,
+    "окт": 10,
+    "ноя": 11,
+    "дек": 12,
 }
 
 
 def dispatcher_factory(storage) -> Dispatcher:
     dp = get_db(storage)
-    
+
     dp.update.middleware(DbSessionMiddleware(Sessionmaker))
     dp.update.middleware(TrackAllUsersMiddleware())
     dp.update.middleware(ShadowBanMiddleware())
@@ -79,8 +96,6 @@ def create_app(config: Config) -> FastAPI:
         nc, js = await get_nats_connection()
         storage: NatsStorage = await NatsStorage(nc=nc, js=js).create_storage()
 
-
-        
         global dp
         dp = dispatcher_factory(storage)
         me = await bot.me()
@@ -97,19 +112,20 @@ def create_app(config: Config) -> FastAPI:
         # Загружаем профессии
         await load_professions()
         logger.info("Professions loaded")
-        
+
         await load_stopwords()
         logger.info("Stopwords loaded")
 
         # Запускаем планировщик задач
         start_all_schedulers()
         logger.info("Scheduler started")
-        
-        #start_scheduler_two_hours_vacancy_send()
+
+        # start_scheduler_two_hours_vacancy_send()
         logger.info("Two hours vacancy scheduler started")
-        
+
         # Запускаем воркер для обработки вакансий
         await setup_vacancy_stream(js)
+        await setup_tasks_stream(js)
         asyncio.create_task(vacancy_worker(js))
 
         yield
@@ -130,8 +146,6 @@ def create_app(config: Config) -> FastAPI:
         return {"ok": True}
 
     return app
-
-
 
 
 # --- Загружаем конфиг и создаём приложение --
@@ -155,9 +169,9 @@ async def process_getcourse_promocode(
 ):
     date = await parse_date(gc_date)
     date = date + timedelta(hours=12)
-    text = ''
+    text = ""
     user_id, new_text = await set_new_days(mail=mail, days=date)
-    text += new_text    
+    text += new_text
     print(f"Получен платёж: email {mail}")
 
     if user_id:
@@ -169,11 +183,13 @@ async def process_getcourse_promocode(
 
     return JSONResponse(content={"status": "ok"})
 
+
 # https://2ba392152584.ngrok-free.app/webhook/subscribe?gc_date={object.finish_at}&mail={object.user.email}&offer_id={object.user.id}
 
 # https://capybara.olgaproonline.ru/webhook/subscribe?gc_date={object.finish_at}&mail={object.user.email}   платная подписка
 # https://capybara.olgaproonline.ru/webhook/prolong?gc_date={object.finish_at}&mail={object.user.email}  продление подписки
 # https://capybara.olgaproonline.ru/webhook/promocode?gc_date={object.finish_at}&mail={object.user.email}    промокод
+
 
 @app.get(f"{WEBHOOK_PATH}/subscribe")
 async def process_getcourse_sub(
@@ -193,14 +209,16 @@ async def process_getcourse_sub(
                 await bot.send_photo(
                     chat_id=user_id,
                     photo=photo,
-                    caption=LEXICON_SUBSCRIBE["after_subscribe_text"].format(date=date.strftime("%d.%m.%Y")),
+                    caption=LEXICON_SUBSCRIBE["after_subscribe_text"].format(
+                        date=date.strftime("%d.%m.%Y")
+                    ),
                     parse_mode=ParseMode.HTML,
                 )
             except Exception as e:
                 logger.error(f"Ошибка при отправке фото пользователю {user_id}: {e}")
 
             await update_user_is_pay_status(telegram_id=user_id, is_pay_status=True)
-        
+
         return JSONResponse(content={"status": "ok"})
     except Exception as e:
         logger.error(f"Ошибка в process_getcourse_sub: {e}")
@@ -219,7 +237,9 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
 
         # обновляем подписку
         user_id, new_text = await set_new_days(mail=mail, days=date)
-        logger.info(f"Получен промокод: email={mail}, user_id={user_id}, new_until={date}")
+        logger.info(
+            f"Получен промокод: email={mail}, user_id={user_id}, new_until={date}"
+        )
 
         # отправка картинки пользователю
         if user_id:
@@ -243,7 +263,6 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
         return JSONResponse(content={"status": "error", "message": str(e)})
 
 
-
 @app.get(f"{WEBHOOK_PATH}/prolong")
 async def process_getcourse_extension(
     gc_date: str = "",
@@ -261,7 +280,9 @@ async def process_getcourse_extension(
                 await bot.send_photo(
                     chat_id=user_id,
                     photo=photo,
-                    caption=LEXICON_SUBSCRIBE["after_prolong_text"].format(date=date.strftime("%d.%m.%Y")),
+                    caption=LEXICON_SUBSCRIBE["after_prolong_text"].format(
+                        date=date.strftime("%d.%m.%Y")
+                    ),
                     parse_mode=ParseMode.HTML,
                 )
             except Exception as e:
@@ -273,12 +294,11 @@ async def process_getcourse_extension(
         return JSONResponse(content={"status": "error", "message": str(e)})
 
 
-
 async def parse_date(date_str: str) -> datetime:
     parts = date_str.strip().split()
     if len(parts) != 3:
         logger.error(f"Неверный формат даты: {date_str}")
-        #raise ValueError(f"Неверный формат даты: {date_str}")
+        # raise ValueError(f"Неверный формат даты: {date_str}")
 
     day, month_str, year = parts
     month = MONTHS[month_str.lower()[:3]]  # первые 3 буквы для универсальности

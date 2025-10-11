@@ -55,3 +55,20 @@ async def setup_vacancy_stream(js):
         )
     )
     logger.info("🚀 Stream VACANCY_TASKS создан")
+
+
+async def setup_tasks_stream(js):
+    # Проверим, существует ли уже поток
+    streams = await js.streams_info()
+    if any(stream.config.name == "TASKIQ_TASKS" for stream in streams):
+        logger.info("✅ Stream TASKIQ_TASKS уже существует")
+        return
+
+    await js.add_stream(
+        StreamConfig(
+            name="TASKIQ_TASKS",
+            subjects=["taskiq_broadcasts"],
+            retention=RetentionPolicy.WORK_QUEUE,
+        )
+    )
+    logger.info("🚀 Stream TASKIQ_TASKS создан")
