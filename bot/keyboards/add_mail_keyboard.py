@@ -93,7 +93,7 @@ def mailing_segments_keyboard(
 
     start = (page - 1) * per_page
     end = start + per_page
-    page_prof_segments = segments[3:][start:end]
+    page_prof_segments = prof_segments[3:][start:end]
 
     for segment, selected in page_prof_segments:
         if selected:
