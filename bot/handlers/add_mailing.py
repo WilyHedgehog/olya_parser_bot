@@ -232,8 +232,8 @@ async def process_mailing_datetime(message: Message, state: FSMContext):
         )
         return
 
-    try: 
-        mailing_datetime = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M").replace(
+    try:
+        mailing_datetime_obj = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M").replace(
             tzinfo=MOSCOW_TZ
         )
     except ValueError:
@@ -241,7 +241,7 @@ async def process_mailing_datetime(message: Message, state: FSMContext):
             LEXICON_ADMIN["add_mailing_stg4_error4"], reply_markup=back_to_mailing_kb
         )
         return
-    await state.update_data(mailing_datetime=mailing_datetime)
+    await state.update_data(mailing_datetime=mailing_datetime_obj)
     await message.answer(
         LEXICON_ADMIN["add_mailing_stg5"], reply_markup=back_to_mailing_kb
     )
