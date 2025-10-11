@@ -32,21 +32,23 @@ logger = getLogger(__name__)
 
 
 async def generate_segments_for_mailing():
-    mailing_dict = {}
-    mailing_dict["Все пользователи"] = False
-    mailing_dict["Все с подпиской"] = False
-    mailing_dict["Все без подписки"] = False
-    mailing_dict["У кого кончилась подписка"] = False
+    # словарь с полными данными
+    mailing_dict = {
+        "Все пользователи": {"selected": False, "date": None},
+        "Все с подпиской": {"selected": False, "date": None},
+        "Все без подписки": {"selected": False, "date": None},
+        "У кого кончилась подписка": {"selected": False, "date": None},
+    }
 
     professions = await get_all_professions()
+    if professions:
+        for i, prof in enumerate(professions):
+            mailing_dict[prof.name] = {"selected": False, "date": None}
 
-    if not professions:
-        pass
-    else:
-        for profession in professions:
-            mailing_dict[profession.name] = False
+    # создаём словарь для коротких ID
+    segment_ids = {name: str(i) for i, name in enumerate(mailing_dict.keys())}
 
-    return mailing_dict
+    return mailing_dict, segment_ids
 
 
 @router.callback_query(IsAdminFilter(), F.data == "add_mailing")
@@ -126,40 +128,46 @@ async def process_after_keyboard_choice(callback: CallbackQuery, state: FSMConte
         callback.data.split("_")[-1] if callback.data.startswith("mail_kb_") else None
     )
     await state.update_data(mailing_keyboard=keyboard_choice)
-    
-    mailing_segments = await generate_segments_for_mailing()
-    await state.update_data(mailing_segments=mailing_segments)
+
+    mailing_segments, segment_ids = await generate_segments_for_mailing()
+    await state.update_data(mailing_segments=mailing_segments, segment_ids=segment_ids)
+
     try:
         await callback.message.edit_text(
             LEXICON_ADMIN["add_mailing_stg3"],
-            reply_markup=mailing_segments_keyboard(mailing_segments),
+            reply_markup=mailing_segments_keyboard(mailing_segments, segment_ids),
         )
     except Exception as e:
         logger.error(f"Error in process_after_keyboard_choice: {e}")
 
 
 @router.callback_query(
-    IsAdminFilter(), F.data.startswith("ps_"), Admin.mailing_text
-)
-@router.callback_query(
-    IsAdminFilter(), F.data.startswith("base_segment_"), Admin.mailing_text
+    IsAdminFilter(), F.data.startswith(("prof_", "base_")), Admin.mailing_text
 )
 async def process_segment_selection(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    segment = callback.data.split("_")[-1]
     data = await state.get_data()
     mailing_segments = data.get("mailing_segments", {})
+    segment_ids = data.get("segment_ids", {})
 
-    if segment in mailing_segments:
-        mailing_segments[segment] = True if not mailing_segments[segment] else False
-        await state.update_data(mailing_segments=mailing_segments)
-    else:
-        logger.error(f"Segment {segment} not found in mailing_segments")
+    segment_id = callback.data.split("_")[1]
+    segment_name = next(
+        (name for name, sid in segment_ids.items() if sid == segment_id), None
+    )
+    if not segment_name or segment_name not in mailing_segments:
+        logger.error(f"Segment {segment_id} not found in mailing_segments")
         return
 
+    mailing_segments[segment_name]["selected"] = not mailing_segments[segment_name]["selected"]
+    await state.update_data(mailing_segments=mailing_segments)
+
+    # сохраняем текущую страницу, чтобы кнопки не "прыгают"
+    current_page = data.get("current_page", 1)
     try:
         await callback.message.edit_reply_markup(
-            reply_markup=mailing_segments_keyboard(mailing_segments)
+            reply_markup=mailing_segments_keyboard(
+                mailing_segments, segment_ids, page=current_page
+            )
         )
     except Exception as e:
         logger.error(f"Error in process_segment_selection: {e}")
@@ -173,10 +181,13 @@ async def process_segment_page_change(callback: CallbackQuery, state: FSMContext
     page = int(callback.data.split("_")[-1])
     data = await state.get_data()
     mailing_segments = data.get("mailing_segments", {})
+    segment_ids = data.get("segment_ids", {})
 
     try:
         await callback.message.edit_reply_markup(
-            reply_markup=mailing_segments_keyboard(mailing_segments, page=page)
+            reply_markup=mailing_segments_keyboard(
+                mailing_segments, segment_ids, page=page
+            )
         )
     except Exception as e:
         logger.error(f"Error in process_segment_page_change: {e}")

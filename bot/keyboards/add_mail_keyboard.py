@@ -63,70 +63,69 @@ def keyboards_for_mailings():
 
 def mailing_segments_keyboard(
     segments: dict,
+    segment_ids: dict,
     page: int = 1,
     per_page: int = 5,
 ) -> InlineKeyboardMarkup:
-    
+
     builder = InlineKeyboardBuilder()
-    
     segment_items = list(segments.items())
-    
-    for segment, selected in segment_items[0:3]:
-        if selected:
-            button = InlineKeyboardButton(
-                text=f"✅ {segment}", callback_data=f"base_segment_{segment}"
-            )
-        else:
-            button = InlineKeyboardButton(
-                text=segment, callback_data=f"base_segment_{segment}"
-            )
+
+    # первые 4 базовые сегмента
+    for segment_name, data in segment_items[:4]:
+        text = f"✅ {segment_name}" if data["selected"] else segment_name
+        button = InlineKeyboardButton(
+            text=text,
+            callback_data=f"base_{segment_ids[segment_name]}"
+        )
         builder.row(button)
 
     builder.row(button_divider)
-    
-    
-    prof_segments = segment_items[3:]
-    total = len(prof_segments)
 
+    # профессиональные сегменты
+    prof_segments = segment_items[4:]
+    total = len(prof_segments)
     total_pages = (total + per_page - 1) // per_page
     page = max(1, min(page, total_pages))
-
     start = (page - 1) * per_page
     end = start + per_page
-    page_prof_segments = prof_segments[3:][start:end]
+    page_prof_segments = prof_segments[start:end]
 
-    for segment, selected in page_prof_segments:
-        if selected:
-            button = InlineKeyboardButton(
-                text=f"✅ {segment}", callback_data=f"ps_{segment}"
-            )
-        else:
-            button = InlineKeyboardButton(
-                text=segment, callback_data=f"ps_{segment}"
-            )
+    for segment_name, data in page_prof_segments:
+        text = f"✅ {segment_name}" if data["selected"] else segment_name
+        button = InlineKeyboardButton(
+            text=text,
+            callback_data=f"prof_{segment_ids[segment_name]}"
+        )
         builder.row(button)
-    
+
     builder.adjust(1)
-        
+
+    # кнопки навигации
     if total_pages > 1:
         nav_buttons = []
         if page > 1:
             nav_buttons.append(
                 InlineKeyboardButton(
-                    text="⬅️ Назад", callback_data=f"mailing_seg_page_{page - 1}"
+                    text="⬅️ Назад",
+                    callback_data=f"mailing_seg_page_{page - 1}"
                 )
             )
         if page < total_pages:
             nav_buttons.append(
                 InlineKeyboardButton(
-                    text="Вперёд ➡️", callback_data=f"mailing_seg_page_{page + 1}"
+                    text="Вперёд ➡️",
+                    callback_data=f"mailing_seg_page_{page + 1}"
                 )
             )
         builder.row(*nav_buttons)
-        
-    builder.row(InlineKeyboardButton(
-        text="Подтвердить сегменты", callback_data="confirm_segments"
-    ))
+
+    builder.row(
+        InlineKeyboardButton(
+            text="Подтвердить сегменты",
+            callback_data="confirm_segments"
+        )
+    )
     builder.row(back_to_mailing)
     return builder.as_markup()
 
