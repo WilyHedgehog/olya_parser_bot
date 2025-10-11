@@ -34,6 +34,7 @@ from parser.worker import vacancy_worker
 from find_job_process.find_job import load_professions
 
 from bot.background_tasks.check_subscriptions import start_all_schedulers
+from bot.background_tasks.broker import schedule_source
 from bot.background_tasks.send_two_hours_vacancy import (
     start_scheduler_two_hours_vacancy_send,
 )
@@ -131,6 +132,9 @@ def create_app(config: Config) -> FastAPI:
         logger.info("Vacancy worker started")
         await broker.startup()
         logger.info("Taskiq broker started")
+        
+        await schedule_source.startup()
+        logger.info("Taskiq schedule source started")
 
         yield
 
