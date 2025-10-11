@@ -89,7 +89,7 @@ services:
       - botnet
     volumes:
       - ./:/app
-    command: taskiq worker bot.background_tasks.broker.broker -fsd
+    command: taskiq worker bot.background_tasks.broker:broker -fsd
 
   bot_scheduler:
     build:
@@ -104,7 +104,7 @@ services:
       - botnet
     volumes:
       - ./:/app
-    command: taskiq scheduler bot.background_tasks.broker.scheduler_source -fsd
+    command: taskiq scheduler bot.background_tasks.broker:scheduler_source -fsd
 
 
 volumes:
