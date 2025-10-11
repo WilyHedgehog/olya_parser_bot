@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from .broker import broker
 from db.crud import create_scheduled_task, set_taskiq_id, get_scheduled_task, mark_executed, cancel_user_tasks
 from utils.bot_utils import send_message
+from zoneinfo import ZoneInfo
+MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 @broker.task
 async def send_followup(scheduled_task_id: int):
@@ -34,7 +36,7 @@ async def schedule_dunning(chat_id: int):
     ]
 
     for delay_seconds, text in delays:
-        run_at = datetime.utcnow() + timedelta(seconds=delay_seconds)
+        run_at = datetime.now(MOSCOW_TZ) + timedelta(seconds=delay_seconds)
 
         # 1) создаём запись в БД до постановки в очередь
         scheduled = await create_scheduled_task(chat_id=chat_id, message=text, run_at=run_at, type="dunning")
