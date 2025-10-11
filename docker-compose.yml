@@ -76,15 +76,21 @@ services:
     volumes:
       - ./:/app
 
-  worker:
-    build: .
+  bot_worker:
+    build:
+      context: ./
+      dockerfile: Dockerfile
     container_name: olya_bot_worker
-    command: python bot/background_tasks/worker.py
+    restart: always
     depends_on:
       - nats
-      - bot_app
+      - postgres
     networks:
       - botnet
+    volumes:
+      - ./:/app
+    command: >
+      taskiq worker bot.background_tasks.broker:broker -fsd
 
 
 volumes:
