@@ -1,4 +1,4 @@
-# app/tasks/broker.py
+# bot/background_tasks/broker.py
 from taskiq_nats import PullBasedJetStreamBroker
 from config.config import load_config
 

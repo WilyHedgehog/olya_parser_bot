@@ -78,7 +78,7 @@ services:
 
   worker:
     build: .
-    command: python -m taskiq_worker ./bot.background_tasks.broker --log-level=INFO
+    command: python -m taskiq_worker bot.background_tasks.broker --log-level=INFO
     depends_on:
       - nats
 
