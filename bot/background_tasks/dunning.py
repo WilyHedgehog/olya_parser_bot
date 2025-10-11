@@ -37,6 +37,7 @@ async def send_followup(scheduled_task_id: int):
 
 
 async def schedule_dunning(chat_id: int):
+    await broker.startup()
     """Создаёт цепочку дожимных задач — создаём записи в БД, ставим задачи в очередь"""
     delays = [
         (1 * 10, "Через 5 минут! 👋"),  # 5 * 60
@@ -63,6 +64,7 @@ async def schedule_dunning(chat_id: int):
             f"Scheduled dunning task {scheduled.id} with Taskiq id {task.schedule_id} to run at {run_at}"
         )
         await set_taskiq_id(scheduled.id, task.schedule_id)
+    await broker.shutdown()
 
 
 async def cancel_dunning_tasks(chat_id: int):
