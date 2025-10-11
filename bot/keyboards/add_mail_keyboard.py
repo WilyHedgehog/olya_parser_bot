@@ -69,7 +69,9 @@ def mailing_segments_keyboard(
     
     builder = InlineKeyboardBuilder()
     
-    for segment, selected in segments[0:3]:
+    segment_items = list(segments.items())
+    
+    for segment, selected in segment_items[0:3]:
         if selected:
             button = InlineKeyboardButton(
                 text=f"✅ {segment}", callback_data=f"base_segment_{segment}"
@@ -83,7 +85,8 @@ def mailing_segments_keyboard(
     builder.row(button_divider)
     
     
-    total = len(segments[3:])
+    prof_segments = segments[3:]
+    total = len(prof_segments)
 
     total_pages = (total + per_page - 1) // per_page
     page = max(1, min(page, total_pages))

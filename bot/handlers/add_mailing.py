@@ -23,6 +23,7 @@ from bot.states.admin import Admin
 from bot.lexicon.lexicon import LEXICON_ADMIN
 from logging import getLogger
 from zoneinfo import ZoneInfo
+
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 
@@ -36,16 +37,17 @@ async def generate_segments_for_mailing():
     mailing_dict["Все с подпиской"] = False
     mailing_dict["Все без подписки"] = False
     mailing_dict["У кого кончилась подписка"] = False
-    
+
     professions = await get_all_professions()
-    
+
     if not professions:
         pass
     else:
         for profession in professions:
             mailing_dict[profession.name] = False
-            
+
     return mailing_dict
+
 
 @router.callback_query(IsAdminFilter(), F.data == "add_mailing")
 async def process_add_mailing(callback: CallbackQuery, state: FSMContext):
@@ -107,123 +109,151 @@ async def process_with_keyboard(callback: CallbackQuery):
     await callback.answer()
     try:
         await callback.message.edit_text(
-            LEXICON_ADMIN["add_mailing_choose_kb"], reply_markup=keyboards_for_mailings()
+            LEXICON_ADMIN["add_mailing_choose_kb"],
+            reply_markup=keyboards_for_mailings(),
         )
     except Exception as e:
         logger.error(f"Error in process_with_keyboard: {e}")
 
 
-@router.callback_query(IsAdminFilter(), F.data.startswith("mail_kb_"), Admin.mailing_text)
+@router.callback_query(
+    IsAdminFilter(), F.data.startswith("mail_kb_"), Admin.mailing_text
+)
 @router.callback_query(IsAdminFilter(), F.data == "without_kb", Admin.mailing_text)
-async def process_after_keyboard_choice(
-    callback: CallbackQuery, state: FSMContext
-):
+async def process_after_keyboard_choice(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    if callback.data.startswith("mail_kb_"):
-        keyboard_choice = callback.data.split("_")[-1]
-    else:
-        keyboard_choice = None
-
+    keyboard_choice = (
+        callback.data.split("_")[-1] if callback.data.startswith("mail_kb_") else None
+    )
     await state.update_data(mailing_keyboard=keyboard_choice)
     
     mailing_segments = await generate_segments_for_mailing()
     await state.update_data(mailing_segments=mailing_segments)
     try:
         await callback.message.edit_text(
-            LEXICON_ADMIN["add_mailing_stg3"], reply_markup=mailing_segments_keyboard(mailing_segments)
+            LEXICON_ADMIN["add_mailing_stg3"],
+            reply_markup=mailing_segments_keyboard(mailing_segments),
         )
     except Exception as e:
         logger.error(f"Error in process_after_keyboard_choice: {e}")
-        
-        
-@router.callback_query(IsAdminFilter(), F.data.startswith("prof_segment_"), Admin.mailing_text)
-@router.callback_query(IsAdminFilter(), F.data.startswith("base_segment_"), Admin.mailing_text)
+
+
+@router.callback_query(
+    IsAdminFilter(), F.data.startswith("prof_segment_"), Admin.mailing_text
+)
+@router.callback_query(
+    IsAdminFilter(), F.data.startswith("base_segment_"), Admin.mailing_text
+)
 async def process_segment_selection(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     segment = callback.data.split("_")[-1]
     data = await state.get_data()
     mailing_segments = data.get("mailing_segments", {})
-    
+
     if segment in mailing_segments:
         mailing_segments[segment] = True if not mailing_segments[segment] else False
         await state.update_data(mailing_segments=mailing_segments)
     else:
         logger.error(f"Segment {segment} not found in mailing_segments")
         return
-    
+
     try:
         await callback.message.edit_reply_markup(
             reply_markup=mailing_segments_keyboard(mailing_segments)
         )
     except Exception as e:
         logger.error(f"Error in process_segment_selection: {e}")
-        
-        
-@router.callback_query(IsAdminFilter(), F.data.startswith("mailing_seg_page_"), Admin.mailing_text)
+
+
+@router.callback_query(
+    IsAdminFilter(), F.data.startswith("mailing_seg_page_"), Admin.mailing_text
+)
 async def process_segment_page_change(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     page = int(callback.data.split("_")[-1])
     data = await state.get_data()
     mailing_segments = data.get("mailing_segments", {})
-    
+
     try:
         await callback.message.edit_reply_markup(
             reply_markup=mailing_segments_keyboard(mailing_segments, page=page)
         )
     except Exception as e:
         logger.error(f"Error in process_segment_page_change: {e}")
-        
-        
-@router.callback_query(IsAdminFilter(), F.data == "confirm_segments", Admin.mailing_text)
+
+
+@router.callback_query(
+    IsAdminFilter(), F.data == "confirm_segments", Admin.mailing_text
+)
 async def process_confirm_segments(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await callback.message.edit_text(LEXICON_ADMIN["add_mailing_stg4"], reply_markup=back_to_mailing_kb)
+    await callback.message.edit_text(
+        LEXICON_ADMIN["add_mailing_stg4"], reply_markup=back_to_mailing_kb
+    )
     await state.set_state(Admin.mailing_datetime)
-    
-    
+
+
 @router.message(IsAdminFilter(), F.text, Admin.mailing_datetime)
 async def process_mailing_datetime(message: Message, state: FSMContext):
     datetime_str = message.text
-    
+
     if not datetime_str:
-        await message.answer(LEXICON_ADMIN["add_mailing_stg4_error"], reply_markup=back_to_mailing_kb)
+        await message.answer(
+            LEXICON_ADMIN["add_mailing_stg4_error"], reply_markup=back_to_mailing_kb
+        )
         return
 
     # В формате ДД.ММ.ГГГГ ЧЧ:ММ
     try:
-        mailing_datetime = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M").replace(tzinfo=MOSCOW_TZ)
+        mailing_datetime = datetime.strptime(datetime_str, "%d.%m.%Y %H:%M").replace(
+            tzinfo=MOSCOW_TZ
+        )
     except ValueError:
-        await message.answer(LEXICON_ADMIN["add_mailing_stg4_error"], reply_markup=back_to_mailing_kb)
+        await message.answer(
+            LEXICON_ADMIN["add_mailing_stg4_error"], reply_markup=back_to_mailing_kb
+        )
         return
-    
+
     if mailing_datetime < datetime.now(MOSCOW_TZ) + timedelta(minutes=10):
-        await message.answer(LEXICON_ADMIN["add_mailing_stg4_error"] + "<br>Время рассылки должно быть не менее чем через 10 минут.", reply_markup=back_to_mailing_kb)
+        await message.answer(
+            LEXICON_ADMIN["add_mailing_stg4_error"]
+            + "<br>Время рассылки должно быть не менее чем через 10 минут.",
+            reply_markup=back_to_mailing_kb,
+        )
         return
 
     await state.update_data(mailing_datetime=mailing_datetime)
-    await message.answer(LEXICON_ADMIN["add_mailing_stg5"], reply_markup=back_to_mailing_kb)
+    await message.answer(
+        LEXICON_ADMIN["add_mailing_stg5"], reply_markup=back_to_mailing_kb
+    )
     await state.set_state(Admin.mailing_text)
-    
-    
+
+
 @router.message(IsAdminFilter(), F.text, Admin.mailing_text)
 async def process_mailing_text(message: Message, state: FSMContext):
     mailing_text = message.text
     if not mailing_text:
-        await message.answer(LEXICON_ADMIN["add_mailing_stg5_error"], reply_markup=back_to_mailing_kb)
+        await message.answer(
+            LEXICON_ADMIN["add_mailing_stg5_error"], reply_markup=back_to_mailing_kb
+        )
         return
-    
+
     await state.update_data(mailing_text=mailing_text)
     await state.set_state(Admin.add_mailing)
 
-    await message.answer(LEXICON_ADMIN["add_mailing_stg6"], reply_markup=back_to_mailing_kb)
+    await message.answer(
+        LEXICON_ADMIN["add_mailing_stg6"], reply_markup=back_to_mailing_kb
+    )
     await state.set_state(Admin.mailing_name)
-    
-    
+
+
 @router.message(IsAdminFilter(), F.text, Admin.mailing_name)
 async def process_mailing_name(message: Message, state: FSMContext):
     mailing_name = message.text
     if not mailing_name:
-        await message.answer(LEXICON_ADMIN["add_mailing_stg6_error"], reply_markup=back_to_mailing_kb)
+        await message.answer(
+            LEXICON_ADMIN["add_mailing_stg6_error"], reply_markup=back_to_mailing_kb
+        )
         return
     await state.update_data(mailing_name=mailing_name)
     await state.set_state(Admin.add_mailing)
@@ -234,10 +264,12 @@ async def process_mailing_name(message: Message, state: FSMContext):
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
     mailing_text = data.get("mailing_text")
-    
+
     selected_segments = [seg for seg, selected in mailing_segments.items() if selected]
-    segments_str = ", ".join(selected_segments) if selected_segments else "Нет сегментов"
-    
+    segments_str = (
+        ", ".join(selected_segments) if selected_segments else "Нет сегментов"
+    )
+
     await message.answer(
         LEXICON_ADMIN["add_mailing_confirm"].format(
             mailing_text=mailing_text,
@@ -245,54 +277,58 @@ async def process_mailing_name(message: Message, state: FSMContext):
             keyboard=keyboard_choice if keyboard_choice else "Без клавиатуры",
             datetime=mailing_datetime.strftime("%d.%m.%Y %H:%M"),
             segments=segments_str,
-            name=mailing_name
+            name=mailing_name,
         ),
-        reply_markup=final_add_mail_kb
+        reply_markup=final_add_mail_kb,
     )
-    
 
-@router.callback_query(IsAdminFilter(), F.data == "next_step_mailing", Admin.add_mailing)
+
+@router.callback_query(
+    IsAdminFilter(), F.data == "next_step_mailing", Admin.add_mailing
+)
 async def process_next_step_mailing(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await callback.message.edit_text(LEXICON_ADMIN["add_mailing_stg1"], reply_markup=is_mail_with_file())
+    await callback.message.edit_text(
+        LEXICON_ADMIN["add_mailing_stg1"], reply_markup=is_mail_with_file()
+    )
     await state.set_state(Admin.add_mailing)
     data = await state.get_data()
     file_id = data.get("mailing_file_id")
     mailing_text = data.get("mailing_text")
     keyboard_choice = data.get("mailing_keyboard")
-    reply_markup = await get_mailing_keyboard(keyboard_choice) if keyboard_choice else None
-    
+    reply_markup = (
+        await get_mailing_keyboard(keyboard_choice) if keyboard_choice else None
+    )
+
     if file_id and keyboard_choice:
         await send_photo(
             chat_id=callback.from_user.id,
             file_id=file_id,
             caption=mailing_text,
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
         )
     elif file_id and not keyboard_choice:
         await send_photo(
-            chat_id=callback.from_user.id,
-            file_id=file_id,
-            caption=mailing_text
+            chat_id=callback.from_user.id, file_id=file_id, caption=mailing_text
         )
     elif keyboard_choice:
         await send_photo(
             chat_id=callback.from_user.id,
             file_id=file_id,
             caption=mailing_text,
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
         )
     else:
         await send_message(
             chat_id=callback.from_user.id,
             text=mailing_text,
         )
-    
+
     await callback.message.answer(
         LEXICON_ADMIN["add_mailing_final"], reply_markup=confirm_mailing_kb
     )
-    
-    
+
+
 @router.callback_query(IsAdminFilter(), F.data == "confirm_mailing", Admin.add_mailing)
 async def process_confirm_mailing(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
@@ -303,10 +339,13 @@ async def process_confirm_mailing(callback: CallbackQuery, state: FSMContext):
     keyboard_choice = data.get("mailing_keyboard")
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
-    
+
     selected_segments = [seg for seg, selected in mailing_segments.items() if selected]
     if not selected_segments:
-        await callback.message.answer("Ошибка: не выбран ни один сегмент. Пожалуйста, начните заново.", reply_markup=back_to_mailing_kb)
+        await callback.message.answer(
+            "Ошибка: не выбран ни один сегмент. Пожалуйста, начните заново.",
+            reply_markup=back_to_mailing_kb,
+        )
         return
 
     await set_admin_mailing(
@@ -315,6 +354,8 @@ async def process_confirm_mailing(callback: CallbackQuery, state: FSMContext):
         file_id=file_id,
         keyboard=keyboard_choice,
         segment=selected_segments,
-        task_name=mailing_name
+        task_name=mailing_name,
     )
-    await callback.message.edit_text("✅ Рассылка запланирована успешно!", reply_markup=back_to_mailing_kb)
+    await callback.message.edit_text(
+        "✅ Рассылка запланирована успешно!", reply_markup=back_to_mailing_kb
+    )
