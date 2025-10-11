@@ -5,6 +5,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.background_tasks.test import schedule_spam, cancel_spam_tasks
+from bot.background_tasks.aps_utils import clear
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
@@ -651,3 +652,9 @@ async def spam_cmd(message: Message):
 async def stopspam_cmd(message: Message):
     await cancel_spam_tasks(message.chat.id)
     await message.answer("Команда stopspam выполнена.")
+
+
+@router.message(Command("clear"), IsAdminFilter())
+async def clear_cmd(message: Message):
+    await clear()
+    await message.answer("Команда clear выполнена.")

@@ -48,13 +48,6 @@ async def schedule_spam(chat_id: int):
     task = await send_followup.schedule_by_cron(
         scheduled_task_id=scheduled.id, cron="*/1 * * * *", source=schedule_source
     )
-
-
-        # 1) создаём запись в БД до постановки в очередь
-    scheduled = await create_scheduled_task(
-        chat_id=chat_id, message=text, run_at=datetime.now(MOSCOW_TZ), type="spam"
-    )
-
         # 2) ставим задачу в Taskiq, передаём scheduled.id как аргумент
 
         # 3) сохраняем taskiq id (необязательно, но полезно для трассировки)
