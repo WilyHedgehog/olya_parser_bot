@@ -18,4 +18,4 @@ schedule_source = NATSKeyValueScheduleSource(
 
 import bot.background_tasks.dunning
 
-schedule_source = schedule_source
+scheduler_source = schedule_source
