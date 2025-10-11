@@ -1,6 +1,6 @@
 # bot/background_tasks/dunning.py
 from datetime import datetime, timedelta
-from .broker import broker
+from .broker import broker, schedule_source
 from db.crud import (
     create_scheduled_task,
     set_taskiq_id,
@@ -53,7 +53,7 @@ async def schedule_dunning(chat_id: int):
 
         # 2) ставим задачу в Taskiq, передаём scheduled.id как аргумент
         task = await send_followup.schedule_by_time(
-            scheduled_task_id=scheduled.id, time=run_at
+            scheduled_task_id=scheduled.id, time=run_at, source=schedule_source
         )
     
 
