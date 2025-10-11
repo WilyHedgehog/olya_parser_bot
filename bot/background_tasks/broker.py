@@ -2,6 +2,7 @@
 from taskiq_nats import PullBasedJetStreamBroker
 from taskiq_nats.schedule_source import NATSKeyValueScheduleSource
 from config.config import load_config
+from taskiq import TaskiqScheduler
 
 config = load_config()
 
@@ -18,4 +19,7 @@ schedule_source = NATSKeyValueScheduleSource(
 
 import bot.background_tasks.dunning
 
-scheduler_source = schedule_source
+scheduler = TaskiqScheduler(
+    broker=broker,
+    sources=[schedule_source]
+)
