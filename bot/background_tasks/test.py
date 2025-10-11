@@ -36,37 +36,32 @@ async def send_followup(scheduled_task_id: int):
     await mark_executed(scheduled_task_id)
 
 
-async def schedule_dunning(chat_id: int):
+async def schedule_spam(chat_id: int):
     await broker.startup()
     """Создаёт цепочку дожимных задач — создаём записи в БД, ставим задачи в очередь"""
-    delays = [
-        (1 * 10, "Через 5 минут! 👋"),  # 5 * 60
-        (1 * 30, "Прошел час, а вы не продолжили 😢"),  # 60 * 60
-        (1 * 24 * 2, "Прошли сутки, возвращайтесь! 💬"),  # 24 * 60 * 60
-    ]
+    text = "тест крон"
+    
+    scheduled = await create_scheduled_task(
+        chat_id=chat_id, message=text, run_at=datetime.now(MOSCOW_TZ), type="spam"
+    )
+    
+    task = await send_followup.schedule_by_cron(
+        scheduled_task_id=scheduled.id, cron="*/1 * * * *", source=schedule_source
+    )
 
-    for delay_seconds, text in delays:
-        run_at = datetime.now(MOSCOW_TZ) + timedelta(seconds=delay_seconds)
 
         # 1) создаём запись в БД до постановки в очередь
-        scheduled = await create_scheduled_task(
-            chat_id=chat_id, message=text, run_at=run_at, type="dunning"
-        )
+    scheduled = await create_scheduled_task(
+        chat_id=chat_id, message=text, run_at=datetime.now(MOSCOW_TZ), type="spam"
+    )
 
         # 2) ставим задачу в Taskiq, передаём scheduled.id как аргумент
-        task = await send_followup.schedule_by_time(
-            scheduled_task_id=scheduled.id, time=run_at, source=schedule_source
-        )
-    
 
         # 3) сохраняем taskiq id (необязательно, но полезно для трассировки)
-        print(
-            f"Scheduled dunning task {scheduled.id} with Taskiq id {task.schedule_id} to run at {run_at}"
-        )
-        await set_taskiq_id(scheduled.id, task.schedule_id)
+    await set_taskiq_id(scheduled.id, task.schedule_id)
     await broker.shutdown()
 
 
-async def cancel_dunning_tasks(chat_id: int):
+async def cancel_spam_tasks(chat_id: int):
     """Пометить будущие дожимные рассылки пользователя как cancelled"""
-    await cancel_user_tasks(chat_id, "dunning")
+    await cancel_user_tasks(chat_id, task_type="spam")

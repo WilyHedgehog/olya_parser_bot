@@ -22,7 +22,7 @@ async def set_taskiq_id(scheduled_id: int, taskiq_id: str):
         )
         await session.commit()
 
-async def cancel_user_tasks(chat_id: int):
+async def cancel_user_tasks(chat_id: int, task_type: str):
     """Пометить будущие задачи пользователя cancelled=True"""
     async with Sessionmaker() as session:
         await session.execute(
@@ -32,6 +32,7 @@ async def cancel_user_tasks(chat_id: int):
                 & (ScheduledTask.cancelled == False)
                 & (ScheduledTask.executed == False)
                 & (ScheduledTask.run_at > datetime.now(tz=MOSCOW_TZ))
+                & (ScheduledTask.type == task_type)
             )
             .values(cancelled=True)
         )

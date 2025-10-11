@@ -4,6 +4,7 @@ from aiogram.filters import Command, MagicData
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
+from bot.background_tasks.test import schedule_spam, cancel_spam_tasks
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
@@ -639,3 +640,14 @@ async def check1_cmd(message: Message):
 async def check2_cmd(message: Message):
     await cancel_dunning_tasks(message.chat.id)
     await message.answer("Команда check2 выполнена.")
+    
+
+@router.message(Command("spam"), IsAdminFilter())
+async def spam_cmd(message: Message):
+    await schedule_spam(message.chat.id)
+    await message.answer("Команда spam выполнена.")
+    
+@router.message(Command("stopspam"), IsAdminFilter())
+async def stopspam_cmd(message: Message):
+    await cancel_spam_tasks(message.chat.id)
+    await message.answer("Команда stopspam выполнена.")
