@@ -85,7 +85,7 @@ def mailing_segments_keyboard(
     builder.row(button_divider)
     
     
-    prof_segments = segments[3:]
+    prof_segments = segment_items[3:]
     total = len(prof_segments)
 
     total_pages = (total + per_page - 1) // per_page
