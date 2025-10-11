@@ -139,7 +139,7 @@ async def process_after_keyboard_choice(callback: CallbackQuery, state: FSMConte
 
 
 @router.callback_query(
-    IsAdminFilter(), F.data.startswith("prof_segment_"), Admin.mailing_text
+    IsAdminFilter(), F.data.startswith("ps_"), Admin.mailing_text
 )
 @router.callback_query(
     IsAdminFilter(), F.data.startswith("base_segment_"), Admin.mailing_text
