@@ -735,6 +735,7 @@ def get_file_id_from_message(message: Message) -> str | None:
     return None
 
 
+@router.callback_query(IsAdminFilter(), F.data == "back_to_mailing")
 @router.callback_query(IsAdminFilter(), F.data == "mailing_settings")
 async def mailing_settings(callback: CallbackQuery, state: FSMContext):
     mailings = await get_upcoming_mailings()

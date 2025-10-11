@@ -97,13 +97,14 @@ def mailing_segments_keyboard(
 
     for segment, selected in page_prof_segments:
         if selected:
-            builder.button = InlineKeyboardButton(
+            button = InlineKeyboardButton(
                 text=f"✅ {segment}", callback_data=f"prof_segment_{segment}"
             )
         else:
-            builder.button = InlineKeyboardButton(
+            button = InlineKeyboardButton(
                 text=segment, callback_data=f"prof_segment_{segment}"
             )
+        builder.row(button)
     
     builder.adjust(1)
         
