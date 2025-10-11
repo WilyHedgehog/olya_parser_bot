@@ -14,6 +14,7 @@ from .models import (
     VacancyTwoHours,
     SupportMessage,
     ScheduledTask,
+    AdminMailing,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "VacancyTwoHours",
     "SupportMessage",
     "ScheduledTask",
+    "AdminMailing",
 ]

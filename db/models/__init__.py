@@ -12,6 +12,7 @@ from .pricing_plans import PricingPlan
 from .vacancy_two_hours import VacancyTwoHours
 from .support_message import SupportMessage
 from .sheduler_tasks import ScheduledTask
+from .admin_mailings import AdminMailing
 
 __all__ = [
     "User",
@@ -28,4 +29,5 @@ __all__ = [
     "VacancyTwoHours",
     "SupportMessage",
     "ScheduledTask",
+    "AdminMailing",
 ]

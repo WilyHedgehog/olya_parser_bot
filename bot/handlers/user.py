@@ -247,6 +247,7 @@ async def change_user_chosen_professions(
         logger.error(f"Error updating professions keyboard: {e}")
 
 
+@router.callback_query(F.data == "back_to_start_menu")
 @router.callback_query(F.data == "back_to_main")
 @router.callback_query(F.data == "confirm_choice", Main.main)
 @router.callback_query(

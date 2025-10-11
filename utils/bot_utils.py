@@ -10,10 +10,42 @@ logger = getLogger(__name__)
 config = load_config()
 
 
-async def send_message(chat_id: int, text: str):
+async def send_message(chat_id: int, text: str, reply_markup=None):
     """Отправка сообщения с обработкой ошибок"""
+    if reply_markup:
+        try:
+            await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
+        except Exception as e:
+            # Логируем ошибку, но не поднимаем исключение
+            logger.error(f"Ошибка при отправке сообщения в чат {chat_id}: {e}")
+    else:
+        try:
+            await bot.send_message(chat_id=chat_id, text=text)
+        except Exception as e:
+            # Логируем ошибку, но не поднимаем исключение
+            logger.error(f"Ошибка при отправке сообщения в чат {chat_id}: {e}")
+        
+        
+async def send_file(chat_id: int, file_id: str, caption: str = None):
+    """Отправка файла с обработкой ошибок"""
     try:
-        await bot.send_message(chat_id=chat_id, text=text)
+        await bot.send_document(chat_id=chat_id, document=file_id, caption=caption)
     except Exception as e:
         # Логируем ошибку, но не поднимаем исключение
-        logger.error(f"Ошибка при отправке сообщения в чат {chat_id}: {e}")
+        logger.error(f"Ошибка при отправке файла в чат {chat_id}: {e}")
+        
+        
+async def send_photo(chat_id: int, file_id: str, caption: str = None, reply_markup = None):
+    """Отправка фото с обработкой ошибок"""
+    if reply_markup:
+        try:
+            await bot.send_photo(chat_id=chat_id, photo=file_id, caption=caption, reply_markup=reply_markup)
+        except Exception as e:
+            # Логируем ошибку, но не поднимаем исключение
+            logger.error(f"Ошибка при отправке фото в чат {chat_id}: {e}")
+    else:
+        try:
+            await bot.send_photo(chat_id=chat_id, photo=file_id, caption=caption)
+        except Exception as e:
+            # Логируем ошибку, но не поднимаем исключение
+            logger.error(f"Ошибка при отправке фото в чат {chat_id}: {e}")

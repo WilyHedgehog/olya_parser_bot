@@ -40,9 +40,9 @@ async def schedule_dunning(chat_id: int):
     await broker.startup()
     """Создаёт цепочку дожимных задач — создаём записи в БД, ставим задачи в очередь"""
     delays = [
-        (1 * 10, "Через 5 минут! 👋"),  # 5 * 60
-        (1 * 30, "Прошел час, а вы не продолжили 😢"),  # 60 * 60
-        (1 * 24 * 2, "Прошли сутки, возвращайтесь! 💬"),  # 24 * 60 * 60
+        (5 * 60, "Через 5 минут! 👋"),
+        (60 * 60, "Прошел час, а вы не продолжили 😢"),
+        (24 * 60 * 60, "Прошли сутки, возвращайтесь! 💬"),
     ]
 
     for delay_seconds, text in delays:
@@ -50,20 +50,16 @@ async def schedule_dunning(chat_id: int):
 
         # 1) создаём запись в БД до постановки в очередь
         scheduled = await create_scheduled_task(
-            chat_id=chat_id, message=text, run_at=run_at, type="dunning"
+            chat_id=chat_id, message=text, run_at=run_at, type="dunning", is_cron=False
+            
         )
 
         # 2) ставим задачу в Taskiq, передаём scheduled.id как аргумент
         task = await send_followup.schedule_by_time(
             scheduled_task_id=scheduled.id, time=run_at, source=schedule_source
         )
-    
-
-        # 3) сохраняем taskiq id (необязательно, но полезно для трассировки)
-        print(
-            f"Scheduled dunning task {scheduled.id} with Taskiq id {task.schedule_id} to run at {run_at}"
-        )
         await set_taskiq_id(scheduled.id, task.schedule_id)
+        
     await broker.shutdown()
 
 

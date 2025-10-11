@@ -8,15 +8,18 @@ from db.requests import (
     get_all_stopwords,
     get_vacancy_by_id,
 )
+from db.crud import (
+    get_upcoming_mailings,
+)
 
 config = load_config()  # Загружаем конфигурацию
 
 
-back_to_admin_kb = InlineKeyboardButton(
-    text="Назад в админку", callback_data="back_to_admin"
+back_to_admin_main = InlineKeyboardButton(
+    text="◀️ Назад в админку ◀️", callback_data="back_to_admin"
 )
 back_to_proffs_kb_button = InlineKeyboardButton(
-    text="Назад в меню парсера", callback_data="back_to_proffs"
+    text="◀️ Назад в меню парсера ◀️", callback_data="back_to_proffs"
 )
 from_admin_add_proff = InlineKeyboardButton(
     text="Добавить профессию", callback_data="add_proff"
@@ -37,7 +40,7 @@ from_admin_delete_keyword = InlineKeyboardButton(
     text="Удалить ключевое слово", callback_data="delete_keyword"
 )
 back_to_choosen_prof = InlineKeyboardButton(
-    text="Назад к профессии", callback_data="back_to_choosen_prof"
+    text="◀️ Назад к профессии ◀️", callback_data="back_to_choosen_prof"
 )
 stopwords_add = InlineKeyboardButton(
     text="Добавить стоп-слова", callback_data="stopwords_add"
@@ -46,16 +49,50 @@ stopwords_delete = InlineKeyboardButton(
     text="Удалить стоп-слова", callback_data="stopwords_delete"
 )
 button_divider = InlineKeyboardButton(text="–––––––––––––––––––", callback_data="---")
+parser_menu_button = InlineKeyboardButton(
+    text="🔍 Меню парсера 🔍", callback_data="parser_menu"
+)
+get_file_id_button = InlineKeyboardButton(
+    text="🆔 Получить file_id 🆔", callback_data="get_file_id"
+)
+mailing_settings_button = InlineKeyboardButton(
+    text="🛠 Настройки рассылок 🛠", callback_data="mailing_settings"
+)
+add_delete_admin_button = InlineKeyboardButton(
+    text="👤 Добавить/Удалить админа 👤", callback_data="add_delete_admin"
+)
+back_to_mailing = InlineKeyboardButton(
+    text="◀️ Назад в меню рассылок ◀️", callback_data="back_to_mailing"
+)
+delete_mailing_button = InlineKeyboardButton(
+    text="Удалить рассылку", callback_data="delete_mailing"
+)
+add_mailing_button = InlineKeyboardButton(
+    text="Добавить рассылку", callback_data="add_mailing"
+)
+back_to_start_menu_button = InlineKeyboardButton(
+    text="🔙 Назад в главное меню бота 🔙", callback_data="back_to_start_menu"
+)
 
 
 def admin_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="Рассылка", callback_data="mailing")
-    builder.button(text="Статистика", callback_data="stats")
-    builder.button(text="Добавить промокод", callback_data="add_promo")
-    builder.button(text="Удалить промокод", callback_data="delete_promo")
-    builder.button(text="Посмотреть все промокоды", callback_data="view_promos")
-    builder.button(text="Закрыть", callback_data="close")
+    builder.row(parser_menu_button)
+    builder.row(get_file_id_button)
+    builder.row(mailing_settings_button)
+    builder.row(add_delete_admin_button)
+    builder.row(button_divider)
+    builder.row(back_to_start_menu_button)
+    builder.adjust(1)  # Располагаем кнопки в один столбец
+    return builder.as_markup()
+
+
+def mailing_settings_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(add_mailing_button)
+    builder.row(delete_mailing_button)
+    builder.row(button_divider)
+    builder.row(back_to_admin_main)
     builder.adjust(1)  # Располагаем кнопки в один столбец
     return builder.as_markup()
 
@@ -69,7 +106,7 @@ async def professions_keyboard(
     total = len(professions)
     if total == 0:
         builder.row(from_admin_add_proff)
-        builder.row(back_to_admin_kb)
+        builder.row(back_to_admin_main)
         return builder.as_markup()
 
     total_pages = (total + per_page - 1) // per_page
@@ -115,7 +152,7 @@ async def professions_keyboard(
         builder.row(stopwords_delete)
     else:
         builder.row(stopwords_add)
-    builder.row(back_to_admin_kb)
+    builder.row(back_to_admin_main)
 
     return builder.as_markup()
 
@@ -251,6 +288,67 @@ async def stopwords_keyboard(
     return builder.as_markup()
 
 
+async def get_delete_mailing_kb(
+    page: int = 1,
+    per_page: int = 10,  # Количество рассылок на странице
+) -> InlineKeyboardMarkup:
+    
+    builder = InlineKeyboardBuilder()
+    mailings = await get_upcoming_mailings(limit=30)
+    if not mailings:
+        builder.row(
+            InlineKeyboardButton(text="Нет запланированных рассылок", callback_data="noop")
+        )
+        builder.row(back_to_mailing)
+        return builder.as_markup()
+
+    total = len(mailings)
+
+    total_pages = (total + per_page - 1) // per_page
+    page = max(1, min(page, total_pages))
+
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_mailings = mailings[start:end]
+
+    for m in page_mailings:
+        display_text = f"{m.task_name} | {m.run_at.strftime('%Y-%m-%d %H:%M')}"
+        builder.button(
+            text=display_text,
+            callback_data=f"delete_mailing_{m.id}",
+        )
+    
+    builder.adjust(1)
+        
+    if total_pages > 1:
+        nav_buttons = []
+        if page > 1:
+            nav_buttons.append(
+                InlineKeyboardButton(text="⬅️", callback_data=f"mpage_{page-1}")
+            )
+        else:
+            nav_buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
+
+        nav_buttons.append(
+            InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="noop")
+        )
+
+        if page < total_pages:
+            nav_buttons.append(
+                InlineKeyboardButton(text="➡️", callback_data=f"mpage_{page+1}")
+            )
+        else:
+            nav_buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
+
+        builder.row(*nav_buttons)
+
+    # Раскладываем кнопки по 1 в строке
+    builder.adjust(1)
+    builder.row(button_divider)
+    builder.row(back_to_admin_main)
+    return builder.as_markup()
+
+
 async def get_delete_vacancy_kb(vacancy_id) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -280,3 +378,5 @@ async def get_vacancy_url_kb(vacancy_id: str) -> InlineKeyboardMarkup:
 back_to_choosen_prof_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_choosen_prof]])
 
 back_to_proffs_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_proffs_kb_button]])
+
+back_to_admin_main_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_admin_main]])

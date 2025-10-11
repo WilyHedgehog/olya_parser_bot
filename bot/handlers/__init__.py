@@ -1,11 +1,11 @@
 from aiogram import Router
-from . import commands, for_admin, other, user
+from . import add_mailing, for_admin, other, user
 
 
 def get_routers() -> list[Router]:
     return [
         for_admin.router,
-        commands.router,
+        add_mailing.router,
         other.router,
         user.router,
     ]

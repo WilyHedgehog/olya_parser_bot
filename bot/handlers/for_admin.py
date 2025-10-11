@@ -6,15 +6,20 @@ from aiogram.fsm.context import FSMContext
 from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.background_tasks.test import schedule_spam, cancel_spam_tasks
 from bot.background_tasks.aps_utils import clear
+from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
     choosen_prof_keyboard,
     stopwords_keyboard,
+    admin_keyboard,
+    mailing_settings_keyboard,
+    get_delete_mailing_kb,
     back_to_choosen_prof_kb,
     back_to_proffs_kb,
+    back_to_admin_main_kb
 )
-from bot.states.admin import Prof
+from bot.states.admin import Prof, Admin
 from bot.filters.filters import IsAdminFilter
 from db.requests import (
     get_profession_by_id,
@@ -31,11 +36,15 @@ from db.requests import (
     delete_vacancy_everywhere,
     update_user_access,
 )
+from db.crud import (
+    get_upcoming_mailings,
+    cancel_admin_mailings,
+)
 
 from find_job_process.find_job import load_professions
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from bot.lexicon.lexicon import LEXICON_PARSER
+from bot.lexicon.lexicon import LEXICON_PARSER, LEXICON_ADMIN
 
 logger = logging.getLogger(__name__)
 logger.info("Admin handler module loaded")
@@ -80,15 +89,54 @@ async def get_keywords_and_desc(profession_id: str) -> tuple[str, str]:
         )
 
 
+async def try_delete_message_old(message: Message, state: FSMContext):
+    try:
+        await message.bot.delete_message(
+            chat_id=message.chat.id, message_id=await get_reply_id(state)
+        )
+    except Exception as e:
+        pass
+
+
+async def try_delete_message(message: Message):
+    try:
+        await message.delete()
+    except Exception as e:
+        pass
+
+
+async def get_reply_id(state: FSMContext):
+    data = await state.get_data()
+    return data.get("reply_id")
+
+
+@router.callback_query(F.data == "back_to_admin")
 @router.message(Command("admin"), IsAdminFilter())
-async def admin_cmd(message: Message):
-    logger.debug("Entered admin_cmd handler")
-    stopwords_text = await get_stopwords_text()
-    await message.answer(
-        LEXICON_PARSER["parser_main"].format(stopwords_text=stopwords_text),
-        reply_markup=await professions_keyboard(),
+async def admin_cmd(message: Message, state: FSMContext):
+    await try_delete_message(message)
+    await try_delete_message_old(message, state)
+    reply = await message.answer(
+        LEXICON_ADMIN["admin_welcome"],
+        reply_markup=admin_keyboard(),
     )
-    logger.info("Admin command processed successfully")
+    await state.set_state(Admin.main)
+    await state.update_data(reply_id=reply.message_id)
+
+
+@router.callback_query(IsAdminFilter(), F.data == "parser_menu")
+async def parser_menu_button(callback: CallbackQuery):
+    try:
+        await callback.answer()
+    except Exception as e:
+        pass
+    stopwords_text = await get_stopwords_text()
+    try:
+        await callback.message.edit_text(
+            LEXICON_PARSER["parser_main"].format(stopwords_text=stopwords_text),
+            reply_markup=await professions_keyboard(),
+        )
+    except Exception as e:
+        logger.error(f"Error updating parser menu: {e}")
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("ppage_"))
@@ -303,7 +351,7 @@ async def process_delete_keyword(
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("kwpage_"))
-async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext):   
+async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.set_state(Prof.main)
     page = int(callback.data.split("_")[-1])
@@ -567,6 +615,7 @@ async def process_adding_stopwords(
         logger.error(f"Failed to add stop-word '{stopword}'")
 
     await load_stopwords()
+    await state.set_state(Prof.main)
 
 
 @router.callback_query(IsAdminFilter(), F.data == "stopwords_delete")
@@ -625,36 +674,116 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
     except Exception as e:
         logger.error(f"Exception while deleting vacancy {vacancy_id}: {e}")
         await callback.message.answer("Произошла ошибка при удалении вакансии.")
-    
-    
+
+
 @router.message(Command("adminsub"), IsAdminFilter())
 async def admin_subs_cmd(message: Message):
     await update_user_access(message.from_user.id, True)
-    
-    
-@router.message(Command("check1"), IsAdminFilter())
-async def check1_cmd(message: Message):
-    await schedule_dunning(message.chat.id)
-    await message.answer("Команда check1 выполнена.")
-    
-@router.message(Command("check2"), IsAdminFilter())
-async def check2_cmd(message: Message):
-    await cancel_dunning_tasks(message.chat.id)
-    await message.answer("Команда check2 выполнена.")
-    
-
-@router.message(Command("spam"), IsAdminFilter())
-async def spam_cmd(message: Message):
-    await schedule_spam(message.chat.id)
-    await message.answer("Команда spam выполнена.")
-    
-@router.message(Command("stopspam"), IsAdminFilter())
-async def stopspam_cmd(message: Message):
-    await cancel_spam_tasks(message.chat.id)
-    await message.answer("Команда stopspam выполнена.")
 
 
-@router.message(Command("clear"), IsAdminFilter())
-async def clear_cmd(message: Message):
-    await clear()
-    await message.answer("Команда clear выполнена.")
+@router.callback_query(IsAdminFilter(), F.data == "get_file_id")
+async def get_file_id(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await callback.message.edit_text(
+        "Отправьте мне любое медиа-сообщение (голосовое, аудио, документ, видео или фото), и я верну вам его file_id.",
+        reply_markup=back_to_admin_main_kb,
+    )
+    await state.set_state(Admin.file_id)
+
+
+@router.message(Admin.file_id, IsAdminFilter())
+async def process_file_id(message: Message, state: FSMContext):
+    file_id = get_file_id_from_message(message)
+    if file_id:
+        await message.answer(f"file_id: {file_id}", reply_markup=back_to_admin_main_kb)
+    else:
+        await message.answer(
+            "<b>Ошибка:</b> в этом сообщении нет поддерживаемого медиа-контента.\nДля новой попытки вернитесь в админ-панель и зайдите снова.",
+            reply_markup=back_to_admin_main_kb,
+        )
+    await state.set_state(Admin.main)
+    
+
+
+def get_file_id_from_message(message: Message) -> str | None:
+    """
+    Получает file_id из сообщения Telegram.
+    Поддерживаются: voice, audio, document, video, photo (берет последний размер)
+    """
+    if message.voice:
+        return message.voice.file_id
+    if message.audio:
+        return message.audio.file_id
+    if message.document:
+        return message.document.file_id
+    if message.video:
+        return message.video.file_id
+    if message.photo:
+        # Telegram присылает список фото разного размера, берем самый большой
+        return message.photo[-1].file_id
+    return None
+
+
+@router.callback_query(IsAdminFilter(), F.data == "mailing_settings")
+async def mailing_settings(callback: CallbackQuery, state: FSMContext):
+    mailings = await get_upcoming_mailings()
+    if mailings:
+        upcoming_mailings = "\n".join(
+            f"- Название: {m.task_name}, Запланировано на: {m.run_at.strftime('%Y-%m-%d %H:%M')}, Сообщение: {m.message[:30]}..."
+            for m in mailings
+        )
+    else:
+        upcoming_mailings = "Ближайшие запланированные рассылки отсутствуют."
+        
+    await callback.answer()
+    await callback.message.edit_text(
+        LEXICON_ADMIN["mailing_menu"].format(upcoming_mailings=upcoming_mailings),
+        reply_markup=mailing_settings_keyboard()
+    )
+    await state.set_state(Admin.main)
+    
+    
+@router.callback_query(IsAdminFilter(), F.data == "delete_mailing")
+async def delete_mailing(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    try:
+        await callback.message.edit_text(
+            "Выберите рассылку для удаления:",
+            reply_markup=await get_delete_mailing_kb()
+        )
+    except Exception as e:
+        logger.error(f"Error in delete_mailing: {e}")
+        
+        
+@router.callback_query(IsAdminFilter(), F.data.startswith("delete_mailing_"))
+async def process_delete_mailing(callback: CallbackQuery, state: FSMContext):
+    mailing_id = callback.data.split("_")[-1]
+    await callback.answer()
+
+    success = await cancel_admin_mailings(mailing_id)
+
+    if success:
+        await callback.message.edit_text(
+            "Рассылка успешно удалена.",
+            reply_markup=mailing_settings_keyboard()
+        )
+        logger.info(f"Mailing {mailing_id} deleted successfully.")
+    else:
+        await callback.message.edit_text(
+            "Ошибка при удалении рассылки.",
+            reply_markup=mailing_settings_keyboard()
+        )
+        logger.error(f"Failed to delete mailing {mailing_id}.")
+        
+        
+@router.callback_query(IsAdminFilter(), F.data == "mpage_")
+async def process_mailing_pagination(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.set_state(Admin.main)
+    page = int(callback.data.split("_")[1])
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=await get_delete_mailing_kb(page=page)
+        )
+    except Exception as e:
+        logger.error(f"Error updating mailings keyboard: {e}")

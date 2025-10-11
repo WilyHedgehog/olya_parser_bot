@@ -1,8 +1,8 @@
 # db/crud.py
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from sqlalchemy import update
-from db.models import ScheduledTask
+from sqlalchemy import update, select
+from db.models import ScheduledTask, AdminMailing, User, UserProfession, Profession
 from db.database import Sessionmaker  # ваша фабрика сессий
 
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
@@ -48,3 +48,109 @@ async def mark_executed(scheduled_id: int):
             update(ScheduledTask).where(ScheduledTask.id == scheduled_id).values(executed=True)
         )
         await session.commit()
+        
+        
+async def get_upcoming_mailings(limit: int = 10):
+    async with Sessionmaker() as session:
+        stmt = select(AdminMailing).where(
+            (AdminMailing.run_at > datetime.now(tz=MOSCOW_TZ)) & (AdminMailing.cancelled == False) & (AdminMailing.executed == False)
+        ).limit(limit)
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    
+async def create_admin_mailing(message: str, run_at: datetime, file_id: str = None, keyboard: str = None, segment: dict = None, task_name: str = None):
+    async with Sessionmaker() as session:
+        am = AdminMailing(
+            message=message,
+            run_at=run_at,
+            file_id=file_id,
+            keyboard=keyboard,
+            segment=segment,
+            task_name=task_name
+        )
+        session.add(am)
+        await session.commit()
+        await session.refresh(am)
+        return am  # объект с id
+    
+    
+async def set_admin_mailing_taskiq_id(mailing_id: int, taskiq_id: str):
+    async with Sessionmaker() as session:
+        await session.execute(
+            update(AdminMailing).where(AdminMailing.id == mailing_id).values(taskiq_id=taskiq_id)
+        )
+        await session.commit()
+
+
+async def get_admin_mailing(mailing_id: int):
+    async with Sessionmaker() as session:
+        return await session.get(AdminMailing, mailing_id)
+    
+
+async def mark_admin_mailing_executed(mailing_id: int):
+    async with Sessionmaker() as session:
+        await session.execute(
+            update(AdminMailing).where(AdminMailing.id == mailing_id).values(executed=True)
+        )
+        await session.commit()  
+
+
+async def cancel_admin_mailings(mailing_id: int):
+    async with Sessionmaker() as session:
+        try:
+            await session.execute(
+                update(AdminMailing).where(AdminMailing.id == mailing_id).values(cancelled=True)
+            )
+            await session.commit()
+        except Exception as e:
+            return False
+    return True
+
+
+async def get_all_users_in_segment(segment: dict):  
+    """Возвращает список chat_id пользователей, подходящих под сегмент"""
+    async with Sessionmaker() as session:
+        users_segment = {}
+        for  key, value in segment.items():
+            users_segment[key] = value
+        
+        if "Все пользователи" == True in users_segment.values():
+            stmt = select(User.telegram_id)
+            result = await session.execute(stmt)
+            return [row[0] for row in result.all()]
+        
+        if "Все с подпиской" == True in users_segment.values():
+            stmt = select(User.telegram_id).where(User.subscription_until > datetime.now(MOSCOW_TZ))
+            result = await session.execute(stmt)
+            return [row[0] for row in result.all()]
+        
+        if "Все без подписки" == True in users_segment.values():
+            stmt = select(User.telegram_id).where((User.subscription_until == None) | (User.subscription_until < datetime.now(MOSCOW_TZ)))
+            result = await session.execute(stmt)
+            return [row[0] for row in result.all()]
+        
+        if "Пользователи с истекающей подпиской" == True in users_segment.values():
+            stmt = select(User.telegram_id).where(
+                (User.cancelled_subscription_date != None) &
+                (User.subscription_until == None)
+            )
+            result = await session.execute(stmt)
+            return [row[0] for row in result.all()]
+        
+        stmt = select(Profession.id).where(Profession.name.in_(
+            [value for key, value in users_segment.items() if value == True]
+        ))
+        result = await session.execute(stmt)
+        profession_ids = [row[0] for row in result.all()]
+        if not profession_ids:
+            return []
+
+        # Получаем пользователей по профессиям из сегмента, у которых выбраны эти профессии is_selected=True
+        stmt = select(User.telegram_id).join(UserProfession).where(
+            UserProfession.profession_id.in_(profession_ids),
+            UserProfession.is_selected == True
+        ).distinct()
+
+        result = await session.execute(stmt)
+        return [row[0] for row in result.all()]

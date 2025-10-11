@@ -9,3 +9,12 @@ class Prof(StatesGroup):
     add_profession = State()
     adding_stopwords = State()
     
+
+class Admin(StatesGroup):
+    main = State()
+    file_id = State()
+    add_mailing = State()
+    mailing_file_id = State()
+    mailing_datetime = State()
+    mailing_text = State()
+    mailing_name = State()
