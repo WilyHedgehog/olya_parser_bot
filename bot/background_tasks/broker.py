@@ -10,6 +10,9 @@ broker = PullBasedJetStreamBroker(
     queue="taskiq_broadcasts",
 )
 
-schedule_source = NATSKeyValueScheduleSource(broker)
+schedule_source = NATSKeyValueScheduleSource(
+    servers=config.nats.servers,
+    bucket="taskiq_scheduled_tasks"
+)
 
 import bot.background_tasks.dunning
