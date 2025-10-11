@@ -54,6 +54,12 @@ router = Router(name="admin commands router")
 # router.message.filter(MagicData(F.event.chat.id == F.admin_id))  # noqa
 
 
+async def close_clock(callback: CallbackQuery):
+    try:
+        await callback.answer()
+    except Exception as e:
+        pass
+
 async def get_stopwords_text() -> str:
     try:
         stopwords = await get_all_stopwords()
@@ -112,13 +118,19 @@ async def get_reply_id(state: FSMContext):
 
 @router.callback_query(F.data == "back_to_admin")
 @router.message(Command("admin"), IsAdminFilter())
-async def admin_cmd(message: Message, state: FSMContext):
+async def admin_cmd(message: Message | CallbackQuery, state: FSMContext):
     await try_delete_message(message)
     await try_delete_message_old(message, state)
-    reply = await message.answer(
-        LEXICON_ADMIN["admin_welcome"],
-        reply_markup=admin_keyboard(),
-    )
+    if isinstance(message, Message):
+        reply = await message.answer(
+            LEXICON_ADMIN["admin_welcome"],
+            reply_markup=admin_keyboard(),
+        )
+    else:
+        reply = await message.message.edit_text(
+            LEXICON_ADMIN["admin_welcome"],
+            reply_markup=admin_keyboard(),
+        )
     await state.set_state(Admin.main)
     await state.update_data(reply_id=reply.message_id)
 
@@ -142,7 +154,7 @@ async def parser_menu_button(callback: CallbackQuery):
 @router.callback_query(IsAdminFilter(), F.data.startswith("ppage_"))
 async def process_profession_pagination(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Prof.main)
-    await callback.answer()
+    await close_clock(callback)
     page = int(callback.data.split("_")[1])
     try:
         await callback.message.edit_reply_markup(
@@ -155,7 +167,7 @@ async def process_profession_pagination(callback: CallbackQuery, state: FSMConte
 @router.callback_query(IsAdminFilter(), F.data.startswith("kpage_"))
 async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Prof.main)
-    await callback.answer()
+    await close_clock(callback)
     page = int(callback.data.split("_")[1])
     data = await state.get_data()
     profession_id = data.get("profession_id")
@@ -170,7 +182,7 @@ async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(IsAdminFilter(), F.data.startswith("swpage_"))
 async def process_stopword_pagination(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Prof.main)
-    await callback.answer()
+    await close_clock(callback)
     page = int(callback.data.split("_")[1])
     try:
         await callback.message.edit_reply_markup(
@@ -198,7 +210,7 @@ async def process_profession_selection(callback: CallbackQuery, state: FSMContex
         ),
         reply_markup=await choosen_prof_keyboard(profession_id=profession_id),
     )
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.callback_query(IsAdminFilter(), F.data == "add_keyword")
@@ -208,7 +220,7 @@ async def add_keyword(callback: CallbackQuery, state: FSMContext):
         reply_markup=back_to_choosen_prof_kb,
     )
     await state.set_state(Prof.add_keyword)
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.message(Prof.add_keyword, IsAdminFilter())
@@ -298,7 +310,7 @@ async def back_to_proffs_func(callback: CallbackQuery, state: FSMContext):
         LEXICON_PARSER["parser_main"].format(stopwords_text=stopwords_text),
         reply_markup=await professions_keyboard(),
     )
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.callback_query(IsAdminFilter(), F.data == "delete_keyword")
@@ -309,7 +321,7 @@ async def delete_keyword(callback: CallbackQuery, state: FSMContext):
         LEXICON_PARSER["delete_keyword_prompt"],
         reply_markup=await keywords_keyboard(profession_id),
     )
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("keyword_"))
@@ -347,12 +359,12 @@ async def process_delete_keyword(
         )
 
     await load_professions()
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("kwpage_"))
 async def process_keyword_pagination(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await close_clock(callback)
     await state.set_state(Prof.main)
     page = int(callback.data.split("_")[-1])
     data = await state.get_data()
@@ -371,7 +383,7 @@ async def add_profession(callback: CallbackQuery, state: FSMContext):
         LEXICON_PARSER["add_profession_prompt"], reply_markup=back_to_proffs_kb
     )
     await state.set_state(Prof.add_profession)
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.message(Prof.add_profession, IsAdminFilter())
@@ -451,7 +463,7 @@ async def delete_profession(
             )
         )
     await load_professions()
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.callback_query(IsAdminFilter(), F.data == "delete_proffs_desc")
@@ -488,7 +500,7 @@ async def delete_profession_desc(
             reply_markup=await choosen_prof_keyboard(profession_id),
         )
     await load_professions()
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.callback_query(IsAdminFilter(), F.data == "add_proffs_desc")
@@ -507,7 +519,7 @@ async def add_profession_desc(callback: CallbackQuery, state: FSMContext):
         reply_markup=back_to_choosen_prof_kb,
     )
     await state.set_state(Prof.adding_desc_additional)
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.message(Prof.adding_desc_additional, IsAdminFilter())
@@ -573,12 +585,12 @@ async def back_to_choosen_prof(callback: CallbackQuery, state: FSMContext):
         ),
         reply_markup=await choosen_prof_keyboard(profession_id),
     )
-    await callback.answer()
+    await close_clock(callback)
 
 
 @router.callback_query(IsAdminFilter(), F.data == "stopwords_add")
 async def stopwords_add(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await close_clock(callback)
     try:
         await callback.message.edit_text(
             LEXICON_PARSER["add_stopword_prompt"], reply_markup=back_to_proffs_kb
@@ -626,15 +638,14 @@ async def stopwords_delete(
         "Выберите стоп-слово для удаления:",
         reply_markup=await stopwords_keyboard(),
     )
-    await callback.answer()
-
+    await close_clock(callback)
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("stopword_"))
 async def process_delete_stopword(
     callback: CallbackQuery, state: FSMContext, session: AsyncSession
 ):
     stopword_id = callback.data.split("_")[1]
-    await callback.answer()
+    await close_clock(callback)
 
     success = await db_delete_stopword(session=session, stopword_id=stopword_id)
 
@@ -683,7 +694,7 @@ async def admin_subs_cmd(message: Message):
 
 @router.callback_query(IsAdminFilter(), F.data == "get_file_id")
 async def get_file_id(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await close_clock(callback)
     await callback.message.edit_text(
         "Отправьте мне любое медиа-сообщение (голосовое, аудио, документ, видео или фото), и я верну вам его file_id.",
         reply_markup=back_to_admin_main_kb,
@@ -735,7 +746,7 @@ async def mailing_settings(callback: CallbackQuery, state: FSMContext):
     else:
         upcoming_mailings = "Ближайшие запланированные рассылки отсутствуют."
         
-    await callback.answer()
+    await close_clock(callback)
     await callback.message.edit_text(
         LEXICON_ADMIN["mailing_menu"].format(upcoming_mailings=upcoming_mailings),
         reply_markup=mailing_settings_keyboard()
@@ -745,7 +756,7 @@ async def mailing_settings(callback: CallbackQuery, state: FSMContext):
     
 @router.callback_query(IsAdminFilter(), F.data == "delete_mailing")
 async def delete_mailing(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await close_clock(callback)
     try:
         await callback.message.edit_text(
             "Выберите рассылку для удаления:",
@@ -758,7 +769,7 @@ async def delete_mailing(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(IsAdminFilter(), F.data.startswith("delete_mailing_"))
 async def process_delete_mailing(callback: CallbackQuery, state: FSMContext):
     mailing_id = callback.data.split("_")[-1]
-    await callback.answer()
+    await close_clock(callback)
 
     success = await cancel_admin_mailings(mailing_id)
 
@@ -778,7 +789,7 @@ async def process_delete_mailing(callback: CallbackQuery, state: FSMContext):
         
 @router.callback_query(IsAdminFilter(), F.data == "mpage_")
 async def process_mailing_pagination(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
+    await close_clock(callback)
     await state.set_state(Admin.main)
     page = int(callback.data.split("_")[1])
     try:
