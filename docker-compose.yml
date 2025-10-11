@@ -90,8 +90,8 @@ services:
     volumes:
       - ./:/app
     command: >
-      taskiq worker bot.background_tasks.broker -fsd
-      taskiq scheduler bot.background_tasks.broker -fsd
+      taskiq worker bot.background_tasks.broker:broker -fsd
+      taskiq scheduler bot.background_tasks.broker:scheduler_source -fsd
 
 
 volumes:
