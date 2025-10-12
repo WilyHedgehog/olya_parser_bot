@@ -283,6 +283,15 @@ async def process_mailing_name(message: Message, state: FSMContext):
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
     mailing_text = data.get("mailing_text")
+    
+    if isinstance(mailing_datetime, str):
+        try:
+            mailing_datetime = datetime.strptime(mailing_datetime, "%d.%m.%Y %H:%M").replace(tzinfo=MOSCOW_TZ)
+        except ValueError:
+            await message.answer(
+                LEXICON_ADMIN["add_mailing_stg4_error4"], reply_markup=back_to_mailing_kb
+            )
+            return
 
     selected_segments = [seg for seg, selected in mailing_segments.items() if selected]
     segments_str = (
