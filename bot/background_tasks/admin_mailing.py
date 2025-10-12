@@ -34,8 +34,8 @@ async def admin_mailing(scheduled_task_id: int, ):
     if scheduled.executed:
         return  # уже выполнено
     
-    reply_markup = await get_mailing_keyboard(keyboard_choice) if keyboard_choice else None
     keyboard_choice = scheduled.keyboard
+    reply_markup = await get_mailing_keyboard(keyboard_choice) if keyboard_choice else None
     file_id = scheduled.file_id
     mailing_text = scheduled.message
 
