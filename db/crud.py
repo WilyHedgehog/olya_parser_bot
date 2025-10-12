@@ -108,49 +108,51 @@ async def cancel_admin_mailings(mailing_id: int):
     return True
 
 
-async def get_all_users_in_segment(segment: dict):  
-    """Возвращает список chat_id пользователей, подходящих под сегмент"""
+async def get_all_users_in_segment(selected_segments: list[str]):
+    """Возвращает список chat_id пользователей, подходящих под выбранные сегменты"""
     async with Sessionmaker() as session:
-        users_segment = {}
-        for  key, value in segment.items():
-            users_segment[key] = value
-        
-        if "Все пользователи" == True in users_segment.values():
+        users = set()
+
+        # 1️⃣ Все пользователи
+        if "Все пользователи" in selected_segments:
             stmt = select(User.telegram_id)
             result = await session.execute(stmt)
-            return [row[0] for row in result.all()]
-        
-        if "Все с подпиской" == True in users_segment.values():
+            return [row[0] for row in result.all()]  # возврат сразу — других не нужно искать
+
+        # 2️⃣ Все с подпиской
+        if "Все с подпиской" in selected_segments:
             stmt = select(User.telegram_id).where(User.subscription_until > datetime.now(MOSCOW_TZ))
             result = await session.execute(stmt)
-            return [row[0] for row in result.all()]
-        
-        if "Все без подписки" == True in users_segment.values():
-            stmt = select(User.telegram_id).where((User.subscription_until == None) | (User.subscription_until < datetime.now(MOSCOW_TZ)))
+            users.update([row[0] for row in result.all()])
+
+        # 3️⃣ Все без подписки
+        if "Все без подписки" in selected_segments:
+            stmt = select(User.telegram_id).where(
+                (User.subscription_until == None) | (User.subscription_until < datetime.now(MOSCOW_TZ))
+            )
             result = await session.execute(stmt)
-            return [row[0] for row in result.all()]
-        
-        if "Пользователи с истекающей подпиской" == True in users_segment.values():
+            users.update([row[0] for row in result.all()])
+
+        # 4️⃣ У кого кончилась подписка
+        if "У кого кончилась подписка" in selected_segments:
             stmt = select(User.telegram_id).where(
                 (User.cancelled_subscription_date != None) &
                 (User.subscription_until == None)
             )
             result = await session.execute(stmt)
-            return [row[0] for row in result.all()]
-        
-        stmt = select(Profession.id).where(Profession.name.in_(
-            [value for key, value in users_segment.items() if value == True]
-        ))
+            users.update([row[0] for row in result.all()])
+
+        # 5️⃣ Профессии (если сегменты — это профессии)
+        stmt = select(Profession.id).where(Profession.name.in_(selected_segments))
         result = await session.execute(stmt)
         profession_ids = [row[0] for row in result.all()]
-        if not profession_ids:
-            return []
 
-        # Получаем пользователей по профессиям из сегмента, у которых выбраны эти профессии is_selected=True
-        stmt = select(User.telegram_id).join(UserProfession).where(
-            UserProfession.profession_id.in_(profession_ids),
-            UserProfession.is_selected == True
-        ).distinct()
+        if profession_ids:
+            stmt = select(User.telegram_id).join(UserProfession).where(
+                UserProfession.profession_id.in_(profession_ids),
+                UserProfession.is_selected == True
+            ).distinct()
+            result = await session.execute(stmt)
+            users.update([row[0] for row in result.all()])
 
-        result = await session.execute(stmt)
-        return [row[0] for row in result.all()]
+        return list(users)
