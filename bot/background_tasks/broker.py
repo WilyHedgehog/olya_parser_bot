@@ -19,6 +19,7 @@ schedule_source = NATSKeyValueScheduleSource(
 
 import bot.background_tasks.dunning
 import bot.background_tasks.test
+import bot.background_tasks.admin_mailing
 
 scheduler = TaskiqScheduler(
     broker=broker,
