@@ -94,7 +94,18 @@ async def admin_mailing(scheduled_task_id: int, ):
 
 async def set_admin_mailing(mailing_datetime, message, file_id, keyboard, segment, task_name):
     await broker.startup()
-    run_time = datetime.strptime(mailing_datetime, "%Y-%m-%d %H:%M")
+    if isinstance(mailing_datetime, str):
+        run_time = datetime.fromisoformat(mailing_datetime)
+    else:
+        run_time = mailing_datetime
+    
+    # переводим строку в dict
+    if isinstance(segment, str):
+        segment_dict = {}
+        for item in segment.split(","):
+            key, value = item.split(":")
+            segment_dict[key.strip()] = value.strip().lower() == "true"
+        segment = segment_dict
 
     scheduled = await create_admin_mailing(
         message=message,

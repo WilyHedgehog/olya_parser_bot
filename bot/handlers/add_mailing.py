@@ -286,10 +286,11 @@ async def process_mailing_name(message: Message, state: FSMContext):
     if isinstance(mailing_datetime, str):
         mailing_datetime = datetime.fromisoformat(mailing_datetime)
 
-    selected_segments = [seg for seg, selected in mailing_segments.items() if selected]
-    segments_str = (
-        ", ".join(selected_segments) if selected_segments else "Нет сегментов"
-    )
+    selected_segments = [
+        name for name, data in mailing_segments.items() if data.get("selected")
+    ]
+
+    segments_str = ", ".join(selected_segments) if selected_segments else "Нет сегментов"
 
     await message.answer(
         LEXICON_ADMIN["add_mailing_confirm"].format(
@@ -358,10 +359,14 @@ async def process_confirm_mailing(callback: CallbackQuery, state: FSMContext):
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
     
+    selected_segments = [
+        name for name, data in mailing_segments.items() if data.get("selected")
+    ]
+
+    
     if isinstance(mailing_datetime, str):
         mailing_datetime = datetime.fromisoformat(mailing_datetime)
 
-    selected_segments = [seg for seg, selected in mailing_segments.items() if selected]
     if not selected_segments:
         await callback.message.answer(
             "Ошибка: не выбран ни один сегмент. Пожалуйста, начните заново.",
