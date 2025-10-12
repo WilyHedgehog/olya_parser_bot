@@ -282,13 +282,9 @@ async def process_mailing_name(message: Message, state: FSMContext):
     keyboard_choice = data.get("mailing_keyboard")
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
-    mailing_text = data.get("mailing_text")
     
     if isinstance(mailing_datetime, str):
-        try:
-            mailing_datetime = datetime.strptime(mailing_datetime, "%d.%m.%Y %H:%M").replace(tzinfo=MOSCOW_TZ)
-        except ValueError:
-            mailing_datetime = datetime.fromisoformat(mailing_datetime)
+        mailing_datetime = datetime.fromisoformat(mailing_datetime)
 
     selected_segments = [seg for seg, selected in mailing_segments.items() if selected]
     segments_str = (
@@ -297,12 +293,11 @@ async def process_mailing_name(message: Message, state: FSMContext):
 
     await message.answer(
         LEXICON_ADMIN["add_mailing_confirm"].format(
-            mailing_text=mailing_text,
-            file_id=file_id if file_id else "Нет файла",
-            keyboard=keyboard_choice if keyboard_choice else "Без клавиатуры",
-            datetime=mailing_datetime.strftime("%d.%m.%Y %H:%M"),
-            segments=segments_str,
-            name=mailing_name,
+            mailing_name=mailing_name,
+            run_at=mailing_datetime.strftime("%d.%m.%Y %H:%M"),
+            user_categories=segments_str,
+            file_info=file_id if file_id else "Нет файла",
+            keyboard_info=keyboard_choice if keyboard_choice else "Без клавиатуры",
         ),
         reply_markup=final_add_mail_kb,
     )
@@ -313,14 +308,12 @@ async def process_mailing_name(message: Message, state: FSMContext):
 )
 async def process_next_step_mailing(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await callback.message.edit_text(
-        LEXICON_ADMIN["add_mailing_stg1"], reply_markup=is_mail_with_file()
-    )
     await state.set_state(Admin.add_mailing)
     data = await state.get_data()
     file_id = data.get("mailing_file_id")
     mailing_text = data.get("mailing_text")
     keyboard_choice = data.get("mailing_keyboard")
+    
     reply_markup = (
         await get_mailing_keyboard(keyboard_choice) if keyboard_choice else None
     )
@@ -364,6 +357,9 @@ async def process_confirm_mailing(callback: CallbackQuery, state: FSMContext):
     keyboard_choice = data.get("mailing_keyboard")
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
+    
+    if isinstance(mailing_datetime, str):
+        mailing_datetime = datetime.fromisoformat(mailing_datetime)
 
     selected_segments = [seg for seg, selected in mailing_segments.items() if selected]
     if not selected_segments:
