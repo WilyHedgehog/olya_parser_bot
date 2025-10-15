@@ -3,7 +3,7 @@ import logging
 import asyncio
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 from utils.bot_utils import send_message, send_photo
-from db.requests import record_vacancy_sent
+from db.requests import record_vacancy_sent, get_vacancy_by_id, dublicate_check
 from bot.keyboards.user_keyboard import get_need_author_kb
 from uuid import UUID
 from aiogram.types import InlineKeyboardMarkup
@@ -40,13 +40,23 @@ async def bot_send_messages_worker(js):
                     photo_id = None
 
                 if flag == "vacancy":
+                    print("📨 Отправка вакансии пользователю:", chat_id)
                     vacancy_id = UUID(data.get("vacancy_id"))
                     reply_markup = await get_need_author_kb(str(vacancy_id))
                     
-                try:
-                    reply_markup = data.get("reply_markup")
-                except KeyError:
-                    reply_markup = None
+                    vacancy = await get_vacancy_by_id(vacancy_id)
+                    
+                    if not await dublicate_check(chat_id, vacancy):
+                        success = True
+                        await msg.ack()
+                        print("⏭  Skip duplicate vacancy for user:", chat_id)
+                        continue  # Уже отправляли такую вакансию этому пользователю
+                else:
+                    try:
+                        reply_markup = data.get("reply_markup")
+                    except KeyError:
+                        reply_markup = None
+                
 
                 # Отправляем сообщение
                 try:
@@ -62,7 +72,7 @@ async def bot_send_messages_worker(js):
                             chat_id=chat_id, text=message, reply_markup=reply_markup
                         )
 
-                    if flag == "vacancy":
+                    if flag == "vacancy" and message_id:
                         await record_vacancy_sent(
                             user_id=chat_id,
                             vacancy_id=vacancy_id,

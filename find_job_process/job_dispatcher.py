@@ -40,10 +40,10 @@ from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 
 # --- 2. Отправка вакансии пользователю ---
 async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
-    print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
+    #print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
     if not await dublicate_check(user_id, vacancy):
         return False  # Уже отправляли такую вакансию этому пользователю
-    print("🤖 Отправка вакансии пользователю:", user_id)
+    #print("🤖 Отправка вакансии пользователю:", user_id)
 
     if url == True:
         main_vacancy = await get_vacancy_by_text(vacancy.text)
