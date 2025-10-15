@@ -56,7 +56,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         vacancy_id = vacancy.id
         author = vacancy.vacancy_source
         forwarded = vacancy.forwarding_source
-        
+
     text = LEXICON_PARSER["msg_for_user"].format(
         author=author if author else "Не указан",
         forwarded=forwarded if forwarded else "Не указан",
@@ -66,7 +66,6 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
     reply_markup = await get_need_author_kb(str(vacancy_id))
     flag = "vacancy"
 
-
     try:
         nc, js = await get_nats_connection()
     except Exception as e:
@@ -74,7 +73,13 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         return
 
     # Формируем задачу для очереди
-    task = {"chat_id": user_id, "message": text, "flag": flag, "vacancy_id": str(vacancy_id), "reply_markup": reply_markup}
+    task = {
+        "chat_id": user_id,
+        "message": text,
+        "flag": flag,
+        "vacancy_id": str(vacancy_id),
+        "reply_markup": reply_markup.model_dump() if reply_markup else None,
+    }
 
     # Отправляем задачу в NATS
     try:
@@ -130,7 +135,9 @@ async def send_vacancy_to_users(vacancy_id: UUID):
                 profession_id=vacancy.profession_id,
             )
         elif user.delivery_mode == "support":
-            logger.info(f"User {user.telegram_id} is using support mode, skipping vacancy.")
+            logger.info(
+                f"User {user.telegram_id} is using support mode, skipping vacancy."
+            )
             pass  # Техподдержка не получает вакансии
         else:
             logger.warning(

@@ -5,6 +5,7 @@ from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 from bot_utils import send_message, send_photo
 from db.requests import record_vacancy_sent
 from uuid import UUID
+from aiogram.types import InlineKeyboardMarkup
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,8 @@ async def bot_send_messages_worker(js):
                     photo_id = None
 
                 try:
-                    reply_markup = data.get("reply_markup")
+                    reply_markup_data = data.get("reply_markup")
+                    reply_markup = InlineKeyboardMarkup.model_validate(reply_markup_data)
                 except KeyError:
                     reply_markup = None
 
