@@ -63,7 +63,6 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         vacancy_text=vacancy.text,
     )
 
-    reply_markup = await get_need_author_kb(str(vacancy_id))
     flag = "vacancy"
 
     try:
@@ -78,13 +77,12 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         "message": text,
         "flag": flag,
         "vacancy_id": str(vacancy_id),
-        "reply_markup": reply_markup.model_dump() if reply_markup else None,
     }
 
     # Отправляем задачу в NATS
     try:
         await js.publish("bot.send.messages.queue", json.dumps(task).encode())
-        logger.info(f"📨 Задача добавлена в очередь: {task}")
+        logger.info(f"📨 Задача добавлена в очередь: {flag} для {user_id}")
     except Exception as e:
         logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
 

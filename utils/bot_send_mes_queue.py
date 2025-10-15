@@ -4,6 +4,7 @@ import asyncio
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 from bot_utils import send_message, send_photo
 from db.requests import record_vacancy_sent
+from bot.keyboards.user_keyboard import get_need_author_kb
 from uuid import UUID
 from aiogram.types import InlineKeyboardMarkup
 
@@ -38,9 +39,12 @@ async def bot_send_messages_worker(js):
                 except KeyError:
                     photo_id = None
 
+                if flag == "vacancy":
+                    vacancy_id = UUID(data.get("vacancy_id"))
+                    reply_markup = await get_need_author_kb(str(vacancy_id))
+                    
                 try:
-                    reply_markup_data = data.get("reply_markup")
-                    reply_markup = InlineKeyboardMarkup.model_validate(reply_markup_data)
+                    reply_markup = data.get("reply_markup")
                 except KeyError:
                     reply_markup = None
 
@@ -59,7 +63,6 @@ async def bot_send_messages_worker(js):
                         )
 
                     if flag == "vacancy":
-                        vacancy_id = UUID(data.get("vacancy_id"))
                         await record_vacancy_sent(
                             user_id=chat_id,
                             vacancy_id=vacancy_id,
