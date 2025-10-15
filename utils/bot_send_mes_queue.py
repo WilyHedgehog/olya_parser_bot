@@ -27,9 +27,9 @@ async def bot_send_messages_worker(js):
             success = False
             try:
                 data = json.loads(msg.data.decode())
-                logger.info(f"📥 Получена задача: {data}")
 
                 chat_id = data.get("chat_id")
+                logger.info(f"📥 Получена задача для отправки сообщения: {chat_id}")
                 message = data.get("message")
                 flag = data.get("flag")
                 retry_count = data.get("retry_count", 0)
