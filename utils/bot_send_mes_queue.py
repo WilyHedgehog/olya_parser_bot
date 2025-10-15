@@ -4,6 +4,7 @@ import asyncio
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 from bot_utils import send_message, send_photo
 from db.requests import record_vacancy_sent
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ async def bot_send_messages_worker(js):
                         )
 
                     if flag == "vacancy":
-                        vacancy_id = data.get("vacancy_id")
+                        vacancy_id = UUID(data.get("vacancy_id"))
                         await record_vacancy_sent(
                             user_id=chat_id,
                             vacancy_id=vacancy_id,

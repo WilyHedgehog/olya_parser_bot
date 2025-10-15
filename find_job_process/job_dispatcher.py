@@ -74,7 +74,7 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         return
 
     # Формируем задачу для очереди
-    task = {"chat_id": user_id, "message": text, "flag": flag, "vacancy_id": vacancy_id, "reply_markup": reply_markup}
+    task = {"chat_id": user_id, "message": text, "flag": flag, "vacancy_id": str(vacancy_id), "reply_markup": reply_markup}
 
     # Отправляем задачу в NATS
     try:
