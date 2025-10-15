@@ -2,6 +2,8 @@ import logging
 
 from aiogram.filters import BaseFilter
 from aiogram.types import TelegramObject, Update
+import time
+from cachetools import TTLCache
 
 from config.config import load_config
 from db.requests import get_user_by_telegram_id, get_all_users_professions, get_admins_list
@@ -10,26 +12,29 @@ logger = logging.getLogger(__name__)
 config = load_config()
 
 
+admin_cache = TTLCache(maxsize=100, ttl=60)
 
+
+
+async def get_admins_cached() -> set[int]:
+    """Возвращает кэшированный список админов."""
+    if "admin_ids" not in admin_cache:
+        admins = await get_admins_list()
+        admin_ids = {int(a.telegram_id) for a in admins}
+        admin_cache["admin_ids"] = admin_ids
+        logger.info("♻️ Кэш списка админов обновлён")
+    return admin_cache["admin_ids"]
 
 
 class IsAdminFilter(BaseFilter):
-    async def __init__(self, admin_ids: set[int] | set[str] | None = None):
-        if admin_ids is None:
-            admins = await get_admins_list()
-            admin_ids = {int(admin.telegram_id) for admin in admins}
-            # Уже сконвертировано один раз выше
-            self._admin_ids = admin_ids
-        else:
-            self._admin_ids = {int(admin_id) for admin_id in admin_ids}
-
     async def __call__(self, event: TelegramObject) -> bool:
         from_user = getattr(event, "from_user", None)
         if from_user is None:
             logger.debug("Update has no from_user.")
             return False
         user_id = from_user.id
-        is_admin = user_id in self._admin_ids
+        admin_ids = await get_admins_cached()
+        is_admin = user_id in admin_ids
         logger.debug("User ID %s is admin: %s", user_id, is_admin)
         return is_admin
 
