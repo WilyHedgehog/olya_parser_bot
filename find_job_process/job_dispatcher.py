@@ -9,6 +9,8 @@ from bot_setup import scheduler
 from bot_setup import bot
 from bot.lexicon.lexicon import LEXICON_PARSER
 from bot.keyboards.user_keyboard import get_need_author_kb
+from utils.nats_connect import get_nats_connection
+import json
 
 from db.models import Vacancy
 
@@ -54,44 +56,32 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         vacancy_id = vacancy.id
         author = vacancy.vacancy_source
         forwarded = vacancy.forwarding_source
+        
+    text = LEXICON_PARSER["msg_for_user"].format(
+        author=author if author else "Не указан",
+        forwarded=forwarded if forwarded else "Не указан",
+        vacancy_text=vacancy.text,
+    )
 
-    while True:
-        try:
-            message = await bot.send_message(
-                chat_id=user_id,
-                text=LEXICON_PARSER["msg_for_user"].format(
-                    author=author if author else "Не указан",
-                    forwarded=forwarded if forwarded else "Не указан",
-                    vacancy_text=vacancy.text,
-                ),
-                disable_web_page_preview=True,
-                reply_markup=await get_need_author_kb(str(vacancy_id)),
-            )
+    reply_markup = await get_need_author_kb(str(vacancy_id))
+    flag = "vacancy"
 
-            await record_vacancy_sent(
-                user_id=user_id, vacancy_id=vacancy_id, message_id=message.message_id
-            )
 
-            # Пауза между сообщениями, чтобы снизить риск flood control
-            await asyncio.sleep(1)
-            return True
+    try:
+        nc, js = await get_nats_connection()
+    except Exception as e:
+        logger.error(f"❌ Ошибка подключения к NATS: {e}")
+        return
 
-        except TelegramRetryAfter as e:
-            logger.warning(
-                f"Flood control hit for user {user_id}, retry in {e.retry_after}s"
-            )
-            await asyncio.sleep(e.retry_after)  # ждем указанное Telegram время
+    # Формируем задачу для очереди
+    task = {"chat_id": user_id, "message": text, "flag": flag, "vacancy_id": vacancy_id, "reply_markup": reply_markup}
 
-        except TelegramForbiddenError:
-            # Пользователь заблокировал бота или не начал чат
-            logger.warning(
-                f"Cannot send vacancy to user {user_id}: bot is blocked or user hasn't started the chat."
-            )
-            return False
-
-        except Exception as e:
-            logger.error(f"Unexpected error sending vacancy to user {user_id}: {e}")
-            return False
+    # Отправляем задачу в NATS
+    try:
+        await js.publish("bot.send.messages.queue", json.dumps(task).encode())
+        logger.info(f"📨 Задача добавлена в очередь: {task}")
+    except Exception as e:
+        logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
 
 
 # --- 4. Отправка вакансии всем пользователям с учётом delivery_mode ---

@@ -26,6 +26,7 @@ async def vacancy_worker(js):
                 message_id = data.get("message_id")
                 chat_id = data.get("chat_id")
                 retries = data.get("retries", 0)
+                flag = data.get("flag")
 
                 # Получаем entity через get_input_entity
                 try:
@@ -57,7 +58,7 @@ async def vacancy_worker(js):
                     continue
 
                 # Обработка сообщения
-                await process_message(message)
+                await process_message(message, flag=flag)
                 await msg.ack()
                 logger.info(f"✅ Задача выполнена: {data}")
 

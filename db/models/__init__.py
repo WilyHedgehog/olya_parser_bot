@@ -13,6 +13,7 @@ from .vacancy_two_hours import VacancyTwoHours
 from .support_message import SupportMessage
 from .sheduler_tasks import ScheduledTask
 from .admin_mailings import AdminMailing
+from .admins import Admins
 
 __all__ = [
     "User",
@@ -30,4 +31,5 @@ __all__ = [
     "SupportMessage",
     "ScheduledTask",
     "AdminMailing",
+    "Admins",
 ]

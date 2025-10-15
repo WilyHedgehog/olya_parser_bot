@@ -11,6 +11,7 @@ from utils.nats_connect import (
     get_nats_connection,
     setup_vacancy_stream,
     setup_tasks_stream,
+    setup_bot_send_message_stream,
 )
 from storage.nats_storage import NatsStorage
 
@@ -128,6 +129,7 @@ def create_app(config: Config) -> FastAPI:
         # Запускаем воркер для обработки вакансий
         await setup_vacancy_stream(js)
         await setup_tasks_stream(js)
+        await setup_bot_send_message_stream(js)
         asyncio.create_task(vacancy_worker(js))
         logger.info("Vacancy worker started")
         await schedule_source.startup()

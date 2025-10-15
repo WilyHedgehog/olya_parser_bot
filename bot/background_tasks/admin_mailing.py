@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 from .broker import broker, schedule_source
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 import logging
-import asyncio
+import json
+from utils.nats_connect import get_nats_connection
 from db.crud import (\
     create_admin_mailing,
     mark_admin_mailing_executed,
@@ -41,51 +42,25 @@ async def admin_mailing(scheduled_task_id: int, ):
 
     users = await get_all_users_in_segment(scheduled.segment)  # список chat_id пользователей в сегменте
 
-    for user in users:
-        try:
-            if file_id and keyboard_choice:
-                await send_photo(
-                    chat_id=user,
-                    file_id=file_id,
-                    caption=mailing_text,
-                    reply_markup=reply_markup
-                )
-            elif file_id and not keyboard_choice:
-                await send_photo(
-                    chat_id=user,
-                    file_id=file_id,
-                    caption=mailing_text
-                )
-            elif keyboard_choice:
-                await send_photo(
-                    chat_id=user,
-                    file_id=file_id,
-                    caption=mailing_text,
-                    reply_markup=reply_markup
-                )
-            else:
-                await send_message(
-                    chat_id=user,
-                    text=mailing_text,
-                )
-            await asyncio.sleep(0.5)
-        except TelegramRetryAfter as e:
-            logger.warning(
-                f"Flood control, retry in {e.retry_after}s"
-            )
-            await asyncio.sleep(e.retry_after)  # ждем указанное Telegram время
-        
-        
-        except TelegramForbiddenError:
-            # Пользователь заблокировал бота или не начал чат
-            logger.warning(
-                f"Cannot send vacancy to user: bot is blocked or user hasn't started the chat."
-            )
-            pass
+    
+    try:
+        nc, js = await get_nats_connection()
+    except Exception as e:
+        logger.error(f"❌ Ошибка подключения к NATS: {e}")
+        return
 
+    flag = "mailing"
+    # Формируем задачу для очереди
+
+    # Отправляем задачу в NATS
+    for user in users:
+        task = {"chat_id": user, "message": mailing_text, "flag": flag, "file_id": file_id, "reply_markup": reply_markup}
+        try:
+            await js.publish("bot.send.messages.queue", json.dumps(task).encode())
+            logger.info(f"📨 Задача добавлена в очередь: {task}")
         except Exception as e:
-            logger.error(f"Unexpected error sending vacancy to user: {e}")
-            pass 
+            logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
+
 
 
     # пометить как выполненное

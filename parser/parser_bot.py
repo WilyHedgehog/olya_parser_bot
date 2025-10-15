@@ -29,8 +29,6 @@ from bot.lexicon.lexicon import LEXICON_PARSER
 from parser.telethon_client import app
 from .extract_sender import extract_sender_info
 
-config: Config = load_config()
-logger = logging.getLogger(__name__)
 
 
 
@@ -356,7 +354,7 @@ def get_message_link(message):
     return "ссылка недоступна"
 
 
-async def process_message(message):
+async def process_message(message, flag=None):
     # 1. Проверка дублей сообщений
     if message.id in processed_messages:
         logger.info(f"Сообщение {message.id} уже обработано, пропускаем.")
@@ -396,11 +394,14 @@ async def process_message(message):
     markdown_text = markdown_to_html(clean_text)
     html_text = message_to_html(markdown_text)
 
-    # 5. Поиск профессий
-    found_proffs = await find_job_func(vacancy_text=clean_text)
-    if not found_proffs:
-        logger.warning(f"⚠️ Вакансия не подходит ни под одну из профессий: {message.id}")
-        return
+    if flag == None:
+        # 5. Поиск профессий
+        found_proffs = await find_job_func(vacancy_text=clean_text)
+        if not found_proffs:
+            logger.warning(f"⚠️ Вакансия не подходит ни под одну из профессий: {message.id}")
+            return
+    else:
+        found_proffs = [(flag, 1.0)]
 
     unique_proffs = {prof_name: score for prof_name, score in found_proffs}
 
@@ -419,6 +420,7 @@ async def process_message(message):
         logger.error(f"Ошибка пересылки вакансии: {e}")
         return
 
+    for_admin_prof = ""
     # 7. Сохраняем для каждой профессии
     for prof_name, score in unique_proffs.items():
         vacancy_id = await save_vacancy_hash(
@@ -432,32 +434,32 @@ async def process_message(message):
             admin_chat_url=link
         )
         if vacancy_id:
+            for_admin_prof += f"{prof_name}, "
             logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")
-            vacancy = await get_vacancy_by_id(vacancy_id)
-            if await dublicate_check(config.bot.chat_id, vacancy):
-                reply = await bot.send_message(
-                    config.bot.chat_id,
-                    text=LEXICON_PARSER["vacancy_data"].format(
-                        profession_name=prof_name,
-                        vacancy_id=vacancy_id,
-                        score=score,
-                        orig_vacancy_link=original_link,
-                        source=(
-                            entity_name if not entity_username else f"@{entity_username}"
-                        ),
-                        vacancy_link=link,
-                        fwd_info=" ".join(fwd_info) if message.forward else "Нет",
-                        vacancy_text=html_text,
-                    ),
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                    reply_markup=await get_delete_vacancy_kb(vacancy_id),
-                )
-                await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
             await send_vacancy_to_users(vacancy_id)
         else:
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
         await asyncio.sleep(0.5)
+        # 8. Отправляем в админку
+    reply = await bot.send_message(
+        config.bot.chat_id,
+        text=LEXICON_PARSER["vacancy_data"].format(
+            profession_name=for_admin_prof,
+            vacancy_id=vacancy_id,
+            score=score,
+            orig_vacancy_link=original_link,
+            source=(
+                entity_name if not entity_username else f"@{entity_username}"
+            ),
+            vacancy_link=link,
+            fwd_info=" ".join(fwd_info) if message.forward else "Нет",
+            vacancy_text=html_text,
+        ),
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+        reply_markup=await get_delete_vacancy_kb(vacancy_id),
+    )
+    await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
 
     await asyncio.sleep(
         random.uniform(config.parser.delay_min, config.parser.delay_max)
@@ -500,11 +502,23 @@ async def on_new_message(event):
     # Проверяем: если это пользователь-бот — пропускаем
     if isinstance(sender, User) and sender.bot:
         return
+    
+    print(sender.username)
+    print(sender.first_name)
+    print(sender.last_name)
+    print(sender.id)
 
     # Проверяем системные сообщения (служебные события, join/leave и т.п.)
     if event.message.action:
         logger.debug("🟡 Системное сообщение — пропускаем")
         return
+
+    # Если сообщение из админчата - обрабатываем
+    if event.chat_id == -1002962447175:
+        flag = "Технический специалист онлайн-школ"
+        logger.info(f"🔵 Сообщение из админчата, устанавливаем флаг: {flag}")
+    else:
+        flag = None
 
     # Пробуем подключиться к NATS
     try:
@@ -514,7 +528,7 @@ async def on_new_message(event):
         return
 
     # Формируем задачу для очереди
-    task = {"message_id": event.message.id, "chat_id": event.chat_id}
+    task = {"message_id": event.message.id, "chat_id": event.chat_id, "flag": flag}
 
     # Отправляем задачу в NATS
     try:

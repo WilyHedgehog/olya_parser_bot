@@ -7,6 +7,7 @@ from db.requests import (
     get_profession_by_id,
     get_all_stopwords,
     get_vacancy_by_id,
+    get_admins_list,
 )
 from db.crud import (
     get_upcoming_mailings,
@@ -75,12 +76,13 @@ back_to_start_menu_button = InlineKeyboardButton(
 )
 
 
-def admin_keyboard() -> InlineKeyboardMarkup:
+def admin_keyboard(super_admin: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(parser_menu_button)
     builder.row(get_file_id_button)
     builder.row(mailing_settings_button)
-    builder.row(add_delete_admin_button)
+    if super_admin:
+        builder.row(add_delete_admin_button)
     builder.row(button_divider)
     builder.row(back_to_start_menu_button)
     builder.adjust(1)  # Располагаем кнопки в один столбец
@@ -346,6 +348,24 @@ async def get_delete_mailing_kb(
     builder.adjust(1)
     builder.row(button_divider)
     builder.row(back_to_admin_main)
+    return builder.as_markup()
+
+
+async def delete_admin_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    admins = await get_admins_list()
+    if not admins:
+        builder.row(
+            InlineKeyboardButton(text="Нет админов для удаления", callback_data="noop")
+        )
+        builder.row(back_to_admin_main)
+        return builder.as_markup()
+    
+    for admin in admins:
+        builder.button(
+            text=f"{admin.full_name}",
+            callback_data=f"del_admin_{admin.telegram_id}",
+        )
     return builder.as_markup()
 
 

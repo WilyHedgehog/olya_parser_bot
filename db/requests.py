@@ -28,6 +28,7 @@ from db.models import (
     PricingPlan,
     VacancyTwoHours,
     SupportMessage,
+    Admins,
 )
 
 
@@ -1032,3 +1033,67 @@ async def get_user_by_admin_chat_message_id(
                 f"Failed to get user by admin chat message ID {admin_chat_message_id}: {e}"
             )
             return None
+
+
+async def get_admins_list() -> list[Admins]:
+    async with Sessionmaker() as session:
+        stmt = select(Admins)
+        try:
+            result = await session.execute(stmt)
+            return result.scalars().all()
+        except Exception as e:
+            logger.error(f"Failed to get admins list: {e}")
+            return []
+        
+        
+async def is_super_admin(telegram_id: int) -> bool:
+    async with Sessionmaker() as session:
+        stmt = select(Admins).where(
+            Admins.telegram_id == telegram_id, Admins.is_super_admin == True
+        )
+        try:
+            result = await session.execute(stmt)
+            admin = result.scalar_one_or_none()
+            if admin:
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to check super admin status for {telegram_id}: {e}")
+            return False
+        
+        
+async def add_to_admins(telegram_id: int) -> bool:
+    async with Sessionmaker() as session:
+        try:
+            user = await session.get(User, telegram_id)
+            if not user:
+                logger.error(f"User with telegram_id {telegram_id} not found for admin add")
+                return False
+            full_name = user.first_name
+        except Exception as e:
+            logger.error(f"Error fetching user {telegram_id} for admin add: {e}")
+            return False
+        stmt = upsert(Admins).values(telegram_id=telegram_id, is_admin=True, full_name=full_name)
+        stmt = stmt.on_conflict_do_nothing(index_elements=["telegram_id"])  # чтобы не дублировать
+        try:
+            await session.execute(stmt)
+            await session.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error adding admin '{telegram_id}': {e}")
+            return False
+        
+        
+async def remove_from_admins(telegram_id: int) -> bool:
+    async with Sessionmaker() as session:
+        stmt = delete(Admins).where(Admins.telegram_id == telegram_id)
+        try:
+            result = await session.execute(stmt)
+            if result.rowcount == 0:
+                logger.warning(f"Admin with telegram_id {telegram_id} not found for removal")
+                return False
+            await session.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error removing admin '{telegram_id}': {e}")
+            return False

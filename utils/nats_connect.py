@@ -72,3 +72,20 @@ async def setup_tasks_stream(js):
         )
     )
     logger.info("🚀 Stream TASKIQ_TASKS создан")
+
+
+async def setup_bot_send_message_stream(js):
+    # Проверим, существует ли уже поток
+    streams = await js.streams_info()
+    if any(stream.config.name == "BOT_SEND_MESSAGES" for stream in streams):
+        logger.info("✅ Stream BOT_SEND_MESSAGES уже существует")
+        return
+
+    await js.add_stream(
+        StreamConfig(
+            name="BOT_SEND_MESSAGES",
+            subjects=["bot.send.messages.queue"],
+            retention=RetentionPolicy.WORK_QUEUE,
+        )
+    )
+    logger.info("🚀 Stream BOT_SEND_MESSAGES создан")

@@ -18,3 +18,4 @@ class Admin(StatesGroup):
     mailing_datetime = State()
     mailing_text = State()
     mailing_name = State()
+    add_admin = State()

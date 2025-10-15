@@ -15,6 +15,7 @@ from bot.keyboards.admin_keyboard import (
     admin_keyboard,
     mailing_settings_keyboard,
     get_delete_mailing_kb,
+    delete_admin_keyboard,
     back_to_choosen_prof_kb,
     back_to_proffs_kb,
     back_to_admin_main_kb
@@ -35,6 +36,10 @@ from db.requests import (
     get_all_stopwords,
     delete_vacancy_everywhere,
     update_user_access,
+    is_super_admin,
+    get_admins_list,
+    add_to_admins,
+    remove_from_admins,
 )
 from db.crud import (
     get_upcoming_mailings,
@@ -121,15 +126,22 @@ async def get_reply_id(state: FSMContext):
 async def admin_cmd(message: Message | CallbackQuery, state: FSMContext):
     await try_delete_message(message)
     await try_delete_message_old(message, state)
+    
+    
+    if await is_super_admin(message.from_user.id):
+        super_admin = True
+    else:
+        super_admin = False
+    
     if isinstance(message, Message):
         reply = await message.answer(
             LEXICON_ADMIN["admin_welcome"],
-            reply_markup=admin_keyboard(),
+            reply_markup=admin_keyboard(super_admin=super_admin),
         )
     else:
         reply = await message.message.edit_text(
             LEXICON_ADMIN["admin_welcome"],
-            reply_markup=admin_keyboard(),
+            reply_markup=admin_keyboard(super_admin=super_admin),
         )
     await state.set_state(Admin.main)
     await state.update_data(reply_id=reply.message_id)
@@ -799,3 +811,58 @@ async def process_mailing_pagination(callback: CallbackQuery, state: FSMContext)
         )
     except Exception as e:
         logger.error(f"Error updating mailings keyboard: {e}")
+        
+        
+@router.callback_query(IsAdminFilter(), F.data == "add_delete_admin")
+async def add_delete_admin(callback: CallbackQuery, state: FSMContext): 
+    await close_clock(callback)
+    await callback.message.edit_text(
+        "Отправьте мне <b>id</b> пользователя, чтобы добавить его в администраторы.\n\n"
+        "Чтобы удалить администратора, выберите его на клавиатуре ниже.",
+        reply_markup=delete_admin_keyboard()
+    )
+    await state.set_state(Admin.add_admin)
+    
+    
+@router.message(Admin.add_admin, IsAdminFilter())
+async def process_add_admin(message: Message, state: FSMContext):
+    try:
+        new_admin_id = int(message.text.strip())
+    except ValueError:
+        await message.answer("Ошибка: id должен быть числом. Попробуйте еще раз.")
+        return
+    
+    admins_list = await get_admins_list()
+    if new_admin_id in [admin.telegram_id for admin in admins_list]:
+        await message.answer("Этот пользователь уже является администратором.")
+        return
+
+    success = await add_to_admins(new_admin_id)
+    if success:
+        await message.answer(f"Пользователь с id {new_admin_id} успешно добавлен в администраторы.", reply_markup=back_to_admin_main_kb)
+        logger.info(f"User {new_admin_id} added as admin.")
+    else:
+        await message.answer("Ошибка при добавлении пользователя в администраторы.", reply_markup=back_to_admin_main_kb)
+        logger.error(f"Failed to add user {new_admin_id} as admin.")
+    await state.set_state(Admin.main)
+    
+    
+@router.callback_query(IsAdminFilter(), F.data.startswith("delete_admin_"))
+async def process_delete_admin(callback: CallbackQuery, state: FSMContext):
+    admin_id = int(callback.data.split("_")[-1])
+    await close_clock(callback)
+
+    success = await remove_from_admins(admin_id)
+
+    if success:
+        await callback.message.edit_text(
+            f"Администратор с id {admin_id} успешно удален.",
+            reply_markup=back_to_admin_main_kb
+        )
+        logger.info(f"Admin {admin_id} deleted successfully.")
+    else:
+        await callback.message.edit_text(
+            "Ошибка при удалении администратора.",
+            reply_markup=back_to_admin_main_kb
+        )
+        logger.error(f"Failed to delete admin {admin_id}.")

@@ -4,25 +4,24 @@ from aiogram.filters import BaseFilter
 from aiogram.types import TelegramObject, Update
 
 from config.config import load_config
-from db.requests import get_user_by_telegram_id, get_all_users_professions
+from db.requests import get_user_by_telegram_id, get_all_users_professions, get_admins_list
 
 logger = logging.getLogger(__name__)
 config = load_config()
 
 
-ADMIN_IDS: set[int] = {
-    int(x) for x in config.bot.admin_ids
-}  # вычисляется один раз при импорте
+
 
 
 class IsAdminFilter(BaseFilter):
-    def __init__(self, admin_ids: set[int] | set[str] | None = None):
+    async def __init__(self, admin_ids: set[int] | set[str] | None = None):
         if admin_ids is None:
+            admins = await get_admins_list()
+            admin_ids = {int(admin.telegram_id) for admin in admins}
             # Уже сконвертировано один раз выше
-            self._admin_ids = ADMIN_IDS
+            self._admin_ids = admin_ids
         else:
-            # Конвертируем только элементы, которые не int
-            self._admin_ids = {v if isinstance(v, int) else int(v) for v in admin_ids}
+            self._admin_ids = {int(admin_id) for admin_id in admin_ids}
 
     async def __call__(self, event: TelegramObject) -> bool:
         from_user = getattr(event, "from_user", None)
