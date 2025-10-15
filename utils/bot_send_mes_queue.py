@@ -2,7 +2,7 @@ import json
 import logging
 import asyncio
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
-from bot_utils import send_message, send_photo
+from utils.bot_utils import send_message, send_photo
 from db.requests import record_vacancy_sent
 from bot.keyboards.user_keyboard import get_need_author_kb
 from uuid import UUID
