@@ -1049,7 +1049,7 @@ async def get_admins_list() -> list[Admins]:
 async def is_super_admin(telegram_id: int) -> bool:
     async with Sessionmaker() as session:
         stmt = select(Admins).where(
-            Admins.telegram_id == telegram_id, Admins.is_super_admin == True
+            Admins.telegram_id == telegram_id, Admins.is_superadmin == True
         )
         try:
             result = await session.execute(stmt)

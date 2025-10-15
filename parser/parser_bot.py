@@ -502,11 +502,7 @@ async def on_new_message(event):
     # Проверяем: если это пользователь-бот — пропускаем
     if isinstance(sender, User) and sender.bot:
         return
-    
-    print(sender.username)
-    print(sender.first_name)
-    print(sender.last_name)
-    print(sender.id)
+
 
     # Проверяем системные сообщения (служебные события, join/leave и т.п.)
     if event.message.action:
