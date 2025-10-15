@@ -13,6 +13,7 @@ from utils.nats_connect import (
     setup_tasks_stream,
     setup_bot_send_message_stream,
 )
+from utils.bot_send_mes_queue import bot_send_messages_worker
 from storage.nats_storage import NatsStorage
 
 from datetime import datetime, timedelta
@@ -131,6 +132,7 @@ def create_app(config: Config) -> FastAPI:
         await setup_tasks_stream(js)
         await setup_bot_send_message_stream(js)
         asyncio.create_task(vacancy_worker(js))
+        asyncio.create_task(bot_send_messages_worker(js))
         logger.info("Vacancy worker started")
         await schedule_source.startup()
         logger.info("Taskiq broker started")
