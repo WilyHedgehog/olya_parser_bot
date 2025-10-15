@@ -362,9 +362,10 @@ async def delete_admin_keyboard() -> InlineKeyboardMarkup:
         return builder.as_markup()
     
     for admin in admins:
+        admin_id = str(admin.telegram_id)
         builder.button(
             text=f"{admin.full_name}",
-            callback_data=f"del_admin_{admin.telegram_id}",
+            callback_data=f"del_admin_{admin_id}",
         )
     return builder.as_markup()
 
