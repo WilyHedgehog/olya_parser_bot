@@ -61,22 +61,22 @@ async def bot_send_messages_worker(js):
                 # Отправляем сообщение
                 try:
                     if photo_id:
-                        message_id = await send_photo(
+                        message = await send_photo(
                             chat_id=chat_id,
                             photo=photo_id,
                             caption=message,
                             reply_markup=reply_markup,
                         )
                     else:
-                        message_id = await send_message(
+                        message = await send_message(
                             chat_id=chat_id, text=message, reply_markup=reply_markup
                         )
 
-                    if flag == "vacancy" and message_id:
+                    if flag == "vacancy" and message:
                         await record_vacancy_sent(
                             user_id=chat_id,
                             vacancy_id=vacancy_id,
-                            message_id=message_id,
+                            message_id=message.message_id,
                         )
                     success = True
 
