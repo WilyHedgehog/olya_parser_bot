@@ -252,7 +252,7 @@ async def on_new_message(event):
 
     # --- ✅ Сериализация Telethon-сообщения ---
     try:
-        payload = await MessagePayload.from_telethon(event.message, flag)
+        payload = await MessagePayload.from_telethon(app, event.message, flag)
         json_data = payload.model_dump_json()
     except Exception as e:
         logger.error(f"❌ Ошибка сериализации сообщения: {e}")

@@ -9,45 +9,47 @@ async def extract_sender_info(message: Message):
     Возвращает максимально точные данные об отправителе:
     (entity_name, entity_username, fwd_info)
     """
-    entity_name = "Unknown"
+    entity_name = "Неизвестный отправитель"
     entity_username = None
     fwd_info = []
 
     try:
-        # 1️⃣ Пробуем достать из message.get_sender()
-        user = await message.get_sender()
+        # 1️⃣ Пытаемся достать из message.get_sender()
+        user = None
+        try:
+            user = await message.get_sender()
+        except Exception as e:
+            logger.debug(f"Не удалось получить sender: {e}")
 
         if user:
             entity_username = getattr(user, "username", None)
             if not entity_username:
-                # Если username не был загружен, пробуем заново получить entity
+                # Попытка получить entity напрямую, если username отсутствует
                 try:
                     user_full = await app.get_entity(user.id)
                     entity_username = getattr(user_full, "username", None)
                 except Exception as e:
                     logger.debug(f"Не удалось обновить entity для {user.id}: {e}")
 
-            # Имя ставим в любом случае, но username — приоритетный
-            entity_name = (
-                f"@{entity_username}"
-                if entity_username
-                else (getattr(user, "first_name", None) or "Unknown")
-            )
+            # Формируем имя
+            if entity_username:
+                entity_name = f"@{entity_username}"
+            else:
+                entity_name = getattr(user, "first_name", None) or "Неизвестный отправитель"
 
         # 2️⃣ Если get_sender() ничего не вернул — пробуем по from_id
         elif getattr(message, "from_id", None):
             try:
                 entity = await app.get_entity(message.from_id)
                 entity_username = getattr(entity, "username", None)
-                if not entity_username:
-                    # Иногда entity может быть чатом без username — fallback
-                    entity_username = None
-                entity_name = (
-                    f"@{entity_username}"
-                    if entity_username
-                    else getattr(entity, "first_name", None)
-                    or getattr(entity, "title", "Unknown")
-                )
+                if entity_username:
+                    entity_name = f"@{entity_username}"
+                else:
+                    entity_name = (
+                        getattr(entity, "first_name", None)
+                        or getattr(entity, "title", None)
+                        or "Неизвестный отправитель"
+                    )
             except Exception as e:
                 logger.debug(f"Ошибка получения entity по from_id: {e}")
 
@@ -59,7 +61,7 @@ async def extract_sender_info(message: Message):
                 entity_name = (
                     f"@{entity_username}"
                     if entity_username
-                    else getattr(peer, "title", "Unknown")
+                    else getattr(peer, "title", "Неизвестный отправитель")
                 )
             except Exception as e:
                 logger.debug(f"Ошибка получения entity по peer_id: {e}")
@@ -68,16 +70,17 @@ async def extract_sender_info(message: Message):
         logger.warning(f"Ошибка получения отправителя: {e}")
 
     # -------------------------------------------------------------------
-    # 4️⃣ Обрабатываем пересланное сообщение
+    # 4️⃣ Обрабатываем пересланное сообщение (forward)
     # -------------------------------------------------------------------
-    if message.forward:
+    if getattr(message, "forward", None):
         try:
-            # 🔹 Сначала пытаемся получить username оригинального отправителя
             fwd_username = None
             fwd_name = None
+            forward = message.forward
 
-            if message.forward.sender:
-                fwd_user = message.forward.sender
+            # Если это переслано от пользователя
+            if getattr(forward, "sender", None):
+                fwd_user = forward.sender
                 fwd_username = getattr(fwd_user, "username", None)
                 if not fwd_username:
                     try:
@@ -85,25 +88,28 @@ async def extract_sender_info(message: Message):
                         fwd_username = getattr(fwd_user_full, "username", None)
                     except Exception:
                         pass
-                fwd_name = fwd_user.first_name or "Unknown User"
+                fwd_name = getattr(fwd_user, "first_name", None) or "Неизвестный пользователь"
 
-            elif message.forward.chat:
-                fwd_chat = message.forward.chat
+            # Если переслано от чата
+            elif getattr(forward, "chat", None):
+                fwd_chat = forward.chat
                 fwd_username = getattr(fwd_chat, "username", None)
-                fwd_name = getattr(fwd_chat, "title", "Unknown Chat")
+                fwd_name = getattr(fwd_chat, "title", None) or "Неизвестный чат"
 
-            elif getattr(message.forward, "from_id", None):
+            # Если переслано через from_id (например, канал без sender/chat)
+            elif getattr(forward, "from_id", None):
                 try:
-                    fwd_entity = await app.get_entity(message.forward.from_id)
+                    fwd_entity = await app.get_entity(forward.from_id)
                     fwd_username = getattr(fwd_entity, "username", None)
                     fwd_name = (
                         getattr(fwd_entity, "first_name", None)
-                        or getattr(fwd_entity, "title", "Unknown")
+                        or getattr(fwd_entity, "title", None)
+                        or "Неизвестный источник"
                     )
                 except Exception:
                     fwd_name = "Неизвестный источник"
 
-            # Итог: приоритет username > name > fallback
+            # Финальный выбор приоритета
             if fwd_username:
                 fwd_info.append(f"@{fwd_username}")
             elif fwd_name:
@@ -114,5 +120,15 @@ async def extract_sender_info(message: Message):
         except Exception as e:
             logger.info(f"Ошибка обработки forward: {e}")
             fwd_info = ["Неизвестный источник"]
+
+    # -------------------------------------------------------------------
+    # Финальный возврат
+    # -------------------------------------------------------------------
+    if not entity_name:
+        entity_name = "Неизвестный отправитель"
+    if not entity_username:
+        entity_username = None
+    if not fwd_info:
+        fwd_info = ["Без пересылки"]
 
     return entity_name, entity_username, fwd_info
