@@ -114,4 +114,4 @@ async def bot_send_messages_worker(js):
                 await asyncio.sleep(0.5)
             except Exception as e:
                 logger.error(f"Ошибка при обработке сообщения: {e}")
-                await msg.nak()
+                await msg.ack()
