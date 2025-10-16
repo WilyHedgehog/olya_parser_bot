@@ -106,6 +106,7 @@ async def bot_send_messages_worker(js):
 
                 if success:
                     await msg.ack()
+                    logger.info(f"📝 Задача выполнена")
                 else:
                     await msg.nak()
 

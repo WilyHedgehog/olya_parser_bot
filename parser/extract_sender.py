@@ -1,9 +1,10 @@
 from telethon.tl.types import Message
 import logging
+from .telethon_client import app
 
 logger = logging.getLogger(__name__)
 
-async def extract_sender_info(app, message: Message):
+async def extract_sender_info(message: Message):
     """
     Возвращает максимально точные данные об отправителе:
     (entity_name, entity_username, fwd_info)

@@ -819,7 +819,7 @@ async def add_delete_admin(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "Отправьте мне <b>id</b> пользователя, чтобы добавить его в администраторы.\n\n"
         "Чтобы удалить администратора, выберите его на клавиатуре ниже.",
-        reply_markup=delete_admin_keyboard()
+        reply_markup=await delete_admin_keyboard()
     )
     await state.set_state(Admin.add_admin)
     

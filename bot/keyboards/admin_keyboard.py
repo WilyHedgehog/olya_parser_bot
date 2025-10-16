@@ -294,12 +294,14 @@ async def get_delete_mailing_kb(
     page: int = 1,
     per_page: int = 10,  # Количество рассылок на странице
 ) -> InlineKeyboardMarkup:
-    
+
     builder = InlineKeyboardBuilder()
     mailings = await get_upcoming_mailings(limit=30)
     if not mailings:
         builder.row(
-            InlineKeyboardButton(text="Нет запланированных рассылок", callback_data="noop")
+            InlineKeyboardButton(
+                text="Нет запланированных рассылок", callback_data="noop"
+            )
         )
         builder.row(back_to_mailing)
         return builder.as_markup()
@@ -319,9 +321,9 @@ async def get_delete_mailing_kb(
             text=display_text,
             callback_data=f"delete_mailing_{m.id}",
         )
-    
+
     builder.adjust(1)
-        
+
     if total_pages > 1:
         nav_buttons = []
         if page > 1:
@@ -360,7 +362,7 @@ async def delete_admin_keyboard() -> InlineKeyboardMarkup:
         )
         builder.row(back_to_admin_main)
         return builder.as_markup()
-    
+
     for admin in admins:
         admin_id = str(admin.telegram_id)
         builder.button(
@@ -383,17 +385,25 @@ async def get_delete_vacancy_kb(vacancy_id) -> InlineKeyboardMarkup:
 async def get_vacancy_url_kb(vacancy_id: str) -> InlineKeyboardMarkup:
     vacancy = await get_vacancy_by_id(vacancy_id)
     builder = InlineKeyboardBuilder()
-    if not vacancy or vacancy.admin_chat_url is None:
+    if not vacancy:
         builder.row(
-            InlineKeyboardButton(text="Ошика с получением ссылки", callback_data="noop")
+            InlineKeyboardButton(text="Вакансия не найдена", callback_data="noop")
         )
         return builder.as_markup()
-    builder.row(
-        InlineKeyboardButton(
-            text="Оригинальная ссылка на вакансию", url=vacancy.admin_chat_url
+    elif vacancy.admin_chat_url is None:
+        builder.row(
+            InlineKeyboardButton(
+                text="Оригинальная ссылка на вакансию", url=vacancy.url
+            )
         )
-    )
-    return builder.as_markup()
+        return builder.as_markup()
+    else:
+        builder.row(
+            InlineKeyboardButton(
+                text="Ссылка на вакансию в админ-чате", url=vacancy.admin_chat_url
+            )
+        )
+        return builder.as_markup()
 
 
 back_to_choosen_prof_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_choosen_prof]])

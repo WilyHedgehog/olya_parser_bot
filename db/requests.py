@@ -630,7 +630,6 @@ async def save_vacancy_hash(
     text_hash,
     vacancy_source=None,
     forwarding_source=None,
-    admin_chat_url=None,
 ) -> UUID | None:
     async with Sessionmaker() as session:
         # Проверяем, есть ли вакансия с таким хэшем
@@ -654,7 +653,6 @@ async def save_vacancy_hash(
             hash=text_hash,
             vacancy_source=vacancy_source,
             forwarding_source=forwarding_source,
-            admin_chat_url=admin_chat_url,
         )
         session.add(vacancy)
         try:
@@ -665,6 +663,17 @@ async def save_vacancy_hash(
             await session.rollback()
             existing = await get_vacancy_by_hash(text_hash)
             return existing.id if existing else None
+
+
+async def update_vacancy_hash_admin_chat_url(vacancy_id: UUID, url: str) -> bool:
+    async with Sessionmaker() as session:
+        vacancy = await session.get(Vacancy, vacancy_id)
+        if not vacancy:
+            logger.error(f"Vacancy with ID {vacancy_id} not found for URL update")
+            return False
+        vacancy.admin_chat_url = url
+        await session.commit()
+        return True
 
 
 async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:

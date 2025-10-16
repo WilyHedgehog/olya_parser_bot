@@ -4,6 +4,7 @@ import asyncio
 from parser.parser_bot import process_message
 from parser.telethon_client import app
 from telethon.errors import MessageIdInvalidError
+from schemas.message_payload import MessagePayload
 
 MAX_RETRIES = 3  # Максимальное количество попыток для одной задачи
 logger = logging.getLogger(__name__)
@@ -20,47 +21,16 @@ async def vacancy_worker(js):
 
         for msg in msgs:
             try:
-                data = json.loads(msg.data.decode())
-                logger.info(f"📥 Получена задача: {data}")
+                # --- ✅ Декодируем и валидируем payload ---
+                payload = MessagePayload.model_validate_json(msg.data.decode())
+                logger.info(f"📥 Получена задача на обработку сообщения {payload.id} из чата {payload.chat_id}")
 
-                message_id = data.get("message_id")
-                chat_id = data.get("chat_id")
-                retries = data.get("retries", 0)
-                flag = data.get("flag")
+                # --- ✅ Обрабатываем сообщение напрямую ---
+                await process_message(payload)
 
-                # Получаем entity через get_input_entity
-                try:
-                    entity = await app.get_input_entity(chat_id)
-                except Exception as e:
-                    logger.error(f"❌ Не удалось получить entity для chat_id={chat_id}: {e}")
-                    if retries < MAX_RETRIES:
-                        data["retries"] = retries + 1
-                        await js.publish("vacancy.queue", json.dumps(data).encode())
-                    await msg.ack()
-                    continue
-
-                # Получаем сообщение
-                try:
-                    messages = await app.get_messages(entity, ids=[message_id])
-                    message = messages[0] if messages else None
-                except MessageIdInvalidError:
-                    message = None
-                except Exception as e:
-                    logger.error(f"❌ Ошибка при получении сообщения {message_id} из {chat_id}: {e}")
-                    message = None
-
-                if not message:
-                    logger.warning(f"❗️ Сообщение {message_id} из чата {chat_id} не найдено")
-                    if retries < MAX_RETRIES:
-                        data["retries"] = retries + 1
-                        await js.publish("vacancy.queue", json.dumps(data).encode())
-                    await msg.ack()  # ack чтобы задача не зависла бесконечно
-                    continue
-
-                # Обработка сообщения
-                await process_message(message, flag=flag)
+                # --- ✅ Подтверждаем задачу ---
                 await msg.ack()
-                logger.info(f"✅ Задача выполнена: {data}")
+                logger.info(f"✅ Задача успешно выполнена: message_id={payload.id}")
 
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки задачи: {e}")

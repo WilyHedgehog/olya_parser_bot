@@ -2,16 +2,21 @@ from telethon import TelegramClient, events
 import asyncio
 from find_job_process.find_job import find_job_func
 import random
+from typing import Optional
+import re
 import hashlib
 from config.config import load_config, Config
 import logging
+from schemas.message_payload import MessagePayload
 from db.requests import (
     get_vacancy_by_hash,
     save_vacancy_hash,
     record_vacancy_sent,
     dublicate_check,
-    get_vacancy_by_id
+    get_vacancy_by_id,
+    update_vacancy_hash_admin_chat_url,
 )
+from schemas.message_payload import MessagePayload
 from utils.nats_connect import get_nats_connection
 from find_job_process.job_dispatcher import send_vacancy_to_users
 from telethon.tl.types import (
@@ -29,252 +34,16 @@ from bot.lexicon.lexicon import LEXICON_PARSER
 from parser.telethon_client import app
 from .extract_sender import extract_sender_info
 
+EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
+
+from telethon import events
+from telethon.tl.types import User
 
 
 config = load_config()
 logger = logging.getLogger(__name__)
 
-
-
-
-
-
-old_professions = {
-    "Технический специалист онлайн-школ": {
-        "keywords": {
-            "настройка": 0.8,
-            "платформа": 0.9,
-            "сервисы": 0.7,
-            "интеграция": 1.0,
-            "тильда": 0.6,
-            "getcourse": 1.0,
-            "автоматизация": 0.9,
-        },
-        "desc": "настройка платформ, интеграции сервисов, техническая поддержка онлайн-школ",
-    },
-    "Специалист по чат-ботам": {
-        "keywords": {
-            "чат-бот": 1.0,
-            "telegram": 0.9,
-            "autofunnel": 0.8,
-            "интеграции": 0.7,
-            "manychat": 0.9,
-            "сценарий": 0.6,
-        },
-        "desc": "разработка и настройка чат-ботов, интеграции, воронки продаж",
-    },
-    "Веб-разработчик/дизайнер": {
-        "keywords": {
-            "html": 1.0,
-            "css": 1.0,
-            "javascript": 0.9,
-            "верстка": 0.9,
-            "ui": 0.7,
-            "ux": 0.7,
-            "лендинг": 0.8,
-        },
-        "desc": "создание сайтов и лендингов, дизайн интерфейсов, работа с веб-технологиями",
-    },
-    "Дизайнер": {
-        "keywords": {
-            "баннер": 0.8,
-            "презентация": 0.9,
-            "photoshop": 1.0,
-            "figma": 0.9,
-            "иллюстрация": 0.7,
-            "дизайн": 1.0,
-        },
-        "desc": "графический дизайн, работа в Figma и Photoshop, создание визуалов и баннеров",
-    },
-    "Монтажёр видео": {
-        "keywords": {
-            "монтаж": 1.0,
-            "premiere": 0.9,
-            "after effects": 0.9,
-            "видеоролик": 0.8,
-            "редактирование": 0.7,
-            "обрезка": 0.6,
-        },
-        "desc": "монтаж и обработка видеороликов, работа в Premiere и After Effects",
-    },
-    "Reels-мейкер": {
-        "keywords": {
-            "reels": 1.0,
-            "shorts": 0.9,
-            "тренды": 0.8,
-            "обрезка видео": 0.8,
-            "инстаграм": 0.9,
-            "вертикальное видео": 0.7,
-        },
-        "desc": "создание коротких видео для Reels и Shorts, тренды, монтаж вертикальных видео",
-    },
-    "Копирайтер": {
-        "keywords": {
-            "тексты": 1.0,
-            "продающий": 0.9,
-            "статья": 0.8,
-            "описание": 0.7,
-            "пост": 0.9,
-            "рекламный текст": 1.0,
-        },
-        "desc": "написание продающих текстов, статей, рекламных материалов",
-    },
-    "Контент-менеджер": {
-        "keywords": {
-            "контент": 1.0,
-            "посты": 0.9,
-            "планирование": 0.8,
-            "редактирование": 0.7,
-            "публикация": 0.9,
-            "управление контентом": 1.0,
-        },
-        "desc": "ведение контент-плана, публикация постов, управление материалами",
-    },
-    "Сценарист вебинаров": {
-        "keywords": {
-            "сценарий": 1.0,
-            "вебинар": 1.0,
-            "структура": 0.8,
-            "контент": 0.7,
-            "презентация": 0.8,
-            "выступление": 0.9,
-        },
-        "desc": "разработка сценариев вебинаров, структурирование информации, подготовка материалов",
-    },
-    "Продюсер онлайн-школ": {
-        "keywords": {
-            "продюсер": 1.0,
-            "запуск": 0.9,
-            "курс": 0.9,
-            "воронка": 0.8,
-            "стратегия": 0.8,
-            "масштабирование": 0.7,
-        },
-        "desc": "запуск и продюсирование онлайн-курсов, стратегия развития проектов",
-    },
-    "Проджект онлайн-школ": {
-        "keywords": {
-            "проект": 1.0,
-            "управление": 0.9,
-            "координация": 0.9,
-            "команда": 0.8,
-            "сроки": 0.8,
-            "организация": 0.7,
-        },
-        "desc": "управление проектами онлайн-школы, координация команды, контроль сроков",
-    },
-    "SMM-специалист": {
-        "keywords": {
-            "smm": 1.0,
-            "соцсети": 0.9,
-            "instagram": 0.9,
-            "контент": 0.8,
-            "таргет": 0.7,
-            "аудитория": 0.8,
-        },
-        "desc": "ведение социальных сетей, работа с контентом, взаимодействие с аудиторией",
-    },
-    "Маркетолог онлайн-обучений": {
-        "keywords": {
-            "маркетинг": 1.0,
-            "воронка": 0.9,
-            "реклама": 0.9,
-            "стратегия": 0.8,
-            "анализ": 0.8,
-            "онлайн-курс": 0.9,
-        },
-        "desc": "разработка маркетинговых стратегий для онлайн-курсов и школ",
-    },
-    "Методолог онлайн-обучений": {
-        "keywords": {
-            "методология": 1.0,
-            "обучение": 0.9,
-            "курс": 0.9,
-            "структура": 0.8,
-            "программа": 0.9,
-            "педагогика": 0.7,
-        },
-        "desc": "разработка методологии и структуры онлайн-курсов, создание программ",
-    },
-    "Таргетолог": {
-        "keywords": {
-            "таргет": 1.0,
-            "facebook ads": 0.9,
-            "реклама": 1.0,
-            "аудитория": 0.8,
-            "кампания": 0.9,
-            "трафик": 0.8,
-        },
-        "desc": "настройка таргетированной рекламы в соцсетях, работа с трафиком",
-    },
-    "SEO-специалист": {
-        "keywords": {
-            "seo": 1.0,
-            "оптимизация": 0.9,
-            "поисковик": 0.8,
-            "ключевые слова": 0.9,
-            "google": 0.8,
-            "продвижение": 0.9,
-        },
-        "desc": "оптимизация сайтов под поисковые системы, работа с ключевыми словами",
-    },
-    "Специалист по рассылкам": {
-        "keywords": {
-            "рассылка": 1.0,
-            "email": 1.0,
-            "смс": 0.9,
-            "автоматизация": 0.8,
-            "писем": 0.8,
-            "getresponse": 0.7,
-        },
-        "desc": "настройка email и SMS-рассылок, автоматизация писем, работа с сервисами",
-    },
-    "Куратор обучений": {
-        "keywords": {
-            "куратор": 1.0,
-            "поддержка": 0.9,
-            "обратная связь": 0.8,
-            "студент": 0.8,
-            "чат": 0.9,
-            "обучение": 0.9,
-        },
-        "desc": "поддержка студентов, ответы на вопросы, сопровождение обучения",
-    },
-    "Менеджер по продажам в онлайн-школу": {
-        "keywords": {
-            "продажи": 1.0,
-            "менеджер": 0.9,
-            "звонок": 0.8,
-            "crm": 0.8,
-            "консультация": 0.9,
-            "закрытие сделки": 1.0,
-        },
-        "desc": "продажи курсов, звонки клиентам, работа с CRM",
-    },
-    "Онлайн-ассистент": {
-        "keywords": {
-            "ассистент": 1.0,
-            "организация": 0.8,
-            "помощь": 0.8,
-            "админ": 0.7,
-            "задачи": 0.8,
-            "письма": 0.7,
-        },
-        "desc": "административная помощь, организация задач, поддержка руководителя",
-    },
-    "Модератор чатов и каналов тг": {
-        "keywords": {
-            "модератор": 1.0,
-            "чат": 1.0,
-            "канал": 0.9,
-            "телеграм": 0.9,
-            "правила": 0.8,
-            "участники": 0.8,
-        },
-        "desc": "модерация чатов и каналов, поддержка порядка и правил",
-    },
-}
 
 
 processed_messages = set()
@@ -293,134 +62,112 @@ def get_message_link(message):
     return "ссылка недоступна"
 
 
-import re
-
-
-def clean_vacancy_text(text: str) -> str:
-    """Чистим текст от хэштегов, @ и ссылок для нормализации"""
-    text = re.sub(r"@\w+", "", text)
-    text = re.sub(r"https?://t\.me/\S+", "", text)
-    text = re.sub(r"#\w+", "", text)
-    text = re.sub(r"\n\s*\n", "\n", text)
-    return text.strip()
-
-
-def text_hash(text: str) -> str:
-    return hashlib.md5(text.encode("utf-8")).hexdigest()
-
 
 def markdown_to_html(text: str) -> str:
+    """Преобразует простой markdown-текст в HTML."""
     text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
     text = re.sub(r"_(.*?)_", r"<i>\1</i>", text)
     return text
 
 
-def message_to_html(message) -> str:
-    html = message
-    if not getattr(message, "entities", None):
-        return html
+def message_to_html(text: str, entities: Optional[list] = None) -> str:
+    """Добавляет HTML-разметку на основе entities (жирный, курсив, ссылки и т.д.)."""
+    if not entities:
+        return text
 
-    entities = sorted(message.entities, key=lambda e: e.offset + e.length, reverse=True)
+    html = text
+    entities = sorted(entities, key=lambda e: e["offset"] + e["length"], reverse=True)
     for ent in entities:
-        start, end = ent.offset, ent.offset + ent.length
+        start, end = ent["offset"], ent["offset"] + ent["length"]
         entity_text = html[start:end]
 
-        if isinstance(ent, MessageEntityBold):
-            html = html[:start] + f"<b>{entity_text}</b>" + html[end:]
-        elif isinstance(ent, MessageEntityItalic):
-            html = html[:start] + f"<i>{entity_text}</i>" + html[end:]
-        elif isinstance(ent, MessageEntityUnderline):
-            html = html[:start] + f"<u>{entity_text}</u>" + html[end:]
-        elif isinstance(ent, MessageEntityStrike):
-            html = html[:start] + f"<s>{entity_text}</s>" + html[end:]
-        elif isinstance(ent, MessageEntityCode):
-            html = html[:start] + f"<code>{entity_text}</code>" + html[end:]
-        elif isinstance(ent, MessageEntityPre):
-            html = html[:start] + f"<pre>{entity_text}</pre>" + html[end:]
-        elif isinstance(ent, MessageEntityTextUrl):
-            html = html[:start] + f'<a href="{ent.url}">{entity_text}</a>' + html[end:]
+        match ent.get("_"):
+            case "MessageEntityBold":
+                html = html[:start] + f"<b>{entity_text}</b>" + html[end:]
+            case "MessageEntityItalic":
+                html = html[:start] + f"<i>{entity_text}</i>" + html[end:]
+            case "MessageEntityUnderline":
+                html = html[:start] + f"<u>{entity_text}</u>" + html[end:]
+            case "MessageEntityStrike":
+                html = html[:start] + f"<s>{entity_text}</s>" + html[end:]
+            case "MessageEntityCode":
+                html = html[:start] + f"<code>{entity_text}</code>" + html[end:]
+            case "MessageEntityPre":
+                html = html[:start] + f"<pre>{entity_text}</pre>" + html[end:]
+            case "MessageEntityTextUrl":
+                url = ent.get("url", "#")
+                html = html[:start] + f'<a href="{url}">{entity_text}</a>' + html[end:]
+
     return html
 
 
-def get_message_link(message):
-    try:
-        if message.link:  # для публичных чатов
-            return message.link
-    except Exception:
-        pass
 
-    if str(message.chat_id).startswith("-100"):  # приватный канал/группа
-        return f"https://t.me/c/{str(message.chat_id)[4:]}/{message.id}"
-    return "ссылка недоступна"
-
-
-async def process_message(message, flag=None):
+async def process_message(payload: MessagePayload):
     # 1. Проверка дублей сообщений
-    if message.id in processed_messages:
-        logger.info(f"Сообщение {message.id} уже обработано, пропускаем.")
+    if payload.id in processed_messages:
+        logger.info(f"Сообщение {payload.id} уже обработано, пропускаем.")
         return
-    processed_messages.add(message.id)
+    processed_messages.add(payload.id)
 
     # 2. Собираем текст
-    message_text = (
-        message.text
-        or message.message
-        or message.raw_text
-        or getattr(message, "caption", "")
-        or ""
-    ).strip()
+    message_text = (payload.text or "").strip()
     if not message_text:
-        logger.info(f"Сообщение {message.id} пустое, пропускаем.")
+        logger.info(f"Сообщение {payload.id} пустое, пропускаем.")
         return
 
-    logger.info(f"Проверяем сообщение {message.id}: {message.date}")
+    logger.info(f"Проверяем сообщение {payload.id}: {payload.date}")
 
-    original_link = get_message_link(message)
+    original_link = payload.link or get_message_link(payload)
 
-    entity_name, entity_username, fwd_info = await extract_sender_info(app, message)
+    message_hash = hashlib.sha256(message_text.encode("utf-8")).hexdigest()
 
-    clean_text = message_text
-    message_hash = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
 
     # 3. Проверка по хэшу в БД
     existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
     if existing:
-        logger.warning(
+        logger.info(
             f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем."
         )
         return
 
     # 4. Конвертация текста
-    markdown_text = markdown_to_html(clean_text)
-    html_text = message_to_html(markdown_text)
+    markdown_text = markdown_to_html(message_text)
+    html_text = message_to_html(markdown_text, getattr(payload, "entities", None))
 
-    if flag == None:
-        # 5. Поиск профессий
-        found_proffs = await find_job_func(vacancy_text=clean_text)
-        if not found_proffs:
-            logger.warning(f"⚠️ Вакансия не подходит ни под одну из профессий: {message.id}")
-            return
+    if payload.flag == "Технический специалист онлайн-школ":
+        found_proffs = [(payload.flag, 3.0)]
     else:
-        found_proffs = [(flag, 1.0)]
+        found_proffs = await find_job_func(vacancy_text=message_text)
+        if not found_proffs:
+            logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
+            return
 
     unique_proffs = {prof_name: score for prof_name, score in found_proffs}
 
-    # 6. Форвард в канал (один раз)
     try:
-        forwarded_msg = await app.forward_messages(
-            entity=config.bot.wacancy_chat_id,
-            messages=message.id,
-            from_peer=message.chat_id,
-        )
-        chat_id = forwarded_msg.chat_id
-        msg_id = forwarded_msg.id
-        link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
-        logger.info(f"Вакансия переслана в канал: {link}")
+        entity = await app.get_input_entity(payload.chat_id)
+        messages = await app.get_messages(entity, ids=[payload.id])
+        message = messages[0] if messages else None
     except Exception as e:
-        logger.error(f"Ошибка пересылки вакансии: {e}")
-        return
+        logger.error(f"Ошибка получения сообщения для форварда: {e}")
+        message = None
+        
+    if message:    
+    # 6. Форвард в канал (один раз)
+        try:
+            forwarded_msg = await app.forward_messages(
+                entity=config.bot.wacancy_chat_id,
+                messages=message.id,
+                from_peer=message.chat_id,
+            )
+            chat_id = forwarded_msg.chat_id
+            msg_id = forwarded_msg.id
+            link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
+            logger.info(f"Вакансия переслана в канал: {link}")
+        except Exception as e:
+            logger.error(f"Ошибка пересылки вакансии: {e}")
 
-    for_admin_prof = ""
+    for_admin_prof = {}
     # 7. Сохраняем для каждой профессии
     for prof_name, score in unique_proffs.items():
         vacancy_id = await save_vacancy_hash(
@@ -429,30 +176,27 @@ async def process_message(message, flag=None):
             score=score,
             url=original_link,
             text_hash=message_hash,
-            vacancy_source=entity_name if not entity_username else f"@{entity_username}",
-            forwarding_source=" ".join(fwd_info) if message.forward else "Нет",
-            admin_chat_url=link
+            vacancy_source=payload.sender_name if not payload.sender_username else f"@{payload.sender_username}",
+            forwarding_source=payload.fwd_from or "Нет",
         )
         if vacancy_id:
-            for_admin_prof += f"{prof_name}, "
+            for_admin_prof[prof_name] = vacancy_id
             logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")
             await send_vacancy_to_users(vacancy_id)
         else:
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
-        await asyncio.sleep(0.5)
+        #await asyncio.sleep(0.5)
         # 8. Отправляем в админку
     reply = await bot.send_message(
         config.bot.chat_id,
         text=LEXICON_PARSER["vacancy_data"].format(
-            profession_name=for_admin_prof,
+            profession_name=', '.join(for_admin_prof.keys()),
             vacancy_id=vacancy_id,
             score=score,
             orig_vacancy_link=original_link,
-            source=(
-                entity_name if not entity_username else f"@{entity_username}"
-            ),
-            vacancy_link=link,
-            fwd_info=" ".join(fwd_info) if message.forward else "Нет",
+            source=payload.sender_name if not payload.sender_username else f"@{payload.sender_username}",
+            vacancy_link=link if link else "Закрытый чат",
+            fwd_info=payload.fwd_from or "Нет",
             vacancy_text=html_text,
         ),
         parse_mode="HTML",
@@ -461,31 +205,17 @@ async def process_message(message, flag=None):
     )
     await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
 
+    try:
+        for prof_name, vacancy_id in for_admin_prof.items():
+            await update_vacancy_hash_admin_chat_url(vacancy_id, reply.message_id)
+    except Exception as e:
+        logger.error(f"Ошибка обновления URL вакансии: {e}")
+
     await asyncio.sleep(
         random.uniform(config.parser.delay_min, config.parser.delay_max)
     )
 
 
-# ==================== Обработка новых сообщений в реальном времени ====================
-# Список чатов, которые нужно игнорировать
-EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
-
-
-
-
-import json
-import logging
-
-from config.config import load_config
-
-logger = logging.getLogger(__name__)
-config = load_config()
-
-EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
-
-
-from telethon import events
-from telethon.tl.types import User
 
 @app.on(events.NewMessage())
 async def on_new_message(event):
@@ -499,37 +229,39 @@ async def on_new_message(event):
         logger.warning(f"⚠️ Не удалось получить отправителя: {e}")
         sender = None
 
-    # Проверяем: если это пользователь-бот — пропускаем
+    # Пропускаем сообщения от ботов
     if isinstance(sender, User) and sender.bot:
         return
 
-
-    # Проверяем системные сообщения (служебные события, join/leave и т.п.)
+    # Пропускаем системные сообщения
     if event.message.action:
         logger.debug("🟡 Системное сообщение — пропускаем")
         return
 
-    # Если сообщение из админчата - обрабатываем
-    if event.chat_id == -1002962447175:
-        flag = "Технический специалист онлайн-школ"
+    # Определяем флаг (если админчат)
+    flag = "Технический специалист онлайн-школ" if event.chat_id == -1002962447175 else None
+    if flag:
         logger.info(f"🔵 Сообщение из админчата, устанавливаем флаг: {flag}")
-    else:
-        flag = None
 
-    # Пробуем подключиться к NATS
+    # Подключаемся к NATS
     try:
         nc, js = await get_nats_connection()
     except Exception as e:
         logger.error(f"❌ Ошибка подключения к NATS: {e}")
         return
 
-    # Формируем задачу для очереди
-    task = {"message_id": event.message.id, "chat_id": event.chat_id, "flag": flag}
-
-    # Отправляем задачу в NATS
+    # --- ✅ Сериализация Telethon-сообщения ---
     try:
-        await js.publish("vacancy.queue", json.dumps(task).encode())
-        logger.info(f"📨 Задача добавлена в очередь: {task}")
+        payload = await MessagePayload.from_telethon(event.message, flag)
+        json_data = payload.model_dump_json()
+    except Exception as e:
+        logger.error(f"❌ Ошибка сериализации сообщения: {e}")
+        return
+
+    # --- ✅ Публикация в NATS ---
+    try:
+        await js.publish("vacancy.queue", json_data.encode())
+        logger.info(f"📨 Задача добавлена в очередь (сообщение {payload.id})")
     except Exception as e:
         logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
 
