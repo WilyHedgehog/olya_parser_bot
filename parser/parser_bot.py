@@ -264,6 +264,8 @@ async def on_new_message(event):
         logger.info(f"📨 Задача добавлена в очередь (сообщение {payload.id})")
     except Exception as e:
         logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
+        
+    await asyncio.sleep(0.5)  # Небольшая пауза между задачами
 
 
 
