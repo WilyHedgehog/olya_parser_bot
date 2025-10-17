@@ -189,6 +189,12 @@ async def process_message(payload: MessagePayload):
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
         #await asyncio.sleep(0.5)
         # 8. Отправляем в админку
+    
+    if payload.sender_link and "ссылка недоступна" not in payload.sender_link.lower():
+        sender_link = f'<a href="{payload.sender_link}">Открыть профиль</a>'
+    else:
+        sender_link = "Ссылка недоступна"    
+    
     reply = await bot.send_message(
         config.bot.chat_id,
         text=LEXICON_PARSER["vacancy_data"].format(
@@ -200,11 +206,7 @@ async def process_message(payload: MessagePayload):
             vacancy_link=link if link else "Закрытый чат",
             fwd_info=payload.fwd_from or "Нет",
             vacancy_text=html_text,
-            sender_link=(
-                f'<a href="{payload.sender_link}">Открыть профиль</a>'
-                if payload.sender_link and "ссылка недоступна" not in payload.sender_link.lower()
-                else "Ссылка недоступна"
-            )
+            sender_link=sender_link
         ),
         parse_mode="HTML",
         disable_web_page_preview=True,
