@@ -151,7 +151,9 @@ async def process_message(payload: MessagePayload):
     except Exception as e:
         logger.error(f"Ошибка получения сообщения для форварда: {e}")
         message = None
-        
+    
+    
+    link = None
     if message:    
     # 6. Форвард в канал (один раз)
         try:
