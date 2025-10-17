@@ -236,6 +236,7 @@ LEXICON_PARSER = {
         "<b>Оценка:</b> {score:.2f}\n"
         "<b>Оригинальная ссылка на вакансию:</b> {orig_vacancy_link}\n"
         "<b>Источник:</b> {source}\n"
+        "<b>Ссылка на автора:</b> {sender_link}\n"
         "<b>Ссылка на вакансию в чате:</b> {vacancy_link}\n"
         "<b>Данные пересылки:</b>\n"
         "{fwd_info}\n\n"

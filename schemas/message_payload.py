@@ -24,6 +24,7 @@ class MessagePayload(BaseModel):
     sender_id: Optional[int] = None
     sender_name: Optional[str] = None
     sender_username: Optional[str] = None
+    sender_link: Optional[str] = None
     text: Optional[str] = None
     date: Optional[datetime.datetime] = None
     flag: Optional[str] = None
@@ -43,10 +44,19 @@ class MessagePayload(BaseModel):
             sender = await message.get_sender()
             sender_name = getattr(sender, "first_name", None)
             sender_username = getattr(sender, "username", None)
+            sender_id = getattr(sender, "id", None)
         except Exception:
             sender_name = sender_username = None
 
         link = get_message_link(message)
+        
+        if sender_username:
+            sender_link = f"https://t.me/{sender_username}"
+        elif sender_id:
+            sender_link = f"tg://user?id={sender_id}"
+        else:
+            sender_link = "ссылка недоступна"
+
 
         return cls(
             id=message.id,
@@ -55,6 +65,7 @@ class MessagePayload(BaseModel):
             or getattr(message, "sender_id", None),
             sender_name=sender_name or entity_name,
             sender_username=sender_username or entity_username,
+            sender_link=sender_link,
             text=getattr(message, "message", None)
             or getattr(message, "text", None)
             or getattr(message, "caption", None),
