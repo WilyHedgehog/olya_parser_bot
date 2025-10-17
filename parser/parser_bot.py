@@ -198,7 +198,11 @@ async def process_message(payload: MessagePayload):
             vacancy_link=link if link else "Закрытый чат",
             fwd_info=payload.fwd_from or "Нет",
             vacancy_text=html_text,
-            sender_link=payload.sender_link if not "ссылка недоступна" else "Ссылка недоступна",
+            sender_link = (
+                payload.sender_link
+                if payload.sender_link and "ссылка недоступна" not in payload.sender_link.lower()
+                else "Ссылка недоступна"
+            )
         ),
         parse_mode="HTML",
         disable_web_page_preview=True,
