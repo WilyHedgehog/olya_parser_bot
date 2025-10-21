@@ -33,7 +33,7 @@ from db.database import Sessionmaker
 from db.requests import set_new_days, update_user_is_pay_status, load_stopwords
 from parser.worker import vacancy_worker
 
-from find_job_process.find_job import load_professions
+from find_job_process.find_job import load_professions, load_stop_embeddings
 
 from bot.background_tasks.check_subscriptions import start_all_schedulers
 from bot.background_tasks.broker import schedule_source
@@ -116,6 +116,9 @@ def create_app(config: Config) -> FastAPI:
         # Загружаем профессии
         await load_professions()
         logger.info("Professions loaded")
+        
+        await load_stop_embeddings()
+        logger.info("Stop-embedding loaded")
 
         await load_stopwords()
         logger.info("Stopwords loaded")
