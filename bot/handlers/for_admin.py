@@ -7,6 +7,8 @@ from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.background_tasks.test import schedule_spam, cancel_spam_tasks
 from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
+from google_logs.google_log import worksheet_append_row
+from datetime import datetime
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
@@ -40,6 +42,7 @@ from db.requests import (
     get_admins_list,
     add_to_admins,
     remove_from_admins,
+    get_vacancy_by_id,
 )
 from db.crud import (
     get_upcoming_mailings,
@@ -686,11 +689,23 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
         logger.error(f"Error answering callback: {e}")
         pass
     vacancy_id = callback.data.split("_")[2]
+    vacancy = await get_vacancy_by_id(vacancy_id)
+    vacancy_text = vacancy.text
+    vacancy_prof = vacancy.profession
     try:
         result = await delete_vacancy_everywhere(session, vacancy_id)
         if result:
             await callback.message.answer("Вакансия успешно удалена.")
             logger.info(f"Vacancy {vacancy_id} deleted successfully.")
+            await worksheet_append_row(
+                user_id=callback.from_user.id,
+                time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                name=callback.from_user.first_name,
+                action="delete_vacancy",
+                text=f"Вакансия была удалена.",
+                vacancy_text=vacancy_text,
+                vacancy_prof=vacancy_prof,
+            )
         else:
             await callback.message.answer("Ошибка при удалении вакансии.")
             logger.error(f"Failed to delete vacancy {vacancy_id}.")
