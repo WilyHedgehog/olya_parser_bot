@@ -690,7 +690,7 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
         logger.error(f"Error answering callback: {e}")
         pass
     vacancy_id = callback.data.split("_")[2]
-    vacancy = await return_vacancy_by_id(vacancy_id)
+    vacancy = await return_vacancy_by_id(vacancy_id, session)
     vacancy_text = vacancy.text
     vacancy_prof = vacancy.profession
     try:
