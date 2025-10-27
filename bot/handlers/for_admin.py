@@ -43,7 +43,7 @@ from db.requests import (
     add_to_admins,
     remove_from_admins,
     return_profession_by_id,
-    get_vacancy_by_id,
+    return_vacancy_by_id,
 )
 from db.crud import (
     get_upcoming_mailings,
@@ -690,7 +690,7 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
         logger.error(f"Error answering callback: {e}")
         pass
     vacancy_id = callback.data.split("_")[2]
-    vacancy = await get_vacancy_by_id(vacancy_id)
+    vacancy = await return_vacancy_by_id(vacancy_id)
     vacancy_text = vacancy.text
     vacancy_prof = vacancy.profession
     try:
