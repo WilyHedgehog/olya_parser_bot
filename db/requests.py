@@ -686,7 +686,8 @@ async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:
 async def return_vacancy_by_id(vacancy_id: UUID, session: AsyncSession) -> Vacancy | None:
     stmt = select(Vacancy).where(Vacancy.id == vacancy_id)
     result = await session.execute(stmt)
-    return result.scalar_one_or_none()
+    vacancy = result.scalar_one_or_none()
+    return vacancy
 
 
 
