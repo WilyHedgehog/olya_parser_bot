@@ -3,9 +3,9 @@ import os
 import json
 import asyncio
 from google.oauth2.service_account import Credentials
-from dotenv import load_dotenv
+from config.config import load_config
 
-load_dotenv()
+config = load_config()
 
 
 SCOPE = [
@@ -13,7 +13,7 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-google_creds = os.getenv("GOOGLE_TOKEN")
+google_creds = config.google.api_key
 google_creds_dict = json.loads(google_creds)
 
 CREDS = Credentials.from_service_account_info(google_creds_dict, scopes=SCOPE)

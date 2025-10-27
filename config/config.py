@@ -22,6 +22,11 @@ class AppSettings:
 
 
 @dataclass
+class Google:
+    api_key: str
+
+
+@dataclass
 class DatabaseSettings:
     url: str
     echo: bool = False
@@ -70,6 +75,7 @@ class Config:
     getcourse: GetcourseSettings
     nats: NatsSettings
     deepseek: DeepSeek
+    google: Google
 
 
 def load_config(path: str | None = None) -> Config:
@@ -115,5 +121,8 @@ def load_config(path: str | None = None) -> Config:
         ),
         deepseek=DeepSeek(
             api_key=env("DEEPSEEK_API_KEY"),
+        ),
+        google=Google(
+            api_key=env("GOOGLE_API_KEY"),
         ),
     )
