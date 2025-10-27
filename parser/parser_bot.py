@@ -149,8 +149,16 @@ async def process_message(payload: MessagePayload):
 
     unique_proffs = {prof_name: score for prof_name, score in found_proffs}
     
-    for prof_name, score in unique_proffs.items():
-        await ai_proff_check(html_text, prof_name)
+    filtered_proffs = []
+    for prof_name, score in found_proffs:
+        res = await ai_proff_check(html_text, prof_name)
+        if res == "1":
+            filtered_proffs.append((prof_name, score))
+        else:
+            logger.info(f"⚠️ Ошибка в паре профессия/вакансия: {payload.id}")
+
+    # создаём словарь из валидных профессий
+    unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
 
     try:
         entity = await app.get_input_entity(payload.chat_id)

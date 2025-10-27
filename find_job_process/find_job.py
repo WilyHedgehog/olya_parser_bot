@@ -245,7 +245,7 @@ async def spam_check(text: str) -> bool:
 
 
 # === Пример использования ===
-async def find_job_func(vacancy_text: str, embedding_weight: float = 0.7):
+async def find_job_func(vacancy_text: str, embedding_weight: float = 1.1):
 
     result = await analyze_vacancy(vacancy_text, embedding_weight=embedding_weight)
 
@@ -254,7 +254,7 @@ async def find_job_func(vacancy_text: str, embedding_weight: float = 0.7):
         return False
 
     vacancy_professions = [
-        (prof, score) for prof, score in result["ranked"] if score > 2.0
+        (prof, score) for prof, score in result["ranked"] if score > 1.8
     ]
 
     if not vacancy_professions:
