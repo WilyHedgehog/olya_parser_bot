@@ -52,7 +52,4 @@ async def ai_proff_check(text, proff):
         ],
         stream=False
     )
-    text = f"Текст: {text}\nСпециализация: {proff}"
-    await send_message(-4822276897, response.choices[0].message.content)
-    await send_message(-4822276897, text)
     return response.choices[0].message.content

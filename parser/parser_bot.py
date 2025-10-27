@@ -2,6 +2,7 @@ from telethon import TelegramClient, events
 import asyncio
 from find_job_process.find_job import find_job_func, spam_check
 from DeepSeek.DS_proff_check import ai_proff_check
+from utils.bot_send_mes_queue import send_message
 import random
 from typing import Optional
 import re
@@ -137,28 +138,28 @@ async def process_message(payload: MessagePayload):
 
     if payload.flag == "Технический специалист онлайн-школ":
         found_proffs = [(payload.flag, 3.0)]
+        unique_proffs = {prof_name: score for prof_name, score in found_proffs}
     else:
         found_proffs = await find_job_func(vacancy_text=message_text)
         if not found_proffs:
             logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
             return
-        #else:
-            #if not await spam_check(message_text):
-            #    return
-            
 
-    unique_proffs = {prof_name: score for prof_name, score in found_proffs}
-    
-    filtered_proffs = []
-    for prof_name, score in found_proffs:
-        res = await ai_proff_check(html_text, prof_name)
-        if res == "1":
-            filtered_proffs.append((prof_name, score))
-        else:
-            logger.info(f"⚠️ Ошибка в паре профессия/вакансия: {payload.id}")
+        unique_proffs = {prof_name: score for prof_name, score in found_proffs}
+        
+        filtered_proffs = []
+        text = ""
+        for prof_name, score in found_proffs:
+            res = await ai_proff_check(html_text, prof_name)
+            text += f"{prof_name} : {res}\n"
+            if res == "1":
+                filtered_proffs.append((prof_name, score))
+            else:
+                logger.info(f"⚠️ Ошибка в паре профессия/вакансия: {payload.id}")
 
-    # создаём словарь из валидных профессий
-    unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
+        # создаём словарь из валидных профессий
+        unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
+        await send_message(-4822276897, text)
 
     try:
         entity = await app.get_input_entity(payload.chat_id)
