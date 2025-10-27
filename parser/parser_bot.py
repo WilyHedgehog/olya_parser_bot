@@ -159,6 +159,7 @@ async def process_message(payload: MessagePayload):
 
         # создаём словарь из валидных профессий
         unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
+        text += html_text
         await send_message(-4822276897, text)
 
     try:
