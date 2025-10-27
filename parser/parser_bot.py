@@ -1,6 +1,6 @@
 from telethon import TelegramClient, events
 import asyncio
-from find_job_process.find_job import find_job_func
+from find_job_process.find_job import find_job_func, spam_check
 import random
 from typing import Optional
 import re
@@ -141,6 +141,9 @@ async def process_message(payload: MessagePayload):
         if not found_proffs:
             logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
             return
+        else:
+            if not await spam_check(message_text):
+                return
 
     unique_proffs = {prof_name: score for prof_name, score in found_proffs}
 

@@ -11,6 +11,21 @@ from aiogram.types import InlineKeyboardMarkup
 logger = logging.getLogger(__name__)
 
 
+import re
+from html import escape
+
+def safe_html(text: str) -> str:
+    """Экранирует любые непарные или неизвестные HTML-теги."""
+    allowed_tags = ['b', 'i', 'u', 'a', 'code', 'pre', 'blockquote', 'tg-spoiler']
+    # заменяем любые угловые скобки, кроме разрешённых тегов
+    def repl(match):
+        tag = match.group(1)
+        if tag and any(tag.startswith(t) for t in allowed_tags):
+            return f"<{tag}>"
+        return escape(f"<{tag}>")
+    return re.sub(r'<(/?[^>]+)>', repl, text)
+
+
 async def bot_send_messages_worker(js):
     sub = await js.pull_subscribe(
         "bot.send.messages.queue", durable="bot_send_messages_worker"
@@ -60,16 +75,18 @@ async def bot_send_messages_worker(js):
 
                 # Отправляем сообщение
                 try:
+                    clean_message = safe_html(message) if message else ""
+                    
                     if photo_id:
                         message = await send_photo(
                             chat_id=chat_id,
                             photo=photo_id,
-                            caption=message,
+                            caption=clean_message,
                             reply_markup=reply_markup,
                         )
                     else:
                         message = await send_message(
-                            chat_id=chat_id, text=message, reply_markup=reply_markup
+                            chat_id=chat_id, text=clean_message, reply_markup=reply_markup
                         )
 
                     if flag == "vacancy" and message:

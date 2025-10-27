@@ -34,14 +34,11 @@ STOP_EMBEDDINGS_ADS = [
     "Доход на крипте и инвестициях",
     "Пройди по ссылке и получи бонус",
     "Заработок без опыта и знаний",
-    "Пиши в личку за подробностями",
     "Подписывайся, чтобы узнать больше",
     "Бесплатный курс по заработку",
 ]
 
 STOP_EMBEDDINGS_RESUME = [
-    "Ищу работу дизайнером",
-    "Ищу подработку",
     "Готов работать удаленно",
     "Рассмотрю любые предложения",
     "Мое резюме прикреплено ниже",
@@ -51,9 +48,7 @@ STOP_EMBEDDINGS_RESUME = [
     "Ищу стажировку",
     "Мой опыт в IT больше 5 лет",
     "Хочу развиваться в этой сфере",
-    "Ищу вакансию начинающего специалиста",
     "Рассмотрю офферы",
-    "Портфолио по ссылке ниже",
     "Пишите, если ищете дизайнера",
     "Готов к тестовому заданию",
 ]
@@ -123,7 +118,7 @@ def load_stop_embeddings():
     }
 
 
-def check_stop_embeddings(text: str, threshold: float = 0.75) -> str | None:
+def check_stop_embeddings(text: str, threshold: float = 0.55) -> str | None:
     stop_embeddings = get_stop_embeddings()
     text_emb = model.encode(text, convert_to_tensor=True)
     for cat, emb_list in stop_embeddings.items():
@@ -208,12 +203,6 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
 
     lowered = text.lower()
 
-    spam_category = check_stop_embeddings(text)
-    if spam_category:
-        await send_message(1058760541, spam_category)
-        await send_message(1058760541, text)
-        return {"status": "blocked", "reason": f"semantic spam ({spam_category})"}
-
     # --- очки по ключевым словам ---
     keyword_scores = {}
     for name, data in professions_cache.items():
@@ -242,6 +231,17 @@ async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
 
     ranked = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
     return {"status": "ok", "ranked": ranked}
+
+
+async def spam_check(text: str) -> bool:
+    spam_category = check_stop_embeddings(text)
+    if spam_category:
+        await send_message(-4822276897, spam_category)
+        await send_message(-4822276897, text)
+        logger.info(f"Spam detected: {spam_category}")
+        return False
+    else:
+        return True
 
 
 # === Пример использования ===

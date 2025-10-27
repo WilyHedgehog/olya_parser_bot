@@ -117,7 +117,7 @@ def create_app(config: Config) -> FastAPI:
         await load_professions()
         logger.info("Professions loaded")
         
-        await load_stop_embeddings()
+        load_stop_embeddings()
         logger.info("Stop-embedding loaded")
 
         await load_stopwords()
