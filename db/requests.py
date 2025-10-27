@@ -787,7 +787,7 @@ async def db_delete_keyword(session: AsyncSession, keyword_id: int):
 
 
 async def return_profession_by_id(session: AsyncSession, profession_id):
-    stmt = select(Profession).where(Profession.id == profession_id)
+    stmt = select(Profession).where()
     result = await session.execute(stmt)
     await session.commit()
     return result.scalar_one()
