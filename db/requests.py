@@ -681,6 +681,8 @@ async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:
         vacancy = await session.get(Vacancy, vacancy_id)
         await session.commit()
         return vacancy
+    
+
 
 
 async def load_stopwords():
@@ -783,6 +785,12 @@ async def db_delete_keyword(session: AsyncSession, keyword_id: int):
     await session.commit()
     return True
 
+
+async def return_profession_by_id(session: AsyncSession, profession_id):
+    stmt = select(Profession).where(Profession.id == profession_id)
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.scalar_one()
 
 async def get_profession_by_id(profession_id: int) -> Profession | None:
     async with Sessionmaker() as session:
