@@ -692,7 +692,6 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
     vacancy_id = callback.data.split("_")[2]
     vacancy = await return_vacancy_by_id(vacancy_id, session)
     vacancy_text = vacancy.text
-    vacancy_prof = vacancy.profession
     try:
         result = await delete_vacancy_everywhere(session, vacancy_id)
         if result:
@@ -705,7 +704,6 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
                 action="delete_vacancy",
                 text=f"Вакансия была удалена.",
                 vacancy_text=vacancy_text,
-                vacancy_prof=vacancy_prof,
             )
         else:
             await callback.message.answer("Ошибка при удалении вакансии.")

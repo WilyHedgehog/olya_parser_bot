@@ -33,7 +33,6 @@ async def worksheet_append_row(
     action,
     text,
     vacancy_text=None,
-    vacancy_prof=None,
     stopword=None,
     keyword=None,
     profession=None,
@@ -41,7 +40,7 @@ async def worksheet_append_row(
     if action == "delete_vacancy":
         await asyncio.to_thread(
             worksheet_first.append_row,
-            [user_id, time, name, text, vacancy_text, vacancy_prof],
+            [user_id, time, name, text, vacancy_text],
         )
     elif action == "add_stopword":
         await asyncio.to_thread(
