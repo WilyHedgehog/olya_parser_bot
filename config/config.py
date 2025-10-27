@@ -31,6 +31,11 @@ class DatabaseSettings:
 class LogSettings:
     level: str
     format: str
+    
+    
+@dataclass
+class DeepSeek:
+    api_key: str
 
 
 @dataclass
@@ -64,6 +69,7 @@ class Config:
     database: DatabaseSettings
     getcourse: GetcourseSettings
     nats: NatsSettings
+    deepseek: DeepSeek
 
 
 def load_config(path: str | None = None) -> Config:
@@ -106,5 +112,8 @@ def load_config(path: str | None = None) -> Config:
         ),
         nats=NatsSettings(
             servers=env.list("NATS_SERVERS"),
-        )
+        ),
+        deepseek=DeepSeek(
+            api_key=env("DEEPSEEK_API_KEY"),
+        ),
     )
