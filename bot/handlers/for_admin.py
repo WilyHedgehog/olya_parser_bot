@@ -9,6 +9,7 @@ from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from google_logs.google_log import worksheet_append_row
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
@@ -58,6 +59,7 @@ from bot.lexicon.lexicon import LEXICON_PARSER, LEXICON_ADMIN
 logger = logging.getLogger(__name__)
 logger.info("Admin handler module loaded")
 router = Router(name="admin commands router")
+MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 # Фильтр: роутер доступен только chat id, равному admin_id,
 # который передан в диспетчер
 # router.message.filter(MagicData(F.event.chat.id == F.admin_id))  # noqa
@@ -699,7 +701,7 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
             logger.info(f"Vacancy {vacancy_id} deleted successfully.")
             await worksheet_append_row(
                 user_id=callback.from_user.id,
-                time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                time=datetime.now(MOSCOW_TZ).strftime("%Y-%m-%d %H:%M:%S"),
                 name=callback.from_user.first_name,
                 action="delete_vacancy",
                 text=f"Вакансия была удалена.",
