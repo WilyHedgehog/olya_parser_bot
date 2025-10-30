@@ -1,18 +1,8 @@
-import re
-import hashlib
 import datetime
 from typing import Optional, Any
 from pydantic import BaseModel, Field
-from telethon.tl.types import (
-    MessageEntityBold,
-    MessageEntityItalic,
-    MessageEntityUnderline,
-    MessageEntityStrike,
-    MessageEntityCode,
-    MessageEntityPre,
-    MessageEntityTextUrl,
-)
 from parser.extract_sender import extract_sender_info
+from telethon.errors import TypeNotFoundError
 
 
 # ==============================
@@ -37,19 +27,38 @@ class MessagePayload(BaseModel):
     async def from_telethon(cls, app, message, flag: Optional[str] = None) -> "MessagePayload":
         """
         Преобразует Telethon message в сериализуемую структуру.
+        Игнорирует неизвестные TL-конструкторы и логирует ошибки.
         """
-        entity_name, entity_username, fwd_info = await extract_sender_info(message)
+        import logging
+        logger = logging.getLogger("parser.parser_bot")
 
+        # Получаем инфо через вспомогательную функцию
+        try:
+            entity_name, entity_username, fwd_info = await extract_sender_info(message)
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось получить инфо отправителя: {e}")
+            entity_name = entity_username = None
+            fwd_info = []
+
+        # Инициализация переменных
+        sender_name = sender_username = sender_id = None
+
+        # Безопасное получение отправителя
         try:
             sender = await message.get_sender()
             sender_name = getattr(sender, "first_name", None)
             sender_username = getattr(sender, "username", None)
             sender_id = getattr(sender, "id", None)
-        except Exception:
-            sender_name = sender_username = None
+        except TypeNotFoundError as e:
+            logger.warning(f"⚠️ TypeNotFoundError при получении sender: {e}")
+            sender_id = getattr(message, "sender_id", None)
+        except Exception as e:
+            logger.warning(f"⚠️ Ошибка при получении sender: {e}")
+            sender_id = getattr(message, "sender_id", None)
 
+        # Формируем ссылку на сообщение
         link = get_message_link(message)
-        
+
         if sender_username:
             sender_link = f"https://t.me/{sender_username}"
         elif sender_id:
@@ -57,30 +66,41 @@ class MessagePayload(BaseModel):
         else:
             sender_link = "ссылка недоступна"
 
+        # Безопасное получение entities
+        entities = []
+        for e in getattr(message, "entities", []) or []:
+            try:
+                entities.append(e.to_dict())
+            except Exception as e:
+                logger.warning(f"⚠️ Ошибка сериализации entity: {e}")
+                continue
 
+        # Формируем fwd_from
+        fwd_from = " ".join(fwd_info) if fwd_info else None
+
+        # Текст сообщения
+        text = getattr(message, "message", None) \
+            or getattr(message, "text", None) \
+            or getattr(message, "caption", None)
+
+        # Дата сообщения
+        date = getattr(message, "date", None)
+
+        # Формируем объект
         return cls(
-            id=message.id,
-            chat_id=message.chat_id,
-            sender_id=getattr(message.sender_id, "user_id", None)
-            or getattr(message, "sender_id", None),
+            id=getattr(message, "id", 0),
+            chat_id=getattr(message, "chat_id", 0),
+            sender_id=sender_id,
             sender_name=sender_name or entity_name,
             sender_username=sender_username or entity_username,
             sender_link=sender_link,
-            text=getattr(message, "message", None)
-            or getattr(message, "text", None)
-            or getattr(message, "caption", None),
-            date=message.date,
+            text=text,
+            date=date,
             flag=flag,
             link=link,
             forward=bool(getattr(message, "forward", None)),
-            fwd_from=" ".join(fwd_info) if message.forward else None,
-            raw={
-                "entities": [
-                    e.to_dict() for e in getattr(message, "entities", []) if hasattr(e, "to_dict")
-                ]
-                if getattr(message, "entities", None)
-                else None
-            },
+            fwd_from=fwd_from,
+            raw={"entities": entities or None},
         )
 
 
