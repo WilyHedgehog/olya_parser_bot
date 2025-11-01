@@ -196,7 +196,7 @@ async def contains_any_regex_async(text: str) -> bool:
     return await asyncio.to_thread(search)
 
 
-async def analyze_vacancy(text: str, embedding_weight: float = 0.7) -> dict:
+async def analyze_vacancy(text: str, embedding_weight: float = 1.5) -> dict:
     stop_count = await contains_any_regex_async(text)
     if stop_count:
         return {"status": "blocked", "reason": f"{stop_count} stop words found"}
@@ -245,7 +245,7 @@ async def spam_check(text: str) -> bool:
 
 
 # === Пример использования ===
-async def find_job_func(vacancy_text: str, embedding_weight: float = 1.1):
+async def find_job_func(vacancy_text: str, embedding_weight: float = 1.5):
 
     result = await analyze_vacancy(vacancy_text, embedding_weight=embedding_weight)
 
@@ -254,7 +254,7 @@ async def find_job_func(vacancy_text: str, embedding_weight: float = 1.1):
         return False
 
     vacancy_professions = [
-        (prof, score) for prof, score in result["ranked"] if score > 1.8
+        (prof, score) for prof, score in result["ranked"] if score > 1.3
     ]
 
     if not vacancy_professions:
