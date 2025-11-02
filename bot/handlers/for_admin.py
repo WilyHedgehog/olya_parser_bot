@@ -4,7 +4,6 @@ from aiogram.filters import Command, MagicData
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
-from bot.background_tasks.delete_old_vacancy import schedule_spam, cancel_spam_tasks
 from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from google_logs.google_log import worksheet_append_row
