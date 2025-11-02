@@ -36,7 +36,7 @@ async def schedule_vacancy_clear():
         # ⏰ Создаём задачу
     await vacancy_clear_func.schedule_by_cron(
         scheduled_task_id="auto_delete",
-        cron="35 0 * * *",
+        cron="50 0 * * *",
         source=schedule_source
     )
     logger.info("✅ Задача удаления старых вакансий создана заново.")
