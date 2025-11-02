@@ -406,8 +406,17 @@ async def get_vacancy_url_kb(vacancy_id: str) -> InlineKeyboardMarkup:
         return builder.as_markup()
 
 
+def cancel_task_kb(id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Отменить задание", callback_data=f"cancel_task_{id}")
+    )
+    return builder.as_markup()
+
+
 back_to_choosen_prof_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_choosen_prof]])
 
 back_to_proffs_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_proffs_kb_button]])
 
 back_to_admin_main_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_admin_main]])
+

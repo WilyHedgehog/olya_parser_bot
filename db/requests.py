@@ -283,6 +283,7 @@ async def set_new_days(mail: str, days: int):
         user.subscription_until = days
         user_id = user.telegram_id
         user.three_days_free_active = "used_with"
+        user.cancelled_subscription_date = None
         text = f"{user.subscription_until:%d.%m.%Y}"
         await session.commit()
         return user_id, text

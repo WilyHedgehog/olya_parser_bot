@@ -37,9 +37,6 @@ from find_job_process.find_job import load_professions, load_stop_embeddings
 
 from bot.background_tasks.check_subscriptions import start_all_schedulers
 from bot.background_tasks.broker import schedule_source
-from bot.background_tasks.send_two_hours_vacancy import (
-    start_scheduler_two_hours_vacancy_send,
-)
 from bot.background_tasks.broker import broker
 from bot.middlewares.middlewares import (
     DbSessionMiddleware,

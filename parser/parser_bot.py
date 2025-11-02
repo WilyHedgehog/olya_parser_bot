@@ -207,7 +207,7 @@ async def process_message(payload: MessagePayload):
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
         #await asyncio.sleep(0.5)
         # 8. Отправляем в админку
-    if vacancy_id:
+    if for_admin_prof:
         reply = await bot.send_message(
             config.bot.chat_id,
             text=LEXICON_PARSER["vacancy_data"].format(

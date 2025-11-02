@@ -1,9 +1,12 @@
 # db/crud.py
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from sqlalchemy import update, select
-from db.models import ScheduledTask, AdminMailing, User, UserProfession, Profession
+from sqlalchemy import update, select, delete
+from db.models import ScheduledTask, AdminMailing, User, UserProfession, Profession, Vacancy, VacancyQueue, VacancySent, VacancyTwoHours
 from db.database import Sessionmaker  # ваша фабрика сессий
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
@@ -156,3 +159,34 @@ async def get_all_users_in_segment(selected_segments: list[str]):
             users.update([row[0] for row in result.all()])
 
         return list(users)
+    
+    
+async def delete_old_vacancie_list():
+    async with Sessionmaker() as session:
+        stmt = delete(Vacancy).where(Vacancy.created_at < datetime.now(MOSCOW_TZ) - timedelta(days=4))
+        result = await session.execute(stmt)
+        await session.commit()
+        logger.info(f"Удалено {result.rowcount} вакансий (список)")
+        
+    
+async def delete_old_vacancie_button():
+    async with Sessionmaker() as session:
+        stmt = delete(VacancyQueue).where(VacancyQueue.created_at < datetime.now(MOSCOW_TZ) - timedelta(days=2))
+        result = await session.execute(stmt)
+        await session.commit()
+        logger.info(f"Удалено {result.rowcount} вакансий (очередь)")
+    
+async def delete_old_vacancie_two_hours():
+    async with Sessionmaker() as session:
+        stmt = delete(VacancyTwoHours).where(VacancyTwoHours.created_at < datetime.now(MOSCOW_TZ) - timedelta(days=2))
+        result = await session.execute(stmt)
+        await session.commit()
+        logger.info(f"Удалено {result.rowcount} вакансий (2 часа)")
+        
+        
+async def delete_old_vacancie_sent():
+    async with Sessionmaker() as session:
+        stmt = delete(VacancySent).where(VacancySent.sent_at < datetime.now(MOSCOW_TZ) - timedelta(days=4))
+        result = await session.execute(stmt)
+        await session.commit()
+        logger.info(f"Удалено {result.rowcount} вакансий (отправленные)")
