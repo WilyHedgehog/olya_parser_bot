@@ -159,7 +159,7 @@ async def parser_menu_button(callback: CallbackQuery):
         await callback.answer()
     except Exception as e:
         pass
-    stopwords_text = await get_stopwords_text()
+    stopwords_text = "2"#await get_stopwords_text()
     try:
         await callback.message.edit_text(
             LEXICON_PARSER["parser_main"].format(stopwords_text=stopwords_text),
