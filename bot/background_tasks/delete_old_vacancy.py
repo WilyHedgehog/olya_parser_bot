@@ -36,7 +36,7 @@ async def schedule_vacancy_clear():
     # ⏰ Создаём задачу
     await vacancy_clear_func.schedule_by_cron(
         scheduled_task_id="auto_delete",
-        cron="1/* * * * *",
+        cron="* * * * *",
         source=schedule_source
     )
     logger.info("✅ Задача удаления старых вакансий создана заново.")
@@ -46,7 +46,7 @@ async def schedule_vacancy_clear():
         reply_markup=cancel_task_kb("auto_delete")
     )
 
-    await broker.shutdown()
+    #await broker.shutdown()
     
     
 async def cancel_shedule_vacancy_clear():
