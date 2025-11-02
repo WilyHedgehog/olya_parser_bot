@@ -139,7 +139,7 @@ def create_app(config: Config) -> FastAPI:
         await schedule_source.startup()
         logger.info("Taskiq schedule source started")
         
-        asyncio.run(schedule_vacancy_clear())
+        asyncio.run(await schedule_vacancy_clear())
         logger.info("Vacancy clear scheduler started")
         
 
