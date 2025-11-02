@@ -115,9 +115,6 @@ def create_app(config: Config) -> FastAPI:
         await load_professions()
         logger.info("Professions loaded")
         
-        await schedule_vacancy_clear()
-        logger.info("Vacancy clear scheduler started")
-        
         load_stop_embeddings()
         logger.info("Stop-embedding loaded")
 
@@ -139,9 +136,11 @@ def create_app(config: Config) -> FastAPI:
         asyncio.create_task(bot_send_messages_worker(js))
         logger.info("Vacancy worker started")
         await schedule_source.startup()
-        logger.info("Taskiq broker started")
-        
         logger.info("Taskiq schedule source started")
+        
+        await schedule_vacancy_clear()
+        logger.info("Vacancy clear scheduler started")
+        
 
         yield
 
