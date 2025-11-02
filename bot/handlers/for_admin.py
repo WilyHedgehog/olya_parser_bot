@@ -323,7 +323,7 @@ async def process_new_keyword(
 @router.callback_query(IsAdminFilter(), F.data == "back_to_proffs")
 async def back_to_proffs_func(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Prof.main)
-    stopwords_text = await get_stopwords_text()
+    stopwords_text = "2"#await get_stopwords_text()
     await callback.message.edit_text(
         LEXICON_PARSER["parser_main"].format(stopwords_text=stopwords_text),
         reply_markup=await professions_keyboard(),
@@ -436,7 +436,7 @@ async def process_new_profession_desc(
         name=new_profession,
         desc=description,
     )
-    stopwords_text = await get_stopwords_text()
+    stopwords_text = "2"#await get_stopwords_text()
 
     if success:
         await message.answer(
@@ -465,7 +465,7 @@ async def delete_profession(
     data = await state.get_data()
     profession_id = data.get("profession_id")
 
-    stopwords_text = await get_stopwords_text()
+    stopwords_text = "2"#await get_stopwords_text()
 
     success = await db_delete_profession(session=session, profession_id=profession_id)
     if success:
@@ -625,7 +625,7 @@ async def process_adding_stopwords(
     stopword = message.text
     success = await db_add_stopword(session=session, word=stopword)
 
-    stopwords_text = await get_stopwords_text()
+    stopwords_text = "2"#await get_stopwords_text()
 
     if success:
         await message.answer(
@@ -667,7 +667,7 @@ async def process_delete_stopword(
 
     success = await db_delete_stopword(session=session, stopword_id=stopword_id)
 
-    stopwords_text = await get_stopwords_text()
+    stopwords_text = "2"#await get_stopwords_text()
 
     if success:
         await callback.message.edit_text(
