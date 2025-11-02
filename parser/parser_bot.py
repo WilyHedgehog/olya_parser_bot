@@ -155,7 +155,7 @@ async def process_message(payload: MessagePayload):
             if res == "1":
                 filtered_proffs.append((prof_name, score))
             else:
-                logger.info(f"⚠️ Ошибка в паре профессия/вакансия: {payload.id}")
+                logger.info(f"Отсутствует пара профессия/вакансия: {payload.id}")
 
         # создаём словарь из валидных профессий
         unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
@@ -207,28 +207,29 @@ async def process_message(payload: MessagePayload):
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
         #await asyncio.sleep(0.5)
         # 8. Отправляем в админку
-    reply = await bot.send_message(
-        config.bot.chat_id,
-        text=LEXICON_PARSER["vacancy_data"].format(
-            profession_name=', '.join(for_admin_prof.keys()),
-            vacancy_id=vacancy_id,
-            score=score,
-            orig_vacancy_link=original_link,
-            source=payload.sender_name if not payload.sender_username else f"@{payload.sender_username}",
-            vacancy_link=link if link else "Закрытый чат",
-            fwd_info=payload.fwd_from or "Нет",
-            vacancy_text=html_text,
-            sender_link = (
-                payload.sender_link
-                if payload.sender_link and "ссылка недоступна" not in payload.sender_link.lower()
-                else "Ссылка недоступна"
-            )
-        ),
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-        reply_markup=await get_delete_vacancy_kb(vacancy_id),
-    )
-    await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
+    if vacancy_id:
+        reply = await bot.send_message(
+            config.bot.chat_id,
+            text=LEXICON_PARSER["vacancy_data"].format(
+                profession_name=', '.join(for_admin_prof.keys()),
+                vacancy_id=vacancy_id,
+                score=score,
+                orig_vacancy_link=original_link,
+                source=payload.sender_name if not payload.sender_username else f"@{payload.sender_username}",
+                vacancy_link=link if link else "Закрытый чат",
+                fwd_info=payload.fwd_from or "Нет",
+                vacancy_text=html_text,
+                sender_link = (
+                    payload.sender_link
+                    if payload.sender_link and "ссылка недоступна" not in payload.sender_link.lower()
+                    else "Ссылка недоступна"
+                )
+            ),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+            reply_markup=await get_delete_vacancy_kb(vacancy_id),
+        )
+        await record_vacancy_sent(user_id=config.bot.chat_id, vacancy_id=vacancy_id, message_id=reply.message_id)
 
     try:
         for prof_name, vacancy_id in for_admin_prof.items():
