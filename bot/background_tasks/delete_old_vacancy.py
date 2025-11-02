@@ -46,7 +46,7 @@ async def schedule_vacancy_clear():
         reply_markup=cancel_task_kb("auto_delete")
     )
 
-    #await broker.shutdown()
+    await broker.shutdown()
     
     
 async def cancel_shedule_vacancy_clear():
