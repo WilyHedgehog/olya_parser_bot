@@ -135,6 +135,7 @@ def create_app(config: Config) -> FastAPI:
         asyncio.create_task(vacancy_worker(js))
         asyncio.create_task(bot_send_messages_worker(js))
         logger.info("Vacancy worker started")
+        
         await schedule_source.startup()
         logger.info("Taskiq schedule source started")
         
