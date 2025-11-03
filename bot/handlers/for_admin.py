@@ -80,7 +80,9 @@ async def get_stopwords_text_pages():
             split_index = MAX_MESSAGE_LENGTH
         pages.append(tmp[:split_index])
         tmp = tmp[split_index:]
-    return pages.append(tmp)
+    pages.append(tmp)  # просто добавляем, НЕ через return
+
+    return pages  # возвращаем список
 
 @router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
 async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
