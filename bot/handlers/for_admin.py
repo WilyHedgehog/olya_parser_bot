@@ -921,14 +921,15 @@ async def get_stopwords_text_pages():
 
 @router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
 async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
+    logger.info("show_stopwords")
     pages = await get_stopwords_text_pages()
-
+    logger.info(pages)
     total_pages = len(pages)
-    current_page = 1
+    current_page = 0
 
     keyboard = stopwords_pagination_keyboard(current_page, total_pages)
 
-    await callback.message.edit_text(pages[current_page - 1], reply_markup=keyboard)
+    await callback.message.edit_text(pages[current_page], reply_markup=keyboard)
     await callback.answer()
     
     
