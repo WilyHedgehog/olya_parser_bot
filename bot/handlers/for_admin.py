@@ -178,10 +178,9 @@ async def parser_menu_button(callback: CallbackQuery):
         await callback.answer()
     except Exception as e:
         pass
-    stopwords_text = "2"#await get_stopwords_text()
     try:
         await callback.message.edit_text(
-            LEXICON_PARSER["parser_main"].format(stopwords_text=stopwords_text),
+            LEXICON_PARSER["parser_main"],
             reply_markup=await professions_keyboard(),
         )
     except Exception as e:
@@ -342,9 +341,8 @@ async def process_new_keyword(
 @router.callback_query(IsAdminFilter(), F.data == "back_to_proffs")
 async def back_to_proffs_func(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Prof.main)
-    stopwords_text = "2"#await get_stopwords_text()
     await callback.message.edit_text(
-        LEXICON_PARSER["parser_main"].format(stopwords_text=stopwords_text),
+        LEXICON_PARSER["parser_main"],
         reply_markup=await professions_keyboard(),
     )
     await close_clock(callback)
@@ -455,12 +453,11 @@ async def process_new_profession_desc(
         name=new_profession,
         desc=description,
     )
-    stopwords_text = "2"#await get_stopwords_text()
 
     if success:
         await message.answer(
             LEXICON_PARSER["parser_main_after_add_profession"].format(
-                profession_name=new_profession, stopwords_text=stopwords_text
+                profession_name=new_profession
             ),
             reply_markup=await professions_keyboard(),
         )
@@ -468,7 +465,7 @@ async def process_new_profession_desc(
     else:
         await message.answer(
             LEXICON_PARSER["parser_main_after_add_profession_err"].format(
-                profession_name=new_profession, stopwords_text=stopwords_text
+                profession_name=new_profession
             ),
             reply_markup=await professions_keyboard(),
         )
@@ -484,20 +481,15 @@ async def delete_profession(
     data = await state.get_data()
     profession_id = data.get("profession_id")
 
-    stopwords_text = "2"#await get_stopwords_text()
 
     success = await db_delete_profession(session=session, profession_id=profession_id)
     if success:
         await callback.message.edit_text(
-            LEXICON_PARSER["parser_main_after_delete_profession"].format(
-                stopwords_text=stopwords_text
-            )
+            LEXICON_PARSER["parser_main_after_delete_profession"]
         )
     else:
         await callback.message.edit_text(
-            LEXICON_PARSER["parser_main_after_delete_profession_err"].format(
-                stopwords_text=stopwords_text
-            )
+            LEXICON_PARSER["parser_main_after_delete_profession_err"]
         )
     await load_professions()
     await close_clock(callback)
@@ -644,12 +636,10 @@ async def process_adding_stopwords(
     stopword = message.text
     success = await db_add_stopword(session=session, word=stopword)
 
-    stopwords_text = "2"#await get_stopwords_text()
-
     if success:
         await message.answer(
             LEXICON_PARSER["parser_main_after_add_stopword"].format(
-                stopwords_text=stopwords_text, stopword=stopword
+                stopword=stopword
             ),
             reply_markup=await professions_keyboard(),
         )
@@ -686,13 +676,9 @@ async def process_delete_stopword(
 
     success = await db_delete_stopword(session=session, stopword_id=stopword_id)
 
-    stopwords_text = "2"#await get_stopwords_text()
-
     if success:
         await callback.message.edit_text(
-            LEXICON_PARSER["parser_main_after_delete_stopword"].format(
-                stopwords_text=stopwords_text
-            ),
+            LEXICON_PARSER["parser_main_after_delete_stopword"],
             reply_markup=await professions_keyboard(),
         )
         logger.info(f"Deleted stop-word ID {stopword_id}")
@@ -915,7 +901,7 @@ async def get_stopwords_text_pages():
     return pages
 
 @router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
-async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
+async def show_paginated_text(callback: CallbackQuery):
     logger.info("show_stopwords")
     pages = await get_stopwords_text_pages()
     logger.info(pages)
