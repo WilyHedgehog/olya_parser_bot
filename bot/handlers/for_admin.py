@@ -68,34 +68,6 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 # router.message.filter(MagicData(F.event.chat.id == F.admin_id))  # noqa
 
 
-async def get_stopwords_text_pages():
-    text = await get_stopwords_text()
-
-    # Разбиваем текст на страницы
-    pages = []
-    tmp = text
-    while len(tmp) > MAX_MESSAGE_LENGTH:
-        split_index = tmp.rfind('\n', 0, MAX_MESSAGE_LENGTH)
-        if split_index == -1:
-            split_index = MAX_MESSAGE_LENGTH
-        pages.append(tmp[:split_index])
-        tmp = tmp[split_index:]
-    pages.append(tmp)  # просто добавляем, НЕ через return
-
-    return pages  # возвращаем список
-
-@router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
-async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
-    pages = await get_stopwords_text_pages()
-
-    total_pages = len(pages)
-    current_page = 1
-
-    keyboard = stopwords_pagination_keyboard(current_page, total_pages)
-
-    await callback.message.edit_text(pages[current_page - 1], reply_markup=keyboard)
-    await callback.answer()
-
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("stoppage_"))
 async def change_text_page(callback: CallbackQuery, state: FSMContext):
@@ -931,3 +903,32 @@ async def process_delete_admin(callback: CallbackQuery, state: FSMContext):
         logger.error(f"Failed to delete admin {admin_id}.")
         
         
+async def get_stopwords_text_pages():
+    text = await get_stopwords_text()
+
+    # Разбиваем текст на страницы
+    pages = []
+    tmp = text
+    while len(tmp) > MAX_MESSAGE_LENGTH:
+        split_index = tmp.rfind('\n', 0, MAX_MESSAGE_LENGTH)
+        if split_index == -1:
+            split_index = MAX_MESSAGE_LENGTH
+        pages.append(tmp[:split_index])
+        tmp = tmp[split_index:]
+    pages.append(tmp)  # просто добавляем, НЕ через return
+
+    return pages  # возвращаем список
+
+@router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
+async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
+    pages = await get_stopwords_text_pages()
+
+    total_pages = len(pages)
+    current_page = 1
+
+    keyboard = stopwords_pagination_keyboard(current_page, total_pages)
+
+    await callback.message.edit_text(pages[current_page - 1], reply_markup=keyboard)
+    await callback.answer()
+    
+    
