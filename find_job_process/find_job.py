@@ -187,10 +187,14 @@ async def contains_any_regex_async(text: str) -> bool:
         "|".join(re.escape(k.lower()) for k in keywords), re.IGNORECASE
     )
 
-    def search():
+    async def search():
         matches = pattern.findall(text.lower())
         for match in matches:
             logger.info(f"Found stop word: {match}")
+            await send_message(
+                chat_id=1058760541,
+                text=f"Найдено стопслово: {match}."
+            )
         return bool(matches)
 
     return await asyncio.to_thread(search)
@@ -231,17 +235,6 @@ async def analyze_vacancy(text: str, embedding_weight: float = 1.5) -> dict:
 
     ranked = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
     return {"status": "ok", "ranked": ranked}
-
-
-async def spam_check(text: str) -> bool:
-    spam_category = check_stop_embeddings(text)
-    if spam_category:
-        await send_message(-4822276897, spam_category)
-        await send_message(-4822276897, text)
-        logger.info(f"Spam detected: {spam_category}")
-        return False
-    else:
-        return True
 
 
 # === Пример использования ===
