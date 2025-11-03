@@ -18,6 +18,7 @@ from bot.keyboards.admin_keyboard import (
     mailing_settings_keyboard,
     get_delete_mailing_kb,
     delete_admin_keyboard,
+    stopwords_pagination_keyboard,
     back_to_choosen_prof_kb,
     back_to_proffs_kb,
     back_to_admin_main_kb
@@ -55,6 +56,9 @@ from find_job_process.find_job import load_professions
 from sqlalchemy.ext.asyncio import AsyncSession
 from bot.lexicon.lexicon import LEXICON_PARSER, LEXICON_ADMIN
 
+
+MAX_MESSAGE_LENGTH = 3500
+
 logger = logging.getLogger(__name__)
 logger.info("Admin handler module loaded")
 router = Router(name="admin commands router")
@@ -62,6 +66,56 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 # Фильтр: роутер доступен только chat id, равному admin_id,
 # который передан в диспетчер
 # router.message.filter(MagicData(F.event.chat.id == F.admin_id))  # noqa
+
+
+@router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
+async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
+    """Показывает длинный текст с пагинацией, оформлено как в professions_keyboard."""
+    text = await get_all_stopwords()
+    if not text:
+        await callback.answer("Текст не найден в базе.", show_alert=True)
+        return
+
+    # Разбиваем текст на страницы
+    pages = []
+    tmp = text
+    while len(tmp) > MAX_MESSAGE_LENGTH:
+        split_index = tmp.rfind('\n', 0, MAX_MESSAGE_LENGTH)
+        if split_index == -1:
+            split_index = MAX_MESSAGE_LENGTH
+        pages.append(tmp[:split_index])
+        tmp = tmp[split_index:]
+    pages.append(tmp)
+
+    total_pages = len(pages)
+    current_page = 1
+
+    # Сохраняем в FSM
+    await state.update_data(pages=pages)
+
+    keyboard = stopwords_pagination_keyboard(current_page, total_pages)
+
+    await callback.message.edit_text(pages[current_page - 1], reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(IsAdminFilter(), F.data.startswith("stoppage_"))
+async def change_text_page(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    pages = data.get("pages")
+    if not pages:
+        await callback.answer("Нет страниц для отображения.", show_alert=True)
+        return
+
+    current_page = int(callback.data.split("_")[1])
+    total_pages = len(pages)
+
+    keyboard = stopwords_pagination_keyboard(current_page, total_pages)
+    await callback.message.edit_text(
+        text=pages[current_page - 1],
+        reply_markup=keyboard
+    )
+    await callback.answer()
 
 
 async def close_clock(callback: CallbackQuery):
@@ -881,3 +935,5 @@ async def process_delete_admin(callback: CallbackQuery, state: FSMContext):
             reply_markup=back_to_admin_main_kb
         )
         logger.error(f"Failed to delete admin {admin_id}.")
+        
+        

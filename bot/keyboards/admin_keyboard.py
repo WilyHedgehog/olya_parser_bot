@@ -49,6 +49,9 @@ stopwords_add = InlineKeyboardButton(
 stopwords_delete = InlineKeyboardButton(
     text="Удалить стоп-слова", callback_data="stopwords_delete"
 )
+show_stopwords = InlineKeyboardButton(
+    text="Показать стоп-слова", callback_data="show_stopwords"
+)
 button_divider = InlineKeyboardButton(text="–––––––––––––––––––", callback_data="---")
 parser_menu_button = InlineKeyboardButton(
     text="🔍 Меню парсера 🔍", callback_data="parser_menu"
@@ -76,6 +79,21 @@ back_to_start_menu_button = InlineKeyboardButton(
 )
 
 
+
+def get_pagination_keyboard(current: int, total: int) -> InlineKeyboardMarkup:
+    """Создает клавиатуру со стрелками навигации."""
+    buttons = []
+    if total > 1:
+        row = []
+        if current > 0:
+            row.append(InlineKeyboardButton(text="⬅️", callback_data=f"page:{current - 1}"))
+        row.append(InlineKeyboardButton(text=f"{current + 1}/{total}", callback_data="noop"))
+        if current < total - 1:
+            row.append(InlineKeyboardButton(text="➡️", callback_data=f"page:{current + 1}"))
+        buttons.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def admin_keyboard(super_admin: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(parser_menu_button)
@@ -96,6 +114,40 @@ def mailing_settings_keyboard() -> InlineKeyboardMarkup:
     builder.row(button_divider)
     builder.row(back_to_admin_main)
     builder.adjust(1)  # Располагаем кнопки в один столбец
+    return builder.as_markup()
+
+
+def stopwords_pagination_keyboard(current_page: int, total_pages: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    # Навигационные кнопки
+    nav_buttons = []
+    if total_pages > 1:
+        if current_page > 1:
+            nav_buttons.append(
+                InlineKeyboardButton(text="⬅️", callback_data=f"stoppage_{current_page - 1}")
+            )
+        else:
+            nav_buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
+
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text=f"{current_page}/{total_pages}", callback_data="noop"
+            )
+        )
+
+        if current_page < total_pages:
+            nav_buttons.append(
+                InlineKeyboardButton(text="➡️", callback_data=f"stoppage_{current_page + 1}")
+            )
+        else:
+            nav_buttons.append(InlineKeyboardButton(text=" ", callback_data="noop"))
+
+        builder.row(*nav_buttons)
+
+    # Кнопка "Назад"
+    builder.row(back_to_proffs_kb_button)
+
     return builder.as_markup()
 
 
@@ -152,6 +204,7 @@ async def professions_keyboard(
     if stopwords:
         builder.row(stopwords_add)
         builder.row(stopwords_delete)
+        builder.row(show_stopwords)
     else:
         builder.row(stopwords_add)
     builder.row(back_to_admin_main)
