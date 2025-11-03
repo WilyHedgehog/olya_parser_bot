@@ -903,21 +903,16 @@ async def process_delete_admin(callback: CallbackQuery, state: FSMContext):
         logger.error(f"Failed to delete admin {admin_id}.")
         
         
+import textwrap
+
 async def get_stopwords_text_pages():
     text = await get_stopwords_text()
+    if not text:
+        return []
 
-    # Разбиваем текст на страницы
-    pages = []
-    tmp = text
-    while len(tmp) > MAX_MESSAGE_LENGTH:
-        split_index = tmp.rfind('\n', 0, MAX_MESSAGE_LENGTH)
-        if split_index == -1:
-            split_index = MAX_MESSAGE_LENGTH
-        pages.append(tmp[:split_index])
-        tmp = tmp[split_index:]
-    pages.append(tmp)  # просто добавляем, НЕ через return
-
-    return pages  # возвращаем список
+    # Разбиваем текст на страницы по длине, не разрывая слова
+    pages = textwrap.wrap(text, width=MAX_MESSAGE_LENGTH, replace_whitespace=False)
+    return pages
 
 @router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
 async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
