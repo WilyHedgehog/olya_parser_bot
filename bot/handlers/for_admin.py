@@ -68,13 +68,8 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 # router.message.filter(MagicData(F.event.chat.id == F.admin_id))  # noqa
 
 
-@router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
-async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
-    """Показывает длинный текст с пагинацией, оформлено как в professions_keyboard."""
+async def get_stopwords_text_pages():
     text = await get_stopwords_text()
-    if not text:
-        await callback.answer("Текст не найден в базе.", show_alert=True)
-        return
 
     # Разбиваем текст на страницы
     pages = []
@@ -85,13 +80,14 @@ async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
             split_index = MAX_MESSAGE_LENGTH
         pages.append(tmp[:split_index])
         tmp = tmp[split_index:]
-    pages.append(tmp)
+    return pages.append(tmp)
+
+@router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
+async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
+    pages = await get_stopwords_text_pages()
 
     total_pages = len(pages)
     current_page = 1
-
-    # Сохраняем в FSM
-    await state.update_data(pages=pages)
 
     keyboard = stopwords_pagination_keyboard(current_page, total_pages)
 
@@ -101,11 +97,7 @@ async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(IsAdminFilter(), F.data.startswith("stoppage_"))
 async def change_text_page(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    pages = data.get("pages")
-    if not pages:
-        await callback.answer("Нет страниц для отображения.", show_alert=True)
-        return
+    pages = await get_stopwords_text_pages()
 
     current_page = int(callback.data.split("_")[1])
     total_pages = len(pages)
