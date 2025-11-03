@@ -59,7 +59,6 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
 
     text = LEXICON_PARSER["msg_for_user"].format(
         author=author if author else "Не указан",
-        forwarded=forwarded if forwarded else "Не указан",
         vacancy_text=vacancy.text,
     )
 

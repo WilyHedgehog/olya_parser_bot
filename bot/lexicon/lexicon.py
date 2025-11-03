@@ -236,8 +236,7 @@ LEXICON_PARSER = {
     ),
     "msg_for_user": (
         "Для тебя нашлась вакансия.\n"
-        "Автор: {author}\n"
-        "Пересылка: {forwarded}\n\n"
+        "Автор: {author}\n\n"
         "{vacancy_text}"
     )
 }
