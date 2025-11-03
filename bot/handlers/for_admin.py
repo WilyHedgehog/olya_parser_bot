@@ -71,7 +71,7 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 @router.callback_query(IsAdminFilter(), F.data == "show_stopwords")
 async def show_paginated_text(callback: CallbackQuery, state: FSMContext):
     """Показывает длинный текст с пагинацией, оформлено как в professions_keyboard."""
-    text = await get_all_stopwords()
+    text = await get_stopwords_text()
     if not text:
         await callback.answer("Текст не найден в базе.", show_alert=True)
         return

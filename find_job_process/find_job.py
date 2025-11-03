@@ -201,10 +201,10 @@ async def analyze_vacancy(text: str, embedding_weight: float = 1.5) -> dict:
 
     if found_stopwords:
         found_str = ", ".join(found_stopwords)
-        await send_message(
-            chat_id=1058760541,
-            text=f"Найдены стоп слова: {found_str}"
-        )
+        #await send_message(
+        #    chat_id=1058760541,
+        #    text=f"Найдены стоп слова: {found_str}"
+        #)
         return {
             "status": "blocked",
             "reason": f"Найдены стоп-слова: {found_str}"
