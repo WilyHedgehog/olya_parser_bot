@@ -191,15 +191,24 @@ async def contains_any_regex_async(text: str) -> bool:
         matches = pattern.findall(text.lower())
         for match in matches:
             logger.info(f"Found stop word: {match}")
-        return bool(matches)
+        return list(set(matches))
 
     return await asyncio.to_thread(search)
 
 
 async def analyze_vacancy(text: str, embedding_weight: float = 1.5) -> dict:
-    stop_count = await contains_any_regex_async(text)
-    if stop_count:
-        return {"status": "blocked", "reason": f"{stop_count} stop words found"}
+    found_stopwords = await contains_any_regex_async(text)
+
+    if found_stopwords:
+        found_str = ", ".join(found_stopwords)
+        await send_message(
+            chat_id=1058760541,
+            text=f"Найдены стоп слова: {found_str}"
+        )
+        return {
+            "status": "blocked",
+            "reason": f"Найдены стоп-слова: {found_str}"
+        }
 
     lowered = text.lower()
 
