@@ -1,6 +1,6 @@
 from telethon import TelegramClient, events
 import asyncio
-from find_job_process.find_job import find_job_func
+from find_job_process.find_job import find_job_func, spam_check
 from DeepSeek.DS_proff_check import ai_proff_check
 from utils.bot_send_mes_queue import send_message
 import random

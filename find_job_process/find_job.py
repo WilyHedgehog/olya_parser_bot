@@ -187,14 +187,10 @@ async def contains_any_regex_async(text: str) -> bool:
         "|".join(re.escape(k.lower()) for k in keywords), re.IGNORECASE
     )
 
-    async def search():
+    def search():
         matches = pattern.findall(text.lower())
         for match in matches:
             logger.info(f"Found stop word: {match}")
-            await send_message(
-                chat_id=1058760541,
-                text=f"Найдено стопслово: {match}."
-            )
         return bool(matches)
 
     return await asyncio.to_thread(search)
