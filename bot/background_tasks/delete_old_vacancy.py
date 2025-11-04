@@ -18,7 +18,7 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 
 @broker.task
-async def vacancy_clear_func():
+async def vacancy_clear_func(scheduled_task_id: str):
     try:
         await delete_old_vacancie_sent()
         await delete_old_vacancie_button()
@@ -36,7 +36,7 @@ async def schedule_vacancy_clear():
     # ⏰ Создаём задачу
     await vacancy_clear_func.schedule_by_cron(
         scheduled_task_id="auto_delete",
-        cron="* * * * *",
+        cron="0 12 * * *",
         source=schedule_source
     )
     logger.info("✅ Задача удаления старых вакансий создана заново.")
