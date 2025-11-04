@@ -637,6 +637,14 @@ async def process_adding_stopwords(
     success = await db_add_stopword(session=session, word=stopword)
 
     if success:
+        await worksheet_append_row(
+                user_id=message.from_user.id,
+                time=datetime.now(MOSCOW_TZ).strftime("%Y-%m-%d %H:%M:%S"),
+                name=message.from_user.full_name,
+                action="add_stopword",
+                text=f"Добавлено стоп-слово.",
+                stopword=stopword,
+            )
         await message.answer(
             LEXICON_PARSER["parser_main_after_add_stopword"].format(
                 stopword=stopword
@@ -707,7 +715,7 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
             await worksheet_append_row(
                 user_id=callback.from_user.id,
                 time=datetime.now(MOSCOW_TZ).strftime("%Y-%m-%d %H:%M:%S"),
-                name=callback.from_user.first_name,
+                name=callback.from_user.full_name,
                 action="delete_vacancy",
                 text=f"Вакансия была удалена.",
                 vacancy_text=vacancy_text,
