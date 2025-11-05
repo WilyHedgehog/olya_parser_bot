@@ -941,7 +941,7 @@ async def show_stats(callback: CallbackQuery):
 @router.callback_query(IsAdminFilter(), F.data == "background_tasks")
 async def show_background_tasks(callback: CallbackQuery):
     nc, js = await get_nats_connection()
-    STREAM_NAME = 'taskiq_scheduled_tasks'
+    STREAM_NAME = 'taskiq_jetstream'
     try:
         sub = await js.pull_subscribe(
             subject=">",              # на что подписываемся
