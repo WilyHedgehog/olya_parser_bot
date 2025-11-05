@@ -125,15 +125,6 @@ def mailing_settings_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_tasks_keyboard(tasks_dict: dict) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    for task_name, seq in tasks_dict.items():
-        builder.row(InlineKeyboardButton(text=f"🗑 Удалить {task_name}", callback_data=f"delete_task:{seq}"))
-    builder.row(button_divider)
-    builder.row(back_to_admin_main)
-    return builder.as_markup()
-
-
 def stopwords_pagination_keyboard(current_page: int, total_pages: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 

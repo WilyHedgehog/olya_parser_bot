@@ -8,11 +8,9 @@ from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from google_logs.google_log import worksheet_append_row
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from utils.nats_connect import get_nats_connection
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
@@ -23,7 +21,6 @@ from bot.keyboards.admin_keyboard import (
     get_delete_mailing_kb,
     delete_admin_keyboard,
     stopwords_pagination_keyboard,
-    get_tasks_keyboard,
     back_to_choosen_prof_kb,
     back_to_proffs_kb,
     back_to_admin_main_kb
@@ -936,76 +933,3 @@ async def show_stats(callback: CallbackQuery):
         text += f"<b>{key}:</b> {value}\n"
     await callback.message.edit_text(text, reply_markup=back_to_admin_main_kb)
     await callback.answer()
-    
-    
-
-@router.callback_query(IsAdminFilter(), F.data == "background_tasks")
-async def show_background_tasks(callback: CallbackQuery):
-    nc, js = await get_nats_connection()
-    STREAM_NAME = 'taskiq_jetstream'
-    try:
-        sub = await js.pull_subscribe(
-            subject=">",
-            stream=STREAM_NAME,
-            durable="bot-monitor"
-        )
-
-        tasks_dict = {}
-        text = "🕒 Активные задачи:\n\n"
-
-        try:
-            # Получаем batch сообщений (например, последние 20)
-            batch = await sub.fetch(batch=20, timeout=2)
-            for msg in batch:
-                try:
-                    payload = pickle.loads(msg.data)
-                    task_name = payload.get("task_name", "❓")
-                    cron = payload.get("cron", "—")
-                    seq = msg.metadata.sequence.stream
-
-                    tasks_dict[task_name] = seq
-                    text += f"• <b>{task_name}</b>\n⏱ {cron}\n🆔 seq={seq}\n\n"
-                except Exception as e:
-                    text += f"⚠️ Ошибка чтения задачи: {e}\n"
-
-        except asyncio.TimeoutError:
-            # Если нет сообщений в течение таймаута
-            pass
-
-        # Формируем клавиатуру
-        if not tasks_dict:
-            text = "✅ Активных задач не найдено."
-            kb = back_to_admin_main_kb  # стандартное меню, если задач нет
-        else:
-            kb = get_tasks_keyboard(tasks_dict)
-
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-
-    except Exception as e:
-        await callback.message.edit_text(
-            f"❌ Ошибка получения задач: {e}", 
-            reply_markup=back_to_admin_main_kb
-        )
-    finally:
-        await nc.close()
-
-
-@router.callback_query(IsAdminFilter(), F.data.startswith("delete_task:"))
-async def delete_task_callback(callback: CallbackQuery):
-    seq_str = callback.data.split(":")[1]
-    try:
-        seq = int(seq_str)
-    except ValueError:
-        await callback.answer("❌ Неверный seq", show_alert=True)
-        return
-
-    nc, js = await get_nats_connection()
-    try:
-        await js.delete_msg('taskiq_scheduled_tasks', seq=seq)
-        await callback.answer(f"🗑 Задача seq={seq} удалена.", show_alert=True)
-        # обновляем список задач
-        await show_background_tasks(callback)
-    except Exception as e:
-        await callback.answer(f"❌ Ошибка удаления: {e}", show_alert=True)
-    finally:
-        await nc.close()
