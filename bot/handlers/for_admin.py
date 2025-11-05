@@ -945,40 +945,47 @@ async def show_background_tasks(callback: CallbackQuery):
     STREAM_NAME = 'taskiq_jetstream'
     try:
         sub = await js.pull_subscribe(
-            subject=">",              # на что подписываемся
-            stream=STREAM_NAME,       # имя стрима
-            durable="bot-monitor"     # durable consumer
+            subject=">",
+            stream=STREAM_NAME,
+            durable="bot-monitor"
         )
+
         tasks_dict = {}
         text = "🕒 Активные задачи:\n\n"
-        found = False
+
         try:
-            async for msg in sub.messages(timeout=2):
-                found = True
+            # Получаем batch сообщений (например, последние 20)
+            batch = await sub.fetch(batch=20, timeout=2)
+            for msg in batch:
                 try:
                     payload = pickle.loads(msg.data)
                     task_name = payload.get("task_name", "❓")
                     cron = payload.get("cron", "—")
                     seq = msg.metadata.sequence.stream
-                    text += f"• <b>{task_name}</b>\n⏱ {cron}\n🆔 seq={seq}\n\n"
-                    # добавляем кнопку для удаления
+
                     tasks_dict[task_name] = seq
+                    text += f"• <b>{task_name}</b>\n⏱ {cron}\n🆔 seq={seq}\n\n"
                 except Exception as e:
                     text += f"⚠️ Ошибка чтения задачи: {e}\n"
 
         except asyncio.TimeoutError:
+            # Если нет сообщений в течение таймаута
             pass
 
-        if not found:
+        # Формируем клавиатуру
+        if not tasks_dict:
             text = "✅ Активных задач не найдено."
-            kb = back_to_admin_main_kb  # если кнопок нет, просто основное меню
+            kb = back_to_admin_main_kb  # стандартное меню, если задач нет
         else:
             kb = get_tasks_keyboard(tasks_dict)
 
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
 
     except Exception as e:
-        await callback.message.edit_text(f"❌ Ошибка получения задач: {e}", reply_markup=back_to_admin_main_kb)
+        await callback.message.edit_text(
+            f"❌ Ошибка получения задач: {e}", 
+            reply_markup=back_to_admin_main_kb
+        )
     finally:
         await nc.close()
 
