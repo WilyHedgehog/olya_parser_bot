@@ -952,7 +952,6 @@ async def show_background_tasks(callback: CallbackQuery):
         tasks_dict = {}
         text = "🕒 Активные задачи:\n\n"
         found = False
-        kb = InlineKeyboardMarkup(row_width=1)
         try:
             async for msg in sub.messages(timeout=2):
                 found = True
