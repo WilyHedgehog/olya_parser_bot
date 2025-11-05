@@ -69,27 +69,35 @@ def message_to_html(text: str, entities: Optional[list] = None) -> str:
         return text
 
     html = text
+    # Обрабатываем с конца, чтобы не ломать индексы
     entities = sorted(entities, key=lambda e: e["offset"] + e["length"], reverse=True)
+
     for ent in entities:
         start, end = ent["offset"], ent["offset"] + ent["length"]
         entity_text = html[start:end]
+        entity_type = ent.get("_") or ent.get("type")  # поддержка обоих форматов
 
-        match ent.get("_"):
-            case "MessageEntityBold":
+        match entity_type:
+            case "MessageEntityBold" | "bold":
                 html = html[:start] + f"<b>{entity_text}</b>" + html[end:]
-            case "MessageEntityItalic":
+            case "MessageEntityItalic" | "italic":
                 html = html[:start] + f"<i>{entity_text}</i>" + html[end:]
-            case "MessageEntityUnderline":
+            case "MessageEntityUnderline" | "underline":
                 html = html[:start] + f"<u>{entity_text}</u>" + html[end:]
-            case "MessageEntityStrike":
+            case "MessageEntityStrike" | "strikethrough":
                 html = html[:start] + f"<s>{entity_text}</s>" + html[end:]
-            case "MessageEntityCode":
+            case "MessageEntityCode" | "code":
                 html = html[:start] + f"<code>{entity_text}</code>" + html[end:]
-            case "MessageEntityPre":
+            case "MessageEntityPre" | "pre":
                 html = html[:start] + f"<pre>{entity_text}</pre>" + html[end:]
-            case "MessageEntityTextUrl":
+            case "MessageEntityTextUrl" | "text_link":
                 url = ent.get("url", "#")
                 html = html[:start] + f'<a href="{url}">{entity_text}</a>' + html[end:]
+            case "MessageEntityUrl" | "url":
+                # если это просто ссылка без отдельного "url" в entity
+                html = html[:start] + f'<a href="{entity_text}">{entity_text}</a>' + html[end:]
+            case "MessageEntityMention" | "mention":
+                html = html[:start] + f'<a href="https://t.me/{entity_text[1:]}">{entity_text}</a>' + html[end:]
 
     return html
 

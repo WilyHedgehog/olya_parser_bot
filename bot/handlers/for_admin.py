@@ -45,6 +45,7 @@ from db.requests import (
     remove_from_admins,
     get_vac_points,
     return_vacancy_by_id,
+    save_in_trash,
 )
 from db.crud import (
     get_upcoming_mailings,
@@ -710,6 +711,7 @@ async def process_delete_vacancy(callback: CallbackQuery, session: AsyncSession)
     try:
         result = await delete_vacancy_everywhere(session, vacancy_id)
         if result:
+            await save_in_trash(vacancy_text, vacancy.hash)
             await callback.message.answer("Вакансия успешно удалена.")
             logger.info(f"Vacancy {vacancy_id} deleted successfully.")
             await worksheet_append_row(
@@ -926,6 +928,6 @@ async def show_stats(callback: CallbackQuery):
     raw_text = await get_vac_points()
     text = "Перед вами статистика вакансий:\n\n"
     for key, value in raw_text.items():
-        text += f"{key}: {value}\n"
+        text += f"<b>{key}:</b> {value}\n"
     await callback.message.edit_text(text, reply_markup=back_to_admin_main_kb)
     await callback.answer()
