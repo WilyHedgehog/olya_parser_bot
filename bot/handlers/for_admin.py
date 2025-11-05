@@ -7,8 +7,8 @@ from aiogram.fsm.context import FSMContext
 from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
+from bot.background_tasks.delete_old_vacancy import schedule_vacancy_clear
 from google_logs.google_log import worksheet_append_row
-import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from bot.keyboards.admin_keyboard import (
@@ -21,6 +21,7 @@ from bot.keyboards.admin_keyboard import (
     get_delete_mailing_kb,
     delete_admin_keyboard,
     stopwords_pagination_keyboard,
+    background_tasks_start_kb,
     back_to_choosen_prof_kb,
     back_to_proffs_kb,
     back_to_admin_main_kb
@@ -932,4 +933,22 @@ async def show_stats(callback: CallbackQuery):
     for key, value in raw_text.items():
         text += f"<b>{key}:</b> {value}\n"
     await callback.message.edit_text(text, reply_markup=back_to_admin_main_kb)
+    await callback.answer()
+
+
+@router.callback_query(IsAdminFilter(), F.data == "background_tasks")
+async def show_background_tasks(callback: CallbackQuery):
+    text = "Запуск фоновых задач кнопкой:\n\n"
+    await callback.message.edit_text(text, reply_markup=background_tasks_start_kb())
+    await callback.answer()
+    
+    
+@router.callback_query(IsAdminFilter(), F.data == "autodelete_vacancy")
+async def autodelete_vacancy(callback: CallbackQuery):
+    await schedule_vacancy_clear()
+    text = "Фоновая задача запущена\n\n"
+    await callback.message.edit_text(
+        text,
+        reply_markup=back_to_admin_main_kb
+    )
     await callback.answer()

@@ -105,10 +105,10 @@ def admin_keyboard(super_admin: bool) -> InlineKeyboardMarkup:
     builder.row(parser_menu_button)
     builder.row(get_file_id_button)
     builder.row(mailing_settings_button)
+    builder.row(stats_button)
     if super_admin:
         builder.row(add_delete_admin_button)
-    builder.row(stats_button)
-    builder.row(background_tasks_button)
+        builder.row(background_tasks_button)
     builder.row(button_divider)
     builder.row(back_to_start_menu_button)
     builder.adjust(1)  # Располагаем кнопки в один столбец
@@ -122,6 +122,14 @@ def mailing_settings_keyboard() -> InlineKeyboardMarkup:
     builder.row(button_divider)
     builder.row(back_to_admin_main)
     builder.adjust(1)  # Располагаем кнопки в один столбец
+    return builder.as_markup()
+
+
+def background_tasks_start_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Автоудаление вакансий", callback_data="autodelete_vacancy"))
+    builder.row(button_divider)
+    builder.row(back_to_admin_main)
     return builder.as_markup()
 
 
