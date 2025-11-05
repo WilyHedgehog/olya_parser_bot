@@ -77,6 +77,9 @@ add_mailing_button = InlineKeyboardButton(
 back_to_start_menu_button = InlineKeyboardButton(
     text="🔙 Назад в главное меню бота 🔙", callback_data="back_to_start_menu"
 )
+stats_button = InlineKeyboardButton(
+    text="📊 Статистика вакансий 📊", callback_data="stats"
+)
 
 
 
@@ -101,6 +104,7 @@ def admin_keyboard(super_admin: bool) -> InlineKeyboardMarkup:
     builder.row(mailing_settings_button)
     if super_admin:
         builder.row(add_delete_admin_button)
+    builder.row(stats_button)
     builder.row(button_divider)
     builder.row(back_to_start_menu_button)
     builder.adjust(1)  # Располагаем кнопки в один столбец

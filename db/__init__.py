@@ -16,6 +16,8 @@ from .models import (
     ScheduledTask,
     AdminMailing,
     Admins,
+    Trash,
+    VacancyStat,
 )
 
 __all__ = [
@@ -36,4 +38,6 @@ __all__ = [
     "ScheduledTask",
     "AdminMailing",
     "Admins",
+    "Trash",
+    "VacancyStat",
 ]

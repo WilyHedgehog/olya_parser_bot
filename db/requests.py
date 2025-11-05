@@ -29,6 +29,8 @@ from db.models import (
     VacancyTwoHours,
     SupportMessage,
     Admins,
+    Trash,
+    VacancyStat,
 )
 
 
@@ -1121,3 +1123,48 @@ async def remove_from_admins(telegram_id: int) -> bool:
         except Exception as e:
             logger.error(f"Error removing admin '{telegram_id}': {e}")
             return False
+        
+        
+async def save_in_trash(text, hash) -> bool:
+    async with Sessionmaker() as session:
+        trash = Trash(text=text, hash=hash)
+        session.add(trash)
+        await session.commit()
+        return True
+    
+    
+async def is_in_trash(hash) -> bool:
+    async with Sessionmaker() as session:
+        stmt = select(Trash).where(Trash.hash == hash)
+        result = await session.execute(stmt)
+        trash = result.scalar_one_or_none()
+        if trash:
+            return True
+        else:
+            return False
+        
+        
+async def add_vac_point(vacancy_name):
+    async with Sessionmaker() as session:
+        point = VacancyStat(quantity=1, profession_name=vacancy_name)
+        session.add(point)
+        await session.commit()
+        
+        
+async def get_vac_points():
+    async with Sessionmaker() as session:
+        stmt = select(Profession)
+        result = await session.execute(stmt)
+        professions = result.scalars().all()
+        result_dict = {}
+        for profession in professions:
+            stmt = select(VacancyStat).where(VacancyStat.profession_name == profession.name)
+            result = await session.execute(stmt)
+            points = result.scalars().all()
+            point_sum = 0
+            for point in points:
+                point_sum += point.quantity
+            result_dict[profession.name] = point_sum
+        
+        await session.commit()
+        return result_dict

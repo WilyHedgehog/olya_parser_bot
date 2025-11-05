@@ -43,7 +43,7 @@ from db.requests import (
     get_admins_list,
     add_to_admins,
     remove_from_admins,
-    return_profession_by_id,
+    get_vac_points,
     return_vacancy_by_id,
 )
 from db.crud import (
@@ -921,4 +921,11 @@ async def show_paginated_text(callback: CallbackQuery):
     await callback.message.edit_text(pages[current_page - 1], reply_markup=keyboard)
     await callback.answer()
     
-    
+@router.callback_query(IsAdminFilter(), F.data == "stats")
+async def show_stats(callback: CallbackQuery):
+    raw_text = await get_vac_points()
+    text = "Перед вами статистика вакансий:\n\n"
+    for key, value in raw_text.items():
+        text += f"{key}: {value}\n"
+    await callback.message.edit_text(text, reply_markup=back_to_admin_main_kb)
+    await callback.answer()

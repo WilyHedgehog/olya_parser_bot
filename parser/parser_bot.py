@@ -1,4 +1,4 @@
-from telethon import TelegramClient, events
+from telethon import events
 import asyncio
 from find_job_process.find_job import find_job_func
 from DeepSeek.DS_proff_check import ai_proff_check
@@ -7,34 +7,25 @@ import random
 from typing import Optional
 import re
 import hashlib
-from config.config import load_config, Config
+from config.config import load_config
 import logging
 from schemas.message_payload import MessagePayload
 from db.requests import (
     get_vacancy_by_hash,
     save_vacancy_hash,
     record_vacancy_sent,
-    dublicate_check,
-    get_vacancy_by_id,
+    save_in_trash,
+    is_in_trash,
+    add_vac_point,
     update_vacancy_hash_admin_chat_url,
 )
 from schemas.message_payload import MessagePayload
 from utils.nats_connect import get_nats_connection
 from find_job_process.job_dispatcher import send_vacancy_to_users
-from telethon.tl.types import (
-    MessageEntityBold,
-    MessageEntityItalic,
-    MessageEntityCode,
-    MessageEntityPre,
-    MessageEntityTextUrl,
-    MessageEntityUnderline,
-    MessageEntityStrike,
-)
 from bot_setup import bot
 from bot.keyboards.admin_keyboard import get_delete_vacancy_kb
 from bot.lexicon.lexicon import LEXICON_PARSER
 from parser.telethon_client import app
-from .extract_sender import extract_sender_info
 
 EXCLUDED_CHAT_IDS = [-1003096281707, 7877140188, -4816957611]
 
@@ -122,6 +113,10 @@ async def process_message(payload: MessagePayload):
     original_link = payload.link or get_message_link(payload)
 
     message_hash = hashlib.sha256(message_text.encode("utf-8")).hexdigest()
+    
+    if is_in_trash(message_hash):
+        logger.info(f"Вакансия с хэшем {message_hash} находится в корзине, пропускаем.")
+        return
 
 
     # 3. Проверка по хэшу в БД
@@ -143,6 +138,7 @@ async def process_message(payload: MessagePayload):
         found_proffs = await find_job_func(vacancy_text=message_text)
         if not found_proffs:
             logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
+            await save_in_trash(html_text, message_hash)
             return
 
         unique_proffs = {prof_name: score for prof_name, score in found_proffs}
@@ -159,6 +155,10 @@ async def process_message(payload: MessagePayload):
 
         # создаём словарь из валидных профессий
         unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
+        if not unique_proffs:
+            logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
+            await save_in_trash(html_text, message_hash)
+            return
         text += html_text
         await send_message(-4822276897, text)
 
@@ -202,6 +202,7 @@ async def process_message(payload: MessagePayload):
         if vacancy_id:
             for_admin_prof[prof_name] = vacancy_id
             logger.info(f"Вакансия по '{prof_name}' сохранена с ID {vacancy_id}")
+            await add_vac_point(prof_name)
             await send_vacancy_to_users(vacancy_id)
         else:
             logger.info(f"Вакансия по '{prof_name}' уже существует в БД, пропускаем.")
