@@ -23,6 +23,7 @@ from bot.keyboards.admin_keyboard import (
     get_delete_mailing_kb,
     delete_admin_keyboard,
     stopwords_pagination_keyboard,
+    get_tasks_keyboard,
     back_to_choosen_prof_kb,
     back_to_proffs_kb,
     back_to_admin_main_kb
@@ -948,6 +949,7 @@ async def show_background_tasks(callback: CallbackQuery):
             stream=STREAM_NAME,       # имя стрима
             durable="bot-monitor"     # durable consumer
         )
+        tasks_dict = {}
         text = "🕒 Активные задачи:\n\n"
         found = False
         kb = InlineKeyboardMarkup(row_width=1)
@@ -961,10 +963,7 @@ async def show_background_tasks(callback: CallbackQuery):
                     seq = msg.metadata.sequence.stream
                     text += f"• <b>{task_name}</b>\n⏱ {cron}\n🆔 seq={seq}\n\n"
                     # добавляем кнопку для удаления
-                    kb.add(InlineKeyboardButton(
-                        text=f"🗑 Удалить {task_name}",
-                        callback_data=f"delete_task:{seq}"
-                    ))
+                    tasks_dict[task_name] = seq
                 except Exception as e:
                     text += f"⚠️ Ошибка чтения задачи: {e}\n"
 
@@ -974,6 +973,8 @@ async def show_background_tasks(callback: CallbackQuery):
         if not found:
             text = "✅ Активных задач не найдено."
             kb = back_to_admin_main_kb  # если кнопок нет, просто основное меню
+        else:
+            kb = get_tasks_keyboard(tasks_dict)
 
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
 
