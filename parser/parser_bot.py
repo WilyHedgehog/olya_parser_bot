@@ -155,12 +155,12 @@ async def process_message(payload: MessagePayload):
 
         # создаём словарь из валидных профессий
         unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
+        text += html_text
+        await send_message(-4822276897, text)
         if not unique_proffs:
             logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
             await save_in_trash(html_text, message_hash)
             return
-        text += html_text
-        await send_message(-4822276897, text)
 
     try:
         entity = await app.get_input_entity(payload.chat_id)
