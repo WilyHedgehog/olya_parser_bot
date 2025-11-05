@@ -139,9 +139,6 @@ def create_app(config: Config) -> FastAPI:
         await schedule_source.startup()
         logger.info("Taskiq schedule source started")
         
-        await schedule_vacancy_clear()
-        logger.info("Vacancy clear scheduler started")
-        
 
         yield
 

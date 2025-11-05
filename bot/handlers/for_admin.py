@@ -1,4 +1,5 @@
 import logging
+import pickle
 from aiogram import F, Router
 from aiogram.filters import Command, MagicData
 from aiogram.types import Message, CallbackQuery
@@ -7,8 +8,11 @@ from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from google_logs.google_log import worksheet_append_row
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from utils.nats_connect import get_nats_connection
 from bot.keyboards.admin_keyboard import (
     professions_keyboard,
     keywords_keyboard,
@@ -931,3 +935,67 @@ async def show_stats(callback: CallbackQuery):
         text += f"<b>{key}:</b> {value}\n"
     await callback.message.edit_text(text, reply_markup=back_to_admin_main_kb)
     await callback.answer()
+    
+    
+
+@router.callback_query(IsAdminFilter(), F.data == "background_tasks")
+async def show_background_tasks(callback: CallbackQuery):
+    nc, js = await get_nats_connection()
+    STREAM_NAME = 'taskiq_scheduled_tasks'
+    try:
+        sub = await js.pull_subscribe(">", STREAM_NAME, durable="bot-monitor")
+        text = "🕒 Активные задачи:\n\n"
+        found = False
+        kb = InlineKeyboardMarkup(row_width=1)
+
+        try:
+            async for msg in sub.messages(timeout=2):
+                found = True
+                try:
+                    payload = pickle.loads(msg.data)
+                    task_name = payload.get("task_name", "❓")
+                    cron = payload.get("cron", "—")
+                    seq = msg.metadata.sequence.stream
+                    text += f"• <b>{task_name}</b>\n⏱ {cron}\n🆔 seq={seq}\n\n"
+                    # добавляем кнопку для удаления
+                    kb.add(InlineKeyboardButton(
+                        text=f"🗑 Удалить {task_name}",
+                        callback_data=f"delete_task:{seq}"
+                    ))
+                except Exception as e:
+                    text += f"⚠️ Ошибка чтения задачи: {e}\n"
+
+        except asyncio.TimeoutError:
+            pass
+
+        if not found:
+            text = "✅ Активных задач не найдено."
+            kb = back_to_admin_main_kb  # если кнопок нет, просто основное меню
+
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+
+    except Exception as e:
+        await callback.message.edit_text(f"❌ Ошибка получения задач: {e}")
+    finally:
+        await nc.close()
+
+
+@router.callback_query(IsAdminFilter(), F.data.startswith("delete_task:"))
+async def delete_task_callback(callback: CallbackQuery):
+    seq_str = callback.data.split(":")[1]
+    try:
+        seq = int(seq_str)
+    except ValueError:
+        await callback.answer("❌ Неверный seq", show_alert=True)
+        return
+
+    nc, js = await get_nats_connection()
+    try:
+        await js.delete_message('taskiq_scheduled_tasks', seq=seq)
+        await callback.answer(f"🗑 Задача seq={seq} удалена.", show_alert=True)
+        # обновляем список задач
+        await show_background_tasks(callback)
+    except Exception as e:
+        await callback.answer(f"❌ Ошибка удаления: {e}", show_alert=True)
+    finally:
+        await nc.close()

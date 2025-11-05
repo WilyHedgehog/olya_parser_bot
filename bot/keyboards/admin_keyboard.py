@@ -80,6 +80,9 @@ back_to_start_menu_button = InlineKeyboardButton(
 stats_button = InlineKeyboardButton(
     text="📊 Статистика вакансий 📊", callback_data="stats"
 )
+background_tasks_button = InlineKeyboardButton(
+    text="🔧 Задачи в фоне 🔧", callback_data="background_tasks"
+)
 
 
 
@@ -106,6 +109,7 @@ def admin_keyboard(super_admin: bool) -> InlineKeyboardMarkup:
         builder.row(add_delete_admin_button)
     builder.row(stats_button)
     builder.row(button_divider)
+    builder.row(background_tasks_button)
     builder.row(back_to_start_menu_button)
     builder.adjust(1)  # Располагаем кнопки в один столбец
     return builder.as_markup()
