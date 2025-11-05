@@ -108,8 +108,8 @@ def admin_keyboard(super_admin: bool) -> InlineKeyboardMarkup:
     if super_admin:
         builder.row(add_delete_admin_button)
     builder.row(stats_button)
-    builder.row(button_divider)
     builder.row(background_tasks_button)
+    builder.row(button_divider)
     builder.row(back_to_start_menu_button)
     builder.adjust(1)  # Располагаем кнопки в один столбец
     return builder.as_markup()
