@@ -114,7 +114,7 @@ async def process_message(payload: MessagePayload):
 
     message_hash = hashlib.sha256(message_text.encode("utf-8")).hexdigest()
     
-    if is_in_trash(message_hash):
+    if await is_in_trash(message_hash):
         logger.info(f"Вакансия с хэшем {message_hash} находится в корзине, пропускаем.")
         return
 
