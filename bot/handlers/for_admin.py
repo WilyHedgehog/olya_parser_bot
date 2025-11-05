@@ -943,11 +943,14 @@ async def show_background_tasks(callback: CallbackQuery):
     nc, js = await get_nats_connection()
     STREAM_NAME = 'taskiq_scheduled_tasks'
     try:
-        sub = await js.pull_subscribe(">", STREAM_NAME, durable="bot-monitor")
+        sub = await js.pull_subscribe(
+            subject=">",              # на что подписываемся
+            stream=STREAM_NAME,       # имя стрима
+            durable="bot-monitor"     # durable consumer
+        )
         text = "🕒 Активные задачи:\n\n"
         found = False
         kb = InlineKeyboardMarkup(row_width=1)
-
         try:
             async for msg in sub.messages(timeout=2):
                 found = True
@@ -975,7 +978,7 @@ async def show_background_tasks(callback: CallbackQuery):
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
 
     except Exception as e:
-        await callback.message.edit_text(f"❌ Ошибка получения задач: {e}")
+        await callback.message.edit_text(f"❌ Ошибка получения задач: {e}", reply_markup=back_to_admin_main_kb)
     finally:
         await nc.close()
 
@@ -991,7 +994,7 @@ async def delete_task_callback(callback: CallbackQuery):
 
     nc, js = await get_nats_connection()
     try:
-        await js.delete_message('taskiq_scheduled_tasks', seq=seq)
+        await js.delete_msg('taskiq_scheduled_tasks', seq=seq)
         await callback.answer(f"🗑 Задача seq={seq} удалена.", show_alert=True)
         # обновляем список задач
         await show_background_tasks(callback)
