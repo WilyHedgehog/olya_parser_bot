@@ -1206,6 +1206,17 @@ async def get_vac_points():
             for point in points:
                 point_sum += point.quantity
             result_dict[profession.name] = point_sum
+            
+        result_dict["-----За последние сутки-----"] = 0
+        for profession in professions:
+            stmt = select(VacancyStat).where(
+                VacancyStat.profession_name == profession.name, VacancyStat.created_at > (datetime.now(MOSCOW_TZ) - timedelta(days=1))
+            )
+            result = await session.execute(stmt)
+            points = result.scalars().all()
+            point_sum = 0
+            for point in points:
+                point_sum += point.quantity
 
         await session.commit()
         return result_dict
