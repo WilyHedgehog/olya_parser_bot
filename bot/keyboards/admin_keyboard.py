@@ -467,7 +467,7 @@ async def get_vacancy_url_kb(vacancy_id: str) -> InlineKeyboardMarkup:
         )
         return builder.as_markup()
     else:
-        url = f"https://t.me/c/{str(config.bot.wacancy_chat_id)[4:]}/{vacancy.admin_chat_url}"
+        url = f"https://t.me/c/{str(config.bot.chat_id)[4:]}/{vacancy.admin_chat_url}"
         builder.row(
             InlineKeyboardButton(
                 text="Ссылка на вакансию в админ-чате", url=url,
