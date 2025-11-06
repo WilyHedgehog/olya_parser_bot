@@ -462,9 +462,13 @@ async def mark_vacancy_as_sent(user_id: int, vacancy_id: str):
 
 async def mark_vacancy_as_sent_queue(user_id: int, vacancy_id):
     async with Sessionmaker() as session:
+        stmt = select(Vacancy).where(Vacancy.id == vacancy_id)
+        result = await session.execute(stmt)
+        main_vacancy = result.scalar_one_or_none()
+        
         result = await session.execute(
             select(VacancyQueue).where(
-                VacancyQueue.user_id == user_id, VacancyQueue.profession_id == vacancy_id
+                VacancyQueue.user_id == user_id, VacancyQueue.text == main_vacancy.text
             )
         )
         vacancy = result.scalar_one_or_none()

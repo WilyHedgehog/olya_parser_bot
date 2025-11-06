@@ -50,12 +50,10 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None, msg_type=None) 
         # vacancy_url = main_vacancy.url
         vacancy_id = main_vacancy.id
         author = main_vacancy.vacancy_source
-        forwarded = main_vacancy.forwarding_source
     else:
         # vacancy_url = vacancy.url
         vacancy_id = vacancy.id
         author = vacancy.vacancy_source
-        forwarded = vacancy.forwarding_source
 
     text = LEXICON_PARSER["msg_for_user"].format(
         author=author if author else "Не указан",
