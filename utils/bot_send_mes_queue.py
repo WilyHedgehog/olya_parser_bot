@@ -97,10 +97,10 @@ async def bot_send_messages_worker(js):
                         )
                         if flag == "queue":
                             logger.info(f"🥰")
-                            await mark_vacancy_as_sent_queue(chat_id, message)
+                            await mark_vacancy_as_sent_queue(chat_id, vacancy_id)
                             logger.info(f"😇")
                         elif flag == "two_hours":
-                            await mark_vacancies_as_sent_two_hours(chat_id, message)
+                            await mark_vacancies_as_sent_two_hours(chat_id, vacancy_id)
                             
                     success = True
 

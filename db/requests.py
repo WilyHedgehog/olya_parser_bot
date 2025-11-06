@@ -460,11 +460,11 @@ async def mark_vacancy_as_sent(user_id: int, vacancy_id: str):
 
 
 
-async def mark_vacancy_as_sent_queue(user_id: int, vacancy_text: str):
+async def mark_vacancy_as_sent_queue(user_id: int, vacancy_id):
     async with Sessionmaker() as session:
         result = await session.execute(
             select(VacancyQueue).where(
-                VacancyQueue.user_id == user_id, VacancyQueue.text == vacancy_text
+                VacancyQueue.user_id == user_id, VacancyQueue.profession_id == vacancy_id
             )
         )
         vacancy = result.scalar_one_or_none()
@@ -472,15 +472,15 @@ async def mark_vacancy_as_sent_queue(user_id: int, vacancy_text: str):
             vacancy.is_sent = True
             await session.commit()
         else:
-            logger.error(f"Vacancy with text {vacancy_text} not found for user {user_id}")
+            logger.error(f"Vacancy with text {vacancy_id} not found for user {user_id}")
             await session.rollback()
 
 
-async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_text: str):
+async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_id):
     async with Sessionmaker() as session:
         result = await session.execute(
             select(VacancyTwoHours).where(
-                VacancyTwoHours.user_id == user_id, VacancyTwoHours.text == vacancy_text
+                VacancyTwoHours.user_id == user_id, VacancyTwoHours.profession_id == vacancy_id
             )
         )
         vacancy = result.scalar_one_or_none()
@@ -488,7 +488,7 @@ async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_text: str):
             vacancy.is_sent = True
             await session.commit()
         else:
-            logger.error(f"Vacancy with text {vacancy_text} not found for user {user_id}")
+            logger.error(f"Vacancy with text {vacancy_id} not found for user {user_id}")
             await session.rollback()
 
 
