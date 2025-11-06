@@ -55,7 +55,7 @@ async def bot_send_messages_worker(js):
                     photo_id = None
 
                 if flag in ["queue", "two_hours", "vacancy"]:
-                    print("📨 Отправка вакансии пользователю:", chat_id)
+                    logger.info("📨 Отправка вакансии пользователю:", chat_id)
                     vacancy_id = UUID(data.get("vacancy_id"))
                     reply_markup = await get_need_author_kb(str(vacancy_id))
                     
@@ -64,9 +64,9 @@ async def bot_send_messages_worker(js):
                     if not await dublicate_check(chat_id, vacancy):
                         success = True
                         await msg.ack()
-                        print("⏭  Skip duplicate vacancy for user:", chat_id)
+                        logger.info("⏭  Skip duplicate vacancy for user:", chat_id)
                         if flag == "two_hours":
-                            await mark_vacancies_as_sent_two_hours(chat_id, [vacancy_id])
+                            await mark_vacancies_as_sent_two_hours(chat_id, vacancy_id)
                         elif flag == "queue":
                             await mark_vacancy_as_sent_queue(chat_id, vacancy_id)
                         continue  # Уже отправляли такую вакансию этому пользователю

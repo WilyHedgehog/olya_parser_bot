@@ -196,9 +196,9 @@ async def change_delivery_mode(
     if mode == user_mode:
         return
 
-    if mode == "two_hours":
-        await callback.answer("Режим скоро будет доступен", show_alert=True)
-        return
+    #if mode == "two_hours":
+    #    await callback.answer("Режим скоро будет доступен", show_alert=True)
+    #    return
 
     # Сохраняем новый режим в базе
     await update_delivery_mode(session, callback.from_user.id, mode)

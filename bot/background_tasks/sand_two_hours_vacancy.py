@@ -1,17 +1,11 @@
 # bot/background_tasks/dunning.py
-from datetime import datetime, timedelta
 from .broker import broker, schedule_source
-from db.crud import (
-    delete_old_vacancie_button,
-    delete_old_vacancie_list,
-    delete_old_vacancie_sent,
-    delete_old_vacancie_two_hours,
-)
 from db.requests import select_two_hours_users
 from utils.bot_utils import send_message
 from zoneinfo import ZoneInfo
 from logging import getLogger
 from ..keyboards.admin_keyboard import cancel_task_kb
+from find_job_process.job_dispatcher import send_two_hours_vacancies
 
 logger = getLogger(__name__)
 

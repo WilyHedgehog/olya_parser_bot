@@ -8,6 +8,7 @@ from bot.background_tasks.dunning import schedule_dunning, cancel_dunning_tasks
 from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from bot.background_tasks.delete_old_vacancy import schedule_vacancy_clear
+from bot.background_tasks.sand_two_hours_vacancy import schedule_sand_two_hours
 from google_logs.google_log import worksheet_append_row
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -946,6 +947,17 @@ async def show_background_tasks(callback: CallbackQuery):
 @router.callback_query(IsAdminFilter(), F.data == "autodelete_vacancy")
 async def autodelete_vacancy(callback: CallbackQuery):
     await schedule_vacancy_clear()
+    text = "Фоновая задача запущена\n\n"
+    await callback.message.edit_text(
+        text,
+        reply_markup=back_to_admin_main_kb
+    )
+    await callback.answer()
+    
+    
+@router.callback_query(IsAdminFilter(), F.data == "two_hours_send_vacancy")
+async def two_hours_send_vacancy(callback: CallbackQuery):
+    await schedule_sand_two_hours()
     text = "Фоновая задача запущена\n\n"
     await callback.message.edit_text(
         text,

@@ -128,6 +128,7 @@ def mailing_settings_keyboard() -> InlineKeyboardMarkup:
 def background_tasks_start_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="Автоудаление вакансий", callback_data="autodelete_vacancy"))
+    builder.row(InlineKeyboardButton(text="Рассылка раз в 2 часа", callback_data="two_hours_send_vacancy"))
     builder.row(button_divider)
     builder.row(back_to_admin_main)
     return builder.as_markup()
