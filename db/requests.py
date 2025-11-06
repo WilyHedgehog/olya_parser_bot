@@ -1217,6 +1217,7 @@ async def get_vac_points():
             point_sum = 0
             for point in points:
                 point_sum += point.quantity
+            result_dict[profession.name] = point_sum
 
         await session.commit()
         return result_dict
