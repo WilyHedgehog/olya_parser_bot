@@ -39,7 +39,7 @@ from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 
 
 # --- 2. Отправка вакансии пользователю ---
-async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
+async def send_vacancy(user_id: int, vacancy: Vacancy, url=None, msg_type=None) -> bool:
     #print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
     if not await dublicate_check(user_id, vacancy):
         return False  # Уже отправляли такую вакансию этому пользователю
@@ -62,7 +62,12 @@ async def send_vacancy(user_id: int, vacancy: Vacancy, url=None) -> bool:
         vacancy_text=vacancy.text,
     )
 
-    flag = "vacancy"
+    if msg_type == None:
+        flag = "vacancy"
+    elif msg_type == "queue":
+        flag = "queue"
+    elif msg_type == "two_hours":
+        flag = "two_hours"
 
     try:
         nc, js = await get_nats_connection()
@@ -98,7 +103,7 @@ async def send_vacancy_to_users(vacancy_id: UUID):
     now_msk = datetime.now(TZ_MOSCOW)
 
     for user in users:
-        print("👤 Проверка пользователя:", user.telegram_id)
+        #print("👤 Проверка пользователя:", user.telegram_id)
         # Приводим subscription_until к aware datetime
         if user.subscription_until is None:
             logger.info(f"User {user.telegram_id} subscription expired, skipping.")
@@ -116,7 +121,7 @@ async def send_vacancy_to_users(vacancy_id: UUID):
             continue
 
         if user.delivery_mode == "instant":
-            print("🚀 Instant delivery for user:", user.telegram_id)
+            #print("🚀 Instant delivery for user:", user.telegram_id)
             await send_vacancy(user.telegram_id, vacancy)
         elif user.delivery_mode == "two_hours":
             await add_to_two_hours(
@@ -125,7 +130,7 @@ async def send_vacancy_to_users(vacancy_id: UUID):
                 user_id=user.telegram_id,
             )
         elif user.delivery_mode == "button_click":
-            print("⏳ Button click delivery for user:", user.telegram_id)
+            #print("⏳ Button click delivery for user:", user.telegram_id)
             await add_to_vacancy_queue(
                 text=vacancy.text,
                 user_id=user.telegram_id,
@@ -142,10 +147,6 @@ async def send_vacancy_to_users(vacancy_id: UUID):
             )
 
 
-# --- 5. Отложенная отправка для two_hours ---
-async def send_delayed_vacancy(user_id: int, vacancy: Vacancy):
-    await send_vacancy(user_id, vacancy)
-
 
 # --- 6. Отправка по кнопке (button_click) ---
 async def send_vacancy_from_queue(user_id: int):
@@ -154,14 +155,12 @@ async def send_vacancy_from_queue(user_id: int):
         await bot.send_message(user_id, "Нет накопленных вакансий.")
         logger.info(f"No queued vacancies for user {user_id}.")
         return
-    print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
+    #print("🔔 Подготовка к отправке вакансии пользователю:", user_id)
     for item in result:
-        print(f"🎃 Отправка вакансии {item.id} пользователю:", user_id)
-        sent = await send_vacancy(
-            user_id, item, url=True
-        )  # True, если реально отправили
-        if sent:
-            await mark_vacancy_as_sent(user_id, item.id)
+        #print(f"🎃 Отправка вакансии {item.id} пользователю:", user_id)
+        await send_vacancy(
+            user_id, item, url=True, msg_type="queue"
+        )
 
 
 async def send_two_hours_vacancies():
@@ -179,16 +178,3 @@ async def send_two_hours_vacancies():
 
         await mark_vacancies_as_sent_two_hours(user.telegram_id, sent_ids)
         logger.info(f"All two_hours vacancies sent to user {user.telegram_id}.")
-
-
-# --- 8. Планировщик для регулярной очистки ---
-def start_cleanup_scheduler(interval_hours: int = 24):
-    scheduler.add_job(
-        cleanup_old_data,
-        trigger="interval",
-        hours=interval_hours,
-        coalesce=True,
-        max_instances=1,
-        misfire_grace_time=60,
-    )
-    logger.info("Cleanup scheduler started.")

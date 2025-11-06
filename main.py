@@ -125,7 +125,6 @@ def create_app(config: Config) -> FastAPI:
         start_all_schedulers()
         logger.info("Scheduler started")
 
-        # start_scheduler_two_hours_vacancy_send()
         logger.info("Two hours vacancy scheduler started")
 
         # Запускаем воркер для обработки вакансий

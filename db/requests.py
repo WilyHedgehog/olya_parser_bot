@@ -274,7 +274,7 @@ async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode |
 
 async def set_new_days(mail: str, days: int):
     async with Sessionmaker() as session:
-        stmt = select(User).where(User.mail == mail)
+        stmt = select(User).where(func.lower(User.mail) == mail.lower())
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
 
@@ -459,17 +459,37 @@ async def mark_vacancy_as_sent(user_id: int, vacancy_id: str):
             await session.commit()
 
 
-async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_ids: list[str]):
+
+async def mark_vacancy_as_sent_queue(user_id: int, vacancy_text: str):
+    async with Sessionmaker() as session:
+        result = await session.execute(
+            select(VacancyQueue).where(
+                VacancyQueue.user_id == user_id, VacancyQueue.text == vacancy_text
+            )
+        )
+        vacancy = result.scalar_one_or_none()
+        if vacancy:
+            vacancy.is_sent = True
+            await session.commit()
+        else:
+            logger.error(f"Vacancy with text {vacancy_text} not found for user {user_id}")
+            await session.rollback()
+
+
+async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_text: str):
     async with Sessionmaker() as session:
         result = await session.execute(
             select(VacancyTwoHours).where(
-                VacancyTwoHours.user_id == user_id, VacancyTwoHours.id.in_(vacancy_ids)
+                VacancyTwoHours.user_id == user_id, VacancyTwoHours.text == vacancy_text
             )
         )
-        vacancies = result.scalars().all()
-        for v in vacancies:
-            v.is_sent = True
-        await session.commit()
+        vacancy = result.scalar_one_or_none()
+        if vacancy:
+            vacancy.is_sent = True
+            await session.commit()
+        else:
+            logger.error(f"Vacancy with text {vacancy_text} not found for user {user_id}")
+            await session.rollback()
 
 
 async def get_users_by_profession(profession_id: UUID) -> list[User]:
@@ -684,14 +704,15 @@ async def get_vacancy_by_id(vacancy_id: UUID) -> Vacancy | None:
         vacancy = await session.get(Vacancy, vacancy_id)
         await session.commit()
         return vacancy
-    
-    
-async def return_vacancy_by_id(vacancy_id: UUID, session: AsyncSession) -> Vacancy | None:
+
+
+async def return_vacancy_by_id(
+    vacancy_id: UUID, session: AsyncSession
+) -> Vacancy | None:
     stmt = select(Vacancy).where(Vacancy.id == vacancy_id)
     result = await session.execute(stmt)
     vacancy = result.scalar_one_or_none()
     return vacancy
-
 
 
 async def load_stopwords():
@@ -800,6 +821,7 @@ async def return_profession_by_id(session: AsyncSession, profession_id):
     result = await session.execute(stmt)
     await session.commit()
     return result.scalar_one()
+
 
 async def get_profession_by_id(profession_id: int) -> Profession | None:
     async with Sessionmaker() as session:
@@ -996,10 +1018,16 @@ async def select_two_hours_users() -> list[User]:
     async with Sessionmaker() as session:
         result = await session.execute(
             select(User).where(
-                User.is_banned == False, User.delivery_mode == "two_hours"
+                User.is_banned == False,
+                User.delivery_mode == "two_hours",
+                User.subscription_until > datetime.now(MOSCOW_TZ),
             )
         )
-        return result.scalars().all()
+        users = result.scalars().all()
+        # создаем список id пользователей
+        user_ids = [user.telegram_id for user in users]
+        await session.commit()
+        return user_ids
 
 
 async def check_user_has_active_subscription(telegram_id: int) -> bool:
@@ -1043,7 +1071,6 @@ async def save_support_message(
         return False
 
 
-
 async def get_user_by_admin_chat_message_id(
     admin_chat_message_id: int,
 ) -> SupportMessage | None:
@@ -1070,8 +1097,8 @@ async def get_admins_list() -> list[Admins]:
         except Exception as e:
             logger.error(f"Failed to get admins list: {e}")
             return []
-        
-        
+
+
 async def is_super_admin(telegram_id: int) -> bool:
     async with Sessionmaker() as session:
         stmt = select(Admins).where(
@@ -1086,21 +1113,27 @@ async def is_super_admin(telegram_id: int) -> bool:
         except Exception as e:
             logger.error(f"Failed to check super admin status for {telegram_id}: {e}")
             return False
-        
-        
+
+
 async def add_to_admins(telegram_id: int) -> bool:
     async with Sessionmaker() as session:
         try:
             user = await session.get(User, telegram_id)
             if not user:
-                logger.error(f"User with telegram_id {telegram_id} not found for admin add")
+                logger.error(
+                    f"User with telegram_id {telegram_id} not found for admin add"
+                )
                 return False
             full_name = user.first_name
         except Exception as e:
             logger.error(f"Error fetching user {telegram_id} for admin add: {e}")
             return False
-        stmt = upsert(Admins).values(telegram_id=telegram_id, is_admin=True, full_name=full_name)
-        stmt = stmt.on_conflict_do_nothing(index_elements=["telegram_id"])  # чтобы не дублировать
+        stmt = upsert(Admins).values(
+            telegram_id=telegram_id, is_admin=True, full_name=full_name
+        )
+        stmt = stmt.on_conflict_do_nothing(
+            index_elements=["telegram_id"]
+        )  # чтобы не дублировать
         try:
             await session.execute(stmt)
             await session.commit()
@@ -1108,31 +1141,33 @@ async def add_to_admins(telegram_id: int) -> bool:
         except Exception as e:
             logger.error(f"Error adding admin '{telegram_id}': {e}")
             return False
-        
-        
+
+
 async def remove_from_admins(telegram_id: int) -> bool:
     async with Sessionmaker() as session:
         stmt = delete(Admins).where(Admins.telegram_id == telegram_id)
         try:
             result = await session.execute(stmt)
             if result.rowcount == 0:
-                logger.warning(f"Admin with telegram_id {telegram_id} not found for removal")
+                logger.warning(
+                    f"Admin with telegram_id {telegram_id} not found for removal"
+                )
                 return False
             await session.commit()
             return True
         except Exception as e:
             logger.error(f"Error removing admin '{telegram_id}': {e}")
             return False
-        
-        
+
+
 async def save_in_trash(text, hash) -> bool:
     async with Sessionmaker() as session:
         trash = Trash(text=text, hash=hash)
         session.add(trash)
         await session.commit()
         return True
-    
-    
+
+
 async def is_in_trash(hash) -> bool:
     async with Sessionmaker() as session:
         stmt = select(Trash).where(Trash.hash == hash)
@@ -1142,15 +1177,15 @@ async def is_in_trash(hash) -> bool:
             return True
         else:
             return False
-        
-        
+
+
 async def add_vac_point(vacancy_name):
     async with Sessionmaker() as session:
         point = VacancyStat(quantity=1, profession_name=vacancy_name)
         session.add(point)
         await session.commit()
-        
-        
+
+
 async def get_vac_points():
     async with Sessionmaker() as session:
         stmt = select(Profession)
@@ -1158,13 +1193,15 @@ async def get_vac_points():
         professions = result.scalars().all()
         result_dict = {}
         for profession in professions:
-            stmt = select(VacancyStat).where(VacancyStat.profession_name == profession.name)
+            stmt = select(VacancyStat).where(
+                VacancyStat.profession_name == profession.name
+            )
             result = await session.execute(stmt)
             points = result.scalars().all()
             point_sum = 0
             for point in points:
                 point_sum += point.quantity
             result_dict[profession.name] = point_sum
-        
+
         await session.commit()
         return result_dict

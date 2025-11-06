@@ -3,7 +3,7 @@ import logging
 import asyncio
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 from utils.bot_utils import send_message, send_photo
-from db.requests import record_vacancy_sent, get_vacancy_by_id, dublicate_check
+from db.requests import record_vacancy_sent, get_vacancy_by_id, dublicate_check, mark_vacancies_as_sent_two_hours, mark_vacancy_as_sent_queue
 from bot.keyboards.user_keyboard import get_need_author_kb
 from uuid import UUID
 from aiogram.types import InlineKeyboardMarkup
@@ -54,7 +54,7 @@ async def bot_send_messages_worker(js):
                 except KeyError:
                     photo_id = None
 
-                if flag == "vacancy":
+                if flag in ["queue", "two_hours", "vacancy"]:
                     print("📨 Отправка вакансии пользователю:", chat_id)
                     vacancy_id = UUID(data.get("vacancy_id"))
                     reply_markup = await get_need_author_kb(str(vacancy_id))
@@ -85,16 +85,21 @@ async def bot_send_messages_worker(js):
                             reply_markup=reply_markup,
                         )
                     else:
-                        message = await send_message(
+                        message_sent = await send_message(
                             chat_id=chat_id, text=clean_message, reply_markup=reply_markup
                         )
 
-                    if flag == "vacancy" and message:
+                    if flag in ["queue", "two_hours", "vacancy"] and message_sent:
                         await record_vacancy_sent(
                             user_id=chat_id,
                             vacancy_id=vacancy_id,
-                            message_id=message.message_id,
+                            message_id=message_sent.message_id,
                         )
+                        if flag == "queue":
+                            await mark_vacancy_as_sent_queue(chat_id, message)
+                        elif flag == "two_hours":
+                            await mark_vacancies_as_sent_two_hours(chat_id, message)
+                            
                     success = True
 
                 except TelegramRetryAfter as e:
