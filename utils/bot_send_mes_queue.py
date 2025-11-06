@@ -96,7 +96,9 @@ async def bot_send_messages_worker(js):
                             message_id=message_sent.message_id,
                         )
                         if flag == "queue":
+                            logger.info(f"🥰")
                             await mark_vacancy_as_sent_queue(chat_id, message)
+                            logger.info(f"😇")
                         elif flag == "two_hours":
                             await mark_vacancies_as_sent_two_hours(chat_id, message)
                             
@@ -133,7 +135,7 @@ async def bot_send_messages_worker(js):
                     await msg.nak()
 
                 # Подтверждаем обработку сообщения
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
             except Exception as e:
                 logger.error(f"Ошибка при обработке сообщения: {e}")
                 await msg.ack()
