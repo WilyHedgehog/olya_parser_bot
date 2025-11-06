@@ -15,7 +15,9 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 @broker.task
 async def sand_two_hours_vacancy(scheduled_task_id: str):
     try:
+        logger.info("🔹 sand_two_hours_vacancy стартовала")
         await select_two_hours_users()
+        logger.info("✅ sand_two_hours_vacancy завершена")
     except Exception as e:
         logger.error(e)
         

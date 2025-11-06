@@ -165,12 +165,16 @@ async def send_vacancy_from_queue(user_id: int):
 
 
 async def send_two_hours_vacancies():
-    users_ids = select_two_hours_users()
-    for user_id in users_ids:
-        result = await get_two_hours_vacancies_by_user(user_id)
-        if not result:
-            logger.info("No two_hours vacancies to send.")
-            return
+    try:
+        users_ids = select_two_hours_users()
+        for user_id in users_ids:
+            result = await get_two_hours_vacancies_by_user(user_id)
+            if not result:
+                logger.info("No two_hours vacancies to send.")
+                return
 
-        for item in result:
-            await send_vacancy(user_id, item, msg_type="two_hours", url=True)
+            for item in result:
+                await send_vacancy(user_id, item, msg_type="two_hours", url=True)
+
+    except Exception as e:
+        logger.error(f"Error sending two_hours vacancies: {e}")
