@@ -191,6 +191,7 @@ async def change_delivery_mode(
     user_mode = data.get("delivery_mode")  # текущий сохранённый режим
 
     mode = callback.data.split("_", 1)[1]
+    logger.info(f"User {callback.from_user.id} changed delivery mode to {mode}🍏")
 
     # Если нажали на уже выбранный режим
     if mode == user_mode:

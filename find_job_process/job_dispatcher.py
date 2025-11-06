@@ -122,6 +122,9 @@ async def send_vacancy_to_users(vacancy_id: UUID):
             #print("🚀 Instant delivery for user:", user.telegram_id)
             await send_vacancy(user.telegram_id, vacancy)
         elif user.delivery_mode == "two_hours":
+            logger.info(
+                f"User {user.telegram_id} is using two hours mode🍎"
+            )
             await add_to_two_hours(
                 text=vacancy.text,
                 profession_id=vacancy.profession_id,
