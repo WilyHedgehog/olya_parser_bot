@@ -967,6 +967,6 @@ async def two_hours_send_vacancy(callback: CallbackQuery):
     await callback.answer()
     
 
-@router.message(Command["hh"], IsAdminFilter())
+@router.message(Command("hh"), IsAdminFilter())
 async def start_hh(message: Message):
     await hh_parser()
