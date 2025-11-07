@@ -162,7 +162,7 @@ async def start_cmd_existing_user(message: Message, state: FSMContext, session: 
     
     try:
         data = await state.get_data()
-        user_delivery_mode = data.get("delivery_mode")
+        user_delivery_mode = data.get("user_delivery_mode")
         await update_delivery_mode(session, message.from_user.id, user_delivery_mode)
     except Exception as e:
         logger.error(f"Error updating delivery mode for user {message.from_user.id}: {e}")  
