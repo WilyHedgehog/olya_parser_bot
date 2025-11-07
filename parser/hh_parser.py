@@ -10,7 +10,7 @@ async def hh_parser():
     prof_names = ["технический специалист"]
 
     for prof in prof_names:
-        vacancy = await get_hh_data(prof)
+        vacancy = get_hh_data(prof)
         
         name = vacancy.get("name", "Без названия")
         company = vacancy.get("employer", {}).get("name", "Компания не указана")
