@@ -10,6 +10,7 @@ from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from bot.background_tasks.delete_old_vacancy import schedule_vacancy_clear
 from bot.background_tasks.sand_two_hours_vacancy import schedule_sand_two_hours
 from google_logs.google_log import worksheet_append_row
+from parser.hh_parser import hh_parser
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from bot.keyboards.admin_keyboard import (
@@ -964,3 +965,8 @@ async def two_hours_send_vacancy(callback: CallbackQuery):
         reply_markup=back_to_admin_main_kb
     )
     await callback.answer()
+    
+
+@router.message(Command["hh"], IsAdminFilter())
+async def start_hh(message: Message):
+    await hh_parser()
