@@ -7,7 +7,7 @@ async def hh_parser():
     #professions = await get_all_professions_parser()
 
     #prof_names = [item["name"] for item in professions]
-    prof_names = ["технический специалист"]
+    prof_names = ["технический специалист онлайн школы"]
 
     for prof in prof_names:
         vacancies = get_hh_vacancies(prof)
@@ -43,7 +43,7 @@ def get_hh_vacancies(prof, per_page=10):
     """Возвращает список вакансий для профессии по всей России"""
     url = "https://api.hh.ru/vacancies"
     params = {
-        "text": prof,
+        "text": f"NAME:({prof})",
         "area": 113,  # вся Россия
         "order_by": "publication_time",
         "per_page": per_page
