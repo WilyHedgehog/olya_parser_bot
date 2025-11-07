@@ -10,48 +10,45 @@ async def hh_parser():
     prof_names = ["технический специалист"]
 
     for prof in prof_names:
-        vacancy = get_hh_data(prof)
+        vacancies = get_hh_vacancies(prof)
         
-        name = vacancy.get("name", "Без названия")
-        company = vacancy.get("employer", {}).get("name", "Компания не указана")
-        city = vacancy.get("area", {}).get("name", "Регион не указан")
-        salary = vacancy.get("salary")
-        if salary:
-            salary_text = f"{salary.get('from', '') or ''}–{salary.get('to', '') or ''} {salary.get('currency', '')}"
-        else:
-            salary_text = "Не указана"
-        
-        description = vacancy.get("description", "")
-        requirement = vacancy.get("snippet", {}).get("requirement", "")
-        responsibility = vacancy.get("snippet", {}).get("responsibility", "")
-        link = vacancy.get("alternate_url", "")
-        
-        formatted = (
-            f"📌 *{name}*\n"
-            f"🏢 {company}\n"
-            f"📍 {city}\n"
-            f"💰 Зарплата: {salary_text}\n\n"
-            f"🧠 Требования: {requirement}\n"
-            f"💼 Обязанности: {responsibility}\n\n"
-            f"🔗 [Открыть вакансию]({link})"
-        )
-        
-        await send_message(1058760541, formatted)
-        
+        for vac in vacancies:
+            name = vac.get("name", "Без названия")
+            company = vac.get("employer", {}).get("name", "Компания не указана")
+            city = vac.get("area", {}).get("name", "Регион не указан")
+            salary = vac.get("salary")
+            if salary:
+                salary_text = f"{salary.get('from', '') or ''}–{salary.get('to', '') or ''} {salary.get('currency', '')}"
+            else:
+                salary_text = "Не указана"
+
+            requirement = vac.get("snippet", {}).get("requirement", "")
+            responsibility = vac.get("snippet", {}).get("responsibility", "")
+            link = vac.get("alternate_url", "")
+
+            formatted = (
+                f"📌 *{name}*\n"
+                f"🏢 {company}\n"
+                f"📍 {city}\n"
+                f"💰 Зарплата: {salary_text}\n\n"
+                f"🧠 Требования: {requirement}\n"
+                f"💼 Обязанности: {responsibility}\n\n"
+                f"🔗 [Открыть вакансию]({link})"
+            )
+
+            await send_message(1058760541, formatted)
         
 
-    
-    
-def get_hh_data(prof):
+def get_hh_vacancies(prof, per_page=10):
+    """Возвращает список вакансий для профессии по всей России"""
     url = "https://api.hh.ru/vacancies"
     params = {
-        "text": f"{prof}",
+        "text": prof,
         "area": 113,  # вся Россия
         "order_by": "publication_time",
-        "per_page": 10
+        "per_page": per_page
     }
-
     response = requests.get(url, params=params)
     data = response.json()
-    return data
+    return data.get("items", [])  # список вакансий
 
