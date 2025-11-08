@@ -9,10 +9,10 @@ logger = getLogger(__name__)
 
 
 async def hh_parser():
-    #professions = await get_all_professions_parser()
+    professions = await get_all_professions_parser()
 
-    #prof_names = [item["name"] for item in professions]
-    prof_names = ["Технический специалист онлайн-школ"]
+    prof_names = [item["name"] for item in professions]
+    #prof_names = ["Технический специалист онлайн-школ"]
 
     for prof in prof_names:
         vacancies = get_hh_vacancies(prof)
@@ -20,7 +20,6 @@ async def hh_parser():
         for vac in vacancies:
             name = vac.get("name", "Без названия")
             company = vac.get("employer", {}).get("name", "Компания не указана")
-            city = vac.get("area", {}).get("name", "Регион не указан")
             salary = vac.get("salary")
             if salary:
                 salary_text = f"{salary.get('from', '') or ''}–{salary.get('to', '') or ''} {salary.get('currency', '')}"
@@ -33,8 +32,7 @@ async def hh_parser():
             flag = prof
             formatted = (
                 f"📌 *{name}*\n"
-                f"🏢 {company}\n"
-                f"📍 {city}\n"
+                f"🏢 Компание: {company}\n"
                 f"💰 Зарплата: {salary_text}\n\n"
                 f"🧠 Требования: {requirement}\n"
                 f"💼 Обязанности: {responsibility}\n\n"
