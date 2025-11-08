@@ -29,7 +29,7 @@ async def vacancy_worker(js):
                 payload_data = data.get("payload")
                 
                 if payload_data:
-                    payload = MessagePayload.model_validate(payload_data)
+                    payload = MessagePayload.model_validate_json(msg.data.decode())
                     logger.info(f"📥 Получена задача на обработку сообщения {payload.id} из чата {payload.chat_id}")
                     await process_message(payload=payload)
                     await msg.ack()
