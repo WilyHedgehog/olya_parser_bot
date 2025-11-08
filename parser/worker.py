@@ -10,40 +10,60 @@ MAX_RETRIES = 3  # Максимальное количество попыток 
 logger = logging.getLogger(__name__)
 
 async def vacancy_worker(js):
-    sub = await js.pull_subscribe("vacancy.queue", durable="vacancy_worker")
-    logger.info("🚀 Воркер запущен и слушает очередь 'vacancy.queue'")
+    # Подписки на очереди
+    sub_tg = await js.pull_subscribe("vacancy.queue", durable="vacancy_worker")
+    sub_hh = await js.pull_subscribe("hh.vacancy.queue", durable="hh_vacancy_worker")
+
+    logger.info("🚀 Воркер запущен и слушает очереди 'vacancy.queue' и 'hh.vacancy.queue'")
 
     while True:
+        # --- Telegram-сообщения ---
         try:
-            msgs = await sub.fetch(1, timeout=5)
+            msgs_tg = await sub_tg.fetch(1, timeout=5)
         except Exception:
-            continue  # ничего нет, ждём дальше
+            msgs_tg = []
 
-        for msg in msgs:
+        for msg in msgs_tg:
             try:
-                flag = msg.headers.get("flag") if msg.headers else "Обычное сообщение"
+                data = json.loads(msg.data.decode())
+                payload_data = data.get("payload")
                 
-                if flag == "Обычное сообщение":
-                    # --- ✅ Декодируем и валидируем payload ---
-                    payload = MessagePayload.model_validate_json(msg.data.decode())
+                if payload_data:
+                    payload = MessagePayload.model_validate(payload_data)
                     logger.info(f"📥 Получена задача на обработку сообщения {payload.id} из чата {payload.chat_id}")
-
-                    # --- ✅ Обрабатываем сообщение напрямую ---
-                    await process_message(payload)
-
-                    # --- ✅ Подтверждаем задачу ---
+                    await process_message(payload=payload)
                     await msg.ack()
-                    logger.info(f"✅ Задача успешно выполнена: message_id={payload.id}")
+                    logger.info(f"✅ Telegram-сообщение обработано: message_id={payload.id}")
                 else:
-                    hh_message_data = msg.data.decode()
-                    logger.info(f"📥 Получена задача на обработку сообщения из чата HH")
-                    
-                    await process_message(hh_message=hh_message_data, flag=flag)
-                    
+                    logger.warning("⚠️ Пустой payload в Telegram-сообщении, пропускаем")
                     await msg.ack()
-                    logger.info(f"✅ Задача c HH успешно выполнена")
 
             except Exception as e:
-                logger.error(f"❌ Ошибка обработки задачи: {e}")
-                await msg.ack()
-        #await asyncio.sleep(0.5)  # Небольшая пауза между задачами
+                logger.error(f"❌ Ошибка обработки Telegram-сообщения: {e}")
+                await msg.nack()
+
+        # --- HH-вакансии ---
+        try:
+            msgs_hh = await sub_hh.fetch(1, timeout=5)
+        except Exception:
+            msgs_hh = []
+
+        for msg in msgs_hh:
+            try:
+                data = json.loads(msg.data.decode())
+                hh_message = data.get("message")
+
+                if hh_message:
+                    logger.info("📥 Получена HH-вакансия")
+                    await process_message(hh_message=hh_message)
+                    await msg.ack()
+                    logger.info("✅ HH-вакансия успешно обработана")
+                else:
+                    logger.warning("⚠️ Пустое сообщение HH, пропускаем")
+                    await msg.ack()
+
+            except Exception as e:
+                logger.error(f"❌ Ошибка обработки HH-вакансии: {e}")
+                await msg.nack()
+
+        await asyncio.sleep(0.5)  # небольшая пауза между циклами

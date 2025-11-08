@@ -48,7 +48,7 @@ async def hh_parser():
                 return
             
             try:
-                await js.publish("vacancy.queue", formatted.encode(), headers={"flag": str(prof)})
+                await js.publish("hh.vacancy.queue", formatted.encode())
                 logger.info(f"📤 Отправлена вакансия из HH по профессии '{prof}' в очередь")
             except Exception as e:
                 logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")

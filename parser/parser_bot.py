@@ -301,8 +301,6 @@ async def on_new_message(event):
     flag = "Технический специалист онлайн-школ" if event.chat_id == -1002962447175 else None
     if flag:
         logger.info(f"🔵 Сообщение из админчата, устанавливаем флаг: {flag}")
-    else:
-        flag = "Обычное сообщение"
 
     # Подключаемся к NATS
     try:
@@ -321,8 +319,7 @@ async def on_new_message(event):
 
     # --- ✅ Публикация в NATS ---
     try:
-        logger.info(f"📥 Получено сообщение с флагом: {flag}")
-        await js.publish("vacancy.queue", json_data.encode(), headers={"flag": str(flag)})
+        await js.publish("vacancy.queue", json_data.encode())
         logger.info(f"📨 Задача добавлена в очередь (сообщение {payload.id})")
     except Exception as e:
         logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")

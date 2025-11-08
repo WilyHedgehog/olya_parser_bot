@@ -12,6 +12,7 @@ from utils.nats_connect import (
     setup_vacancy_stream,
     setup_tasks_stream,
     setup_bot_send_message_stream,
+    setup_hh_vacancy_stream,
 )
 from utils.bot_send_mes_queue import bot_send_messages_worker
 from storage.nats_storage import NatsStorage
@@ -131,6 +132,7 @@ def create_app(config: Config) -> FastAPI:
         await setup_vacancy_stream(js)
         await setup_tasks_stream(js)
         await setup_bot_send_message_stream(js)
+        await setup_hh_vacancy_stream(js)
         asyncio.create_task(vacancy_worker(js))
         asyncio.create_task(bot_send_messages_worker(js))
         logger.info("Vacancy worker started")
