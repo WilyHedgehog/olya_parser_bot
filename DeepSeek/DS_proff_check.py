@@ -49,7 +49,7 @@ system = """
 async def ai_proff_check(text: str, proff: str) -> str:
     async with semaphore: 
         try:
-            async def run_sync():
+            def run_sync():
                 response = client.chat.completions.create(
                     model="deepseek-chat",
                     messages=[
