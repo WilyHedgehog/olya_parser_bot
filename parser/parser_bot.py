@@ -321,6 +321,7 @@ async def on_new_message(event):
 
     # --- ✅ Публикация в NATS ---
     try:
+        logger.info(f"📥 Получено сообщение с флагом: {flag}")
         await js.publish("vacancy.queue", json_data.encode(), headers={"flag": str(flag)})
         logger.info(f"📨 Задача добавлена в очередь (сообщение {payload.id})")
     except Exception as e:

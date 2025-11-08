@@ -21,7 +21,7 @@ async def vacancy_worker(js):
 
         for msg in msgs:
             try:
-                flag = msg.headers.get("flag") if msg.headers else None
+                flag = msg.headers.get("flag") if msg.headers else "Обычное сообщение"
                 
                 if flag == "Обычное сообщение":
                     # --- ✅ Декодируем и валидируем payload ---
