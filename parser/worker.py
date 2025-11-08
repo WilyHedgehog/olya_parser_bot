@@ -45,5 +45,5 @@ async def vacancy_worker(js):
 
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки задачи: {e}")
-                await msg.nak()
+                await msg.ack()
         #await asyncio.sleep(0.5)  # Небольшая пауза между задачами
