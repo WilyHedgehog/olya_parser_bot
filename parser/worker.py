@@ -25,18 +25,11 @@ async def vacancy_worker(js):
 
         for msg in msgs_tg:
             try:
-                data = json.loads(msg.data.decode())
-                payload_data = data.get("payload")
-                
-                if payload_data:
-                    payload = MessagePayload.model_validate_json(msg.data.decode())
-                    logger.info(f"📥 Получена задача на обработку сообщения {payload.id} из чата {payload.chat_id}")
-                    await process_message(payload=payload)
-                    await msg.ack()
-                    logger.info(f"✅ Telegram-сообщение обработано: message_id={payload.id}")
-                else:
-                    logger.warning("⚠️ Пустой payload в Telegram-сообщении, пропускаем")
-                    await msg.ack()
+                payload = MessagePayload.model_validate_json(msg.data.decode())
+                logger.info(f"📥 Получена задача на обработку сообщения {payload.id} из чата {payload.chat_id}")
+                await process_message(payload=payload)
+                await msg.ack()
+                logger.info(f"✅ Telegram-сообщение обработано: message_id={payload.id}")
 
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки Telegram-сообщения: {e}")
