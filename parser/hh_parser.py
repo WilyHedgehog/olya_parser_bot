@@ -30,7 +30,7 @@ async def hh_parser():
             requirement = vac.get("snippet", {}).get("requirement", "")
             responsibility = vac.get("snippet", {}).get("responsibility", "")
             link = vac.get("alternate_url", "")
-
+            flag = prof
             formatted = (
                 f"📌 *{name}*\n"
                 f"🏢 {company}\n"

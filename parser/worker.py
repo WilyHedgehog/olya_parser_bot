@@ -33,7 +33,7 @@ async def vacancy_worker(js):
 
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки Telegram-сообщения: {e}")
-                await msg.nack()
+                await msg.nak()
 
         # --- HH-вакансии ---
         try:
@@ -57,6 +57,6 @@ async def vacancy_worker(js):
 
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки HH-вакансии: {e}")
-                await msg.nack()
+                await msg.ack()
 
         #await asyncio.sleep(0.5)  # небольшая пауза между циклами
