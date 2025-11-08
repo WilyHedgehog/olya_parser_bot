@@ -54,8 +54,6 @@ async def hh_parser():
                 logger.info(f"📤 Отправлена вакансия из HH по профессии '{prof}' в очередь")
             except Exception as e:
                 logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
-
-            await send_message(1058760541, formatted)
         
 
 def get_hh_vacancies(prof, per_page=10):
