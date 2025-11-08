@@ -218,6 +218,13 @@ async def process_message(payload: MessagePayload | None = None, hh_message: str
         
         found_proffs = [(flag, 3.0)]
         unique_proffs = {prof_name: score for prof_name, score in found_proffs}
+        html_text = message_text
+        original_link = "Вакансия с hh.ru"
+        link = "Вакансия с hh.ru"
+        payload.sender_name = "Вакансия с hh.ru"
+        payload.fwd_from = "Вакансия с hh.ru"
+        payload.sender_link = "Вакансия с hh.ru"
+        
 
     for_admin_prof = {}
     # 7. Сохраняем для каждой профессии
