@@ -32,7 +32,8 @@ from parser.parser_bot import main as parser_main
 
 from db.database import Sessionmaker
 from db.requests import set_new_days, update_user_is_pay_status, load_stopwords
-from parser.worker import vacancy_worker
+from parser.tg_worker import vacancy_worker
+from parser.hh_worker import hh_vacancy_worker
 
 from find_job_process.find_job import load_professions, load_stop_embeddings
 
@@ -134,6 +135,7 @@ def create_app(config: Config) -> FastAPI:
         await setup_bot_send_message_stream(js)
         await setup_hh_vacancy_stream(js)
         asyncio.create_task(vacancy_worker(js))
+        asyncio.create_task(hh_vacancy_worker(js))
         asyncio.create_task(bot_send_messages_worker(js))
         logger.info("Vacancy worker started")
         
