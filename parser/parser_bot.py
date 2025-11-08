@@ -208,7 +208,7 @@ async def process_message(payload: MessagePayload | None = None, hh_message: str
             logger.info(f"Сообщение пустое, пропускаем.")
             return
 
-        logger.info(f"Проверяем сообщение c HH с флаогом {flag}")
+        logger.info(f"Проверяем сообщение c HH с флагом {flag}")
 
         message_hash = hashlib.sha256(message_text.encode("utf-8")).hexdigest()
         

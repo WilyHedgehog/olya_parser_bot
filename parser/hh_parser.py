@@ -12,7 +12,7 @@ async def hh_parser():
     #professions = await get_all_professions_parser()
 
     #prof_names = [item["name"] for item in professions]
-    prof_names = ["технический специалист онлайн школы"]
+    prof_names = ["Технический специалист онлайн школы"]
 
     for prof in prof_names:
         vacancies = get_hh_vacancies(prof)
