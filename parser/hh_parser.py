@@ -58,7 +58,7 @@ async def hh_parser():
             await send_message(1058760541, formatted)
         
 
-def get_hh_vacancies(prof, per_page=1):
+def get_hh_vacancies(prof, per_page=10):
     """Возвращает список вакансий для профессии по всей России"""
     url = "https://api.hh.ru/vacancies"
     params = {
