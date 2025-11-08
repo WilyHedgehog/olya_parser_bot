@@ -194,7 +194,14 @@ async def process_message(payload: MessagePayload | None = None, hh_message: str
                 link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
                 logger.info(f"Вакансия переслана в канал: {link}")
             except Exception as e:
-                logger.error(f"Ошибка пересылки вакансии: {e}")         
+                logger.error(f"Ошибка пересылки вакансии: {e}")
+        sender_name = payload.sender_name if not payload.sender_username else f"@{payload.sender_username}",
+        fwd_info = payload.fwd_from or "Нет",
+        sender_link = (
+                    payload.sender_link
+                    if payload.sender_link and "ссылка недоступна" not in payload.sender_link.lower()
+                    else "Ссылка недоступна"
+                )
     else:       
         message_text = hh_message
         if not message_text:
@@ -221,9 +228,9 @@ async def process_message(payload: MessagePayload | None = None, hh_message: str
         html_text = message_text
         original_link = "Вакансия с hh.ru"
         link = "Вакансия с hh.ru"
-        payload.sender_name = "Вакансия с hh.ru"
-        payload.fwd_from = "Вакансия с hh.ru"
-        payload.sender_link = "Вакансия с hh.ru"
+        sender_name = "Вакансия с hh.ru"
+        fwd_info = "Вакансия с hh.ru"
+        sender_link = "Вакансия с hh.ru"
         
 
     for_admin_prof = {}
@@ -235,8 +242,8 @@ async def process_message(payload: MessagePayload | None = None, hh_message: str
             score=score,
             url=original_link,
             text_hash=message_hash,
-            vacancy_source=payload.sender_name if not payload.sender_username else f"@{payload.sender_username}",
-            forwarding_source=payload.fwd_from or "Нет",
+            vacancy_source=sender_name,
+            forwarding_source=fwd_info,
         )
         if vacancy_id:
             for_admin_prof[prof_name] = vacancy_id
@@ -255,15 +262,11 @@ async def process_message(payload: MessagePayload | None = None, hh_message: str
                 vacancy_id=vacancy_id,
                 score=score,
                 orig_vacancy_link=original_link,
-                source=payload.sender_name if not payload.sender_username else f"@{payload.sender_username}",
+                source=sender_name,
                 vacancy_link=link if link else "Закрытый чат",
-                fwd_info=payload.fwd_from or "Нет",
+                fwd_info=fwd_info,
                 vacancy_text=html_text,
-                sender_link = (
-                    payload.sender_link
-                    if payload.sender_link and "ссылка недоступна" not in payload.sender_link.lower()
-                    else "Ссылка недоступна"
-                )
+                sender_link = sender_link
             ),
             parse_mode="HTML",
             disable_web_page_preview=True,
