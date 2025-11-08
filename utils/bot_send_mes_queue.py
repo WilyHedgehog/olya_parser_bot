@@ -6,7 +6,6 @@ from utils.bot_utils import send_message, send_photo
 from db.requests import record_vacancy_sent, get_vacancy_by_id, dublicate_check, mark_vacancies_as_sent_two_hours, mark_vacancy_as_sent_queue
 from bot.keyboards.user_keyboard import get_need_author_kb
 from uuid import UUID
-from aiogram.types import InlineKeyboardMarkup
 
 logger = logging.getLogger(__name__)
 

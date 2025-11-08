@@ -21,16 +21,27 @@ async def vacancy_worker(js):
 
         for msg in msgs:
             try:
-                # --- ✅ Декодируем и валидируем payload ---
-                payload = MessagePayload.model_validate_json(msg.data.decode())
-                logger.info(f"📥 Получена задача на обработку сообщения {payload.id} из чата {payload.chat_id}")
+                flag = msg.headers.get("flag") if msg.headers else None
+                
+                if flag == "Обычное сообщение":
+                    # --- ✅ Декодируем и валидируем payload ---
+                    payload = MessagePayload.model_validate_json(msg.data.decode())
+                    logger.info(f"📥 Получена задача на обработку сообщения {payload.id} из чата {payload.chat_id}")
 
-                # --- ✅ Обрабатываем сообщение напрямую ---
-                await process_message(payload)
+                    # --- ✅ Обрабатываем сообщение напрямую ---
+                    await process_message(payload)
 
-                # --- ✅ Подтверждаем задачу ---
-                await msg.ack()
-                logger.info(f"✅ Задача успешно выполнена: message_id={payload.id}")
+                    # --- ✅ Подтверждаем задачу ---
+                    await msg.ack()
+                    logger.info(f"✅ Задача успешно выполнена: message_id={payload.id}")
+                else:
+                    hh_message_data = msg.data.decode()
+                    logger.info(f"📥 Получена задача на обработку сообщения из чата HH")
+                    
+                    await process_message(hh_message=hh_message_data, flag=flag)
+                    
+                    await msg.ack()
+                    logger.info(f"✅ Задача c HH успешно выполнена")
 
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки задачи: {e}")

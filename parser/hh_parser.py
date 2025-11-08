@@ -1,6 +1,11 @@
 import requests
+import json
 from db.requests import get_all_professions_parser
 from utils.bot_utils import send_message
+from utils.nats_connect import get_nats_connection
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 async def hh_parser():
@@ -35,11 +40,23 @@ async def hh_parser():
                 f"💼 Обязанности: {responsibility}\n\n"
                 f"🔗 [Открыть вакансию]({link})"
             )
+            
+            try:
+                nc, js = await get_nats_connection()
+            except Exception as e:
+                logger.error(f"❌ Ошибка подключения к NATS: {e}")
+                return
+            
+            try:
+                await js.publish("vacancy.queue", formatted.encode(), headers={"flag": prof})
+                logger.info(f"📤 Отправлена вакансия из HH по профессии '{prof}' в очередь")
+            except Exception as e:
+                logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
 
             await send_message(1058760541, formatted)
         
 
-def get_hh_vacancies(prof, per_page=10):
+def get_hh_vacancies(prof, per_page=1):
     """Возвращает список вакансий для профессии по всей России"""
     url = "https://api.hh.ru/vacancies"
     params = {
@@ -51,4 +68,3 @@ def get_hh_vacancies(prof, per_page=10):
     response = requests.get(url, params=params)
     data = response.json()
     return data.get("items", [])  # список вакансий
-

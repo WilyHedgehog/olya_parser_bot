@@ -103,63 +103,64 @@ def message_to_html(text: str, entities: Optional[list] = None) -> str:
 
 
 
-async def process_message(payload: MessagePayload):
-    # 1. Проверка дублей сообщений
-    if payload.id in processed_messages:
-        logger.info(f"Сообщение {payload.id} уже обработано, пропускаем.")
-        return
-    processed_messages.add(payload.id)
+async def process_message(payload: MessagePayload | None = None, hh_message: str | None = None, flag: str | None = None):
+    if flag == None:
+        # 1. Проверка дублей сообщений
+        if payload.id in processed_messages:
+            logger.info(f"Сообщение {payload.id} уже обработано, пропускаем.")
+            return
+        processed_messages.add(payload.id)
 
-    # 2. Собираем текст
-    message_text = (payload.text or "").strip()
-    if not message_text:
-        logger.info(f"Сообщение {payload.id} пустое, пропускаем.")
-        return
-
-    logger.info(f"Проверяем сообщение {payload.id}: {payload.date}")
-
-    original_link = payload.link or get_message_link(payload)
-
-    message_hash = hashlib.sha256(message_text.encode("utf-8")).hexdigest()
-    
-    if await is_in_trash(message_hash):
-        logger.info(f"Вакансия с хэшем {message_hash} находится в корзине, пропускаем.")
-        return
-
-
-    # 3. Проверка по хэшу в БД
-    existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
-    if existing:
-        logger.info(
-            f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем."
-        )
-        return
-
-    # 4. Конвертация текста
-    markdown_text = markdown_to_html(message_text)
-    html_text = message_to_html(markdown_text, getattr(payload, "entities", None))
-
-    if payload.flag == "Технический специалист онлайн-школ":
-        found_proffs = [(payload.flag, 3.0)]
-        unique_proffs = {prof_name: score for prof_name, score in found_proffs}
-    else:
-        found_proffs = await find_job_func(vacancy_text=message_text)
-        if not found_proffs:
-            logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
-            await save_in_trash(html_text, message_hash)
+        # 2. Собираем текст
+        message_text = (payload.text or "").strip()
+        if not message_text:
+            logger.info(f"Сообщение {payload.id} пустое, пропускаем.")
             return
 
-        unique_proffs = {prof_name: score for prof_name, score in found_proffs}
+        logger.info(f"Проверяем сообщение {payload.id}: {payload.date}")
+
+        original_link = payload.link or get_message_link(payload)
+
+        message_hash = hashlib.sha256(message_text.encode("utf-8")).hexdigest()
         
-        filtered_proffs = []
-        text = ""
-        for prof_name, score in found_proffs:
-            res = await ai_proff_check(html_text, prof_name)
-            text += f"{prof_name} : {res}\n"
-            if res == "1":
-                filtered_proffs.append((prof_name, score))
-            else:
-                logger.info(f"Отсутствует пара профессия/вакансия: {payload.id}")
+        if await is_in_trash(message_hash):
+            logger.info(f"Вакансия с хэшем {message_hash} находится в корзине, пропускаем.")
+            return
+
+
+        # 3. Проверка по хэшу в БД
+        existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
+        if existing:
+            logger.info(
+                f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем."
+            )
+            return
+
+        # 4. Конвертация текста
+        markdown_text = markdown_to_html(message_text)
+        html_text = message_to_html(markdown_text, getattr(payload, "entities", None))
+
+        if payload.flag == "Технический специалист онлайн-школ":
+            found_proffs = [(payload.flag, 3.0)]
+            unique_proffs = {prof_name: score for prof_name, score in found_proffs}
+        else:
+            found_proffs = await find_job_func(vacancy_text=message_text)
+            if not found_proffs:
+                logger.info(f"⚠️ Вакансия не подходит ни под одну из профессий: {payload.id}")
+                await save_in_trash(html_text, message_hash)
+                return
+
+            unique_proffs = {prof_name: score for prof_name, score in found_proffs}
+            
+            filtered_proffs = []
+            text = ""
+            for prof_name, score in found_proffs:
+                res = await ai_proff_check(html_text, prof_name)
+                text += f"{prof_name} : {res}\n"
+                if res == "1":
+                    filtered_proffs.append((prof_name, score))
+                else:
+                    logger.info(f"Отсутствует пара профессия/вакансия: {payload.id}")
 
         # создаём словарь из валидных профессий
         unique_proffs = {prof_name: score for prof_name, score in filtered_proffs}
@@ -170,30 +171,53 @@ async def process_message(payload: MessagePayload):
             await save_in_trash(html_text, message_hash)
             return
 
-    try:
-        entity = await app.get_input_entity(payload.chat_id)
-        messages = await app.get_messages(entity, ids=[payload.id])
-        message = messages[0] if messages else None
-    except Exception as e:
-        logger.error(f"Ошибка получения сообщения для форварда: {e}")
-        message = None
-    
-    
-    link = None
-    if message:    
-    # 6. Форвард в канал (один раз)
         try:
-            forwarded_msg = await app.forward_messages(
-                entity=config.bot.wacancy_chat_id,
-                messages=message.id,
-                from_peer=message.chat_id,
-            )
-            chat_id = forwarded_msg.chat_id
-            msg_id = forwarded_msg.id
-            link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
-            logger.info(f"Вакансия переслана в канал: {link}")
+            entity = await app.get_input_entity(payload.chat_id)
+            messages = await app.get_messages(entity, ids=[payload.id])
+            message = messages[0] if messages else None
         except Exception as e:
-            logger.error(f"Ошибка пересылки вакансии: {e}")
+            logger.error(f"Ошибка получения сообщения для форварда: {e}")
+            message = None
+        
+        
+        link = None
+        if message:    
+        # 6. Форвард в канал (один раз)
+            try:
+                forwarded_msg = await app.forward_messages(
+                    entity=config.bot.wacancy_chat_id,
+                    messages=message.id,
+                    from_peer=message.chat_id,
+                )
+                chat_id = forwarded_msg.chat_id
+                msg_id = forwarded_msg.id
+                link = f"https://t.me/c/{str(chat_id)[4:]}/{msg_id}"
+                logger.info(f"Вакансия переслана в канал: {link}")
+            except Exception as e:
+                logger.error(f"Ошибка пересылки вакансии: {e}")         
+    else:       
+        message_text = hh_message
+        if not message_text:
+            logger.info(f"Сообщение пустое, пропускаем.")
+            return
+
+        logger.info(f"Проверяем сообщение c HH с флаогом {flag}")
+
+        message_hash = hashlib.sha256(message_text.encode("utf-8")).hexdigest()
+        
+        if await is_in_trash(message_hash):
+            logger.info(f"HH Вакансия с хэшем {message_hash} находится в корзине, пропускаем.")
+            return
+        
+        existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
+        if existing:
+            logger.info(
+                f"HH Вакансия с хэшем {message_hash} уже существует (flag {flag}), пропускаем."
+            )
+            return
+        
+        found_proffs = [(flag, 3.0)]
+        unique_proffs = {prof_name: score for prof_name, score in found_proffs}
 
     for_admin_prof = {}
     # 7. Сохраняем для каждой профессии
@@ -277,6 +301,8 @@ async def on_new_message(event):
     flag = "Технический специалист онлайн-школ" if event.chat_id == -1002962447175 else None
     if flag:
         logger.info(f"🔵 Сообщение из админчата, устанавливаем флаг: {flag}")
+    else:
+        flag = "Обычное сообщение"
 
     # Подключаемся к NATS
     try:
@@ -295,7 +321,7 @@ async def on_new_message(event):
 
     # --- ✅ Публикация в NATS ---
     try:
-        await js.publish("vacancy.queue", json_data.encode())
+        await js.publish("vacancy.queue", json_data.encode(), headers={"flag": flag})
         logger.info(f"📨 Задача добавлена в очередь (сообщение {payload.id})")
     except Exception as e:
         logger.error(f"❌ Ошибка публикации задачи в NATS: {e}")
