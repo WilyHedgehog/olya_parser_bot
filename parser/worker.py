@@ -59,4 +59,4 @@ async def vacancy_worker(js):
                 logger.error(f"❌ Ошибка обработки HH-вакансии: {e}")
                 await msg.nack()
 
-        await asyncio.sleep(0.5)  # небольшая пауза между циклами
+        #await asyncio.sleep(0.5)  # небольшая пауза между циклами
