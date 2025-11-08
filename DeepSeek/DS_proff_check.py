@@ -2,9 +2,12 @@
 import os
 from openai import OpenAI
 from config.config import load_config
-from utils.bot_send_mes_queue import send_message
+import asyncio
+from logging import getLogger
+logger = getLogger(__name__)
 config = load_config()
 api = config.deepseek.api_key
+semaphore = asyncio.Semaphore(1)
 
 client = OpenAI(api_key=api, base_url="https://api.deepseek.com")
 
@@ -43,13 +46,30 @@ system = """
 Ответ: `0`
 """
 
-async def ai_proff_check(text, proff):
-    response = client.chat.completions.create(
-        model="deepseek-chat",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": f"Сообщение: {text}\Профессия: {proff}"},
-        ],
-        stream=False
-    )
-    return response.choices[0].message.content
+async def ai_proff_check(text: str, proff: str) -> str:
+    async with semaphore: 
+        try:
+            async def run_sync():
+                response = client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": f"Сообщение: {text}\nПрофессия: {proff}"},
+                    ],
+                    stream=False
+                )
+                return response.choices[0].message.content
+
+            # 🕓 ограничим время ожидания, чтобы бот не завис навсегда
+            result = await asyncio.wait_for(asyncio.to_thread(run_sync), timeout=30)
+
+            logger.info(f"✅ AI проверка профессии '{proff}' завершена: {result}")
+            return result
+
+        except asyncio.TimeoutError:
+            logger.error(f"⏱ Тайм-аут при проверке профессии '{proff}'")
+            return "0"
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка при вызове DeepSeek API: {e}")
+            return "0"
