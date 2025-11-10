@@ -775,6 +775,9 @@ async def update_user_access(telegram_id: int, has_access: bool):
                 if user.three_days_free_active == "active":
                     user.three_days_free_active = "used"
                 user.cancelled_subscription_date = datetime.now(MOSCOW_TZ)
+                user.active_promo = None
+                user.first_price_offer_code = None
+                user.first_price_offer_id = None
                 await session.commit()
 
 

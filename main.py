@@ -214,7 +214,7 @@ async def process_getcourse_sub(
     try:
         date = await parse_date(gc_date)
         logger.info(f"Parsed date: {date}")
-        date = date + timedelta(hours=12)
+        date = date + timedelta(hours=36)
         user_id, new_text = await set_new_days(mail=mail, days=date)
         print(f"Получен платёж: email {mail}")
 
@@ -225,7 +225,7 @@ async def process_getcourse_sub(
                     chat_id=user_id,
                     photo=photo,
                     caption=LEXICON_SUBSCRIBE["after_subscribe_text"].format(
-                        date=date.strftime("%d.%m.%Y")
+                        date=new_text
                     ),
                     parse_mode=ParseMode.HTML,
                 )
@@ -264,7 +264,7 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
                     chat_id=user_id,
                     photo=photo,
                     caption=LEXICON_SUBSCRIBE["after_promocode_text"].format(
-                        date=date.strftime("%d.%m.%Y")
+                        date=new_text
                     ),
                     parse_mode=ParseMode.HTML,
                 )
@@ -285,7 +285,7 @@ async def process_getcourse_extension(
 ):
     try:
         date = await parse_date(gc_date)
-        date = date + timedelta(hours=12)
+        date = date + timedelta(hours=36)
         user_id, new_text = await set_new_days(mail=mail, days=date)
         print(f"Получен платёж: email {mail}")
 
@@ -296,7 +296,7 @@ async def process_getcourse_extension(
                     chat_id=user_id,
                     photo=photo,
                     caption=LEXICON_SUBSCRIBE["after_prolong_text"].format(
-                        date=date.strftime("%d.%m.%Y")
+                        date=new_text
                     ),
                     parse_mode=ParseMode.HTML,
                 )
