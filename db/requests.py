@@ -1246,3 +1246,29 @@ async def get_payment_text() -> str:
         payment_text = (result.scalars().one_or_none()).offer_code
         await session.commit()
         return payment_text
+    
+    
+async def get_all_user_info(telegram_id) -> dict:
+    async with Sessionmaker() as session:
+        stmt = select(User).where(User.telegram_id == telegram_id)
+        result = await session.execute(stmt)
+        user = result.scalars().one_or_none()
+    
+        data = {}
+
+        data["Имя"] = user.first_name
+        data["Фамилия"] = user.last_name
+        data["Почта"] = user.mail
+        data["Активный промокод"] = user.active_promo
+        data["Заблокирован"] = user.is_banned
+        data["Подписка до"] = user.subscription_until
+        data["Режим доставки"] = user.delivery_mode
+        data["Дата регистрации"] = user.created_at
+        data["Первое предложение (код)"] = user.first_price_offer_code
+        data["Первое предложение (ID)"] = user.first_price_offer_id
+        data["Оплачивал ли?"] = user.is_pay_status
+        data["Дата окончания подписки"] = user.cancelled_subscription_date
+        data["Автоплатёж?"] = user.is_autopay
+        data["Приглашён пользователем с ID"] = user.from_user_id
+        
+        return data

@@ -11,6 +11,7 @@ from bot.background_tasks.delete_old_vacancy import schedule_vacancy_clear
 from bot.background_tasks.sand_two_hours_vacancy import schedule_sand_two_hours
 from google_logs.google_log import worksheet_append_row
 from parser.hh_parser import hh_parser
+from bot_setup import bot
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from bot.keyboards.admin_keyboard import (
@@ -51,6 +52,7 @@ from db.requests import (
     get_vac_points,
     return_vacancy_by_id,
     save_in_trash,
+    get_all_user_info,
 )
 from db.crud import (
     get_upcoming_mailings,
@@ -970,3 +972,25 @@ async def two_hours_send_vacancy(callback: CallbackQuery):
 @router.message(Command("hh"), IsAdminFilter())
 async def start_hh(message: Message):
     await hh_parser()
+    
+    
+@router.message(Command("uinfo"), IsAdminFilter())
+async def admin_get_user_info(message: Message):
+    args = message.text.split()  # получаем аргументы команды
+    if len(args) < 2:
+        await message.reply("Использование: /uinfo <user_id>")
+        return
+
+    user_id = args[1]
+    try:
+        chat = await bot.get_chat(user_id)
+        user = await get_all_user_info(user_id)
+        if user:
+            text = f"Данные о пользователе:\n\nUsername: @{chat.username if chat.username else '—'}\n"
+            for par in user:
+                text += f"{par}: {user[par]}\n"
+            await message.answer(text)
+        else:
+            await message.reply("Пользователь не найден.")
+    except Exception as e:
+        logger.error("Failed to get user info: %s", e)

@@ -56,6 +56,9 @@ def keyboards_for_mailings():
     hello_keyboard = InlineKeyboardButton(
         text="Приветственная клавиатура", callback_data="mail_kb_1"
     )
+    buy_sub_keyboard = InlineKeyboardButton(
+        text="Кнока '💳 Купить подписку 💳'", callback_data="mail_kb_2"
+    )
     builder.row(hello_keyboard)
     builder.row(back_to_mailing)
     return builder.as_markup()
@@ -142,5 +145,13 @@ async def get_mailing_keyboard(keyboard_type: str):
             text="Приветствие 👋", callback_data="hello_from_mailing"
         )
         builder.row(hello_button)
+        return builder.as_markup()
+
+    if keyboard_num == "2":
+        builder = InlineKeyboardBuilder()
+        buy_sub_button = InlineKeyboardButton(
+            text="💳 Купить подписку 💳", callback_data="buy_sub_from_mailing"
+        )
+        builder.row(buy_sub_button)
         return builder.as_markup()
     return None

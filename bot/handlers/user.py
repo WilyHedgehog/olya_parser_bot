@@ -782,6 +782,24 @@ async def help_cmd(message: Message, state: FSMContext):
     await state.update_data(reply_id=reply.message_id)
 
 
+@router.callback_query(F.data == "buy_sub_from_mailing", UserNoEmail())
+async def start_buy_subscription_by_mailing_no_email(callback: CallbackQuery, state: FSMContext):
+
+    await state.update_data(from_promo=False)
+    reply = await callback.message.edit_text(
+        LEXICON_USER["no_email_prompt"],
+        reply_markup=back_to_main_kb,
+    )
+    await state.update_data(reply_id=reply.message_id)
+    await state.set_state(Main.add_email) 
+
+
+@router.callback_query(F.data == "buy_sub_from_mailing", UserHaveEmail())
+async def start_buy_subscription_by_mailing_email(callback: CallbackQuery, state: FSMContext):
+    await _start_buy_subscription(callback.message, state)
+
+
+
 @router.message(
     F.text == "Активировать новый промокод можно только после окончания имеющегося",
     Main.main,
