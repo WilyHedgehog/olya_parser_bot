@@ -10,6 +10,8 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.utils.deep_linking import create_start_link
 from bot_setup import bot
 
+from google_logs.google_log import worksheet_append_log
+
 MOSCOW_TZ = zoneinfo.ZoneInfo("Europe/Moscow")
 
 from getcourse.gc_api import (

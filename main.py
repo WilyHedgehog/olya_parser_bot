@@ -34,6 +34,7 @@ from db.database import Sessionmaker
 from db.requests import set_new_days, update_user_is_pay_status, load_stopwords
 from parser.tg_worker import vacancy_worker
 from parser.hh_worker import hh_vacancy_worker
+from google_logs.google_log import worksheet_append_log
 
 from find_job_process.find_job import load_professions, load_stop_embeddings
 
@@ -220,6 +221,12 @@ async def process_getcourse_sub(
 
         if user_id:
             try:
+                await worksheet_append_log(
+                    name="Вебхук покупка",
+                    email=mail,
+                    user_id=user_id,
+                    action=f"Получен вебхук покупки, новая дата подписки {date}",
+                )
                 photo = FSInputFile("bot/assets/Подписка активна-1.png")
                 await bot.send_photo(
                     chat_id=user_id,
@@ -259,6 +266,12 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
         # отправка картинки пользователю
         if user_id:
             try:
+                await worksheet_append_log(
+                    name="Вебхук промокод",
+                    email=mail,
+                    user_id=user_id,
+                    action=f"Получен вебхук промокода, новая дата подписки {date}",
+                )
                 photo = FSInputFile("bot/assets/Подписка активна-1.png")
                 await bot.send_photo(
                     chat_id=user_id,
@@ -291,6 +304,12 @@ async def process_getcourse_extension(
 
         if user_id:
             try:
+                await worksheet_append_log(
+                    name="Вебхук пролонг",
+                    email=mail,
+                    user_id=user_id,
+                    action=f"Получен вебхук пролонгации, новая дата подписки {date}",
+                )
                 photo = FSInputFile("bot/assets/Подписка активна-1.png")
                 await bot.send_photo(
                     chat_id=user_id,

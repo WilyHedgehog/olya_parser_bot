@@ -215,13 +215,19 @@ async def activate_promo(
         text = LEXICON_SUBSCRIBE["used_promo"]
         return text
 
-    if (user.active_promo or "").lower() in [
+    stmt = select(UserPromo).where(UserPromo.user_id == user.telegram_id)
+    result = await session.execute(stmt)
+    promos = result.scalars().all()
+
+    if promo_code_lower in [
         "club2425vip",
         "club2425",
         "fm091025",
-    ]:  # если уже был активирован один из этих промокодов
-        text = LEXICON_SUBSCRIBE["vip_used_limit"]
-        return text
+    ]:
+        for user_code in promos:  
+            if user_code.promo_id in [3, 5, 7]:  # если уже был активирован один из этих промокодов
+                text = LEXICON_SUBSCRIBE["vip_used_limit"]
+                return text
 
     await gc_request_no_payment_link(
         email=user.mail, offer_code=promo.offer_code, offer_id=promo.offer_id
@@ -460,13 +466,12 @@ async def mark_vacancy_as_sent(user_id: int, vacancy_id: str):
             await session.commit()
 
 
-
 async def mark_vacancy_as_sent_queue(user_id: int, vacancy_id):
     async with Sessionmaker() as session:
         stmt = select(Vacancy).where(Vacancy.id == vacancy_id)
         result = await session.execute(stmt)
         main_vacancy = result.scalar_one_or_none()
-        
+
         result = await session.execute(
             select(VacancyQueue).where(
                 VacancyQueue.user_id == user_id, VacancyQueue.text == main_vacancy.text
@@ -486,11 +491,11 @@ async def mark_vacancies_as_sent_two_hours(user_id: int, vacancy_id):
         stmt = select(Vacancy).where(Vacancy.id == vacancy_id)
         result = await session.execute(stmt)
         main_vacancy = result.scalar_one_or_none()
-        
-        
+
         result = await session.execute(
             select(VacancyTwoHours).where(
-                VacancyTwoHours.user_id == user_id, VacancyTwoHours.text == main_vacancy.text
+                VacancyTwoHours.user_id == user_id,
+                VacancyTwoHours.text == main_vacancy.text,
             )
         )
         vacancy = result.scalar_one_or_none()
@@ -1216,11 +1221,12 @@ async def get_vac_points():
             for point in points:
                 point_sum += point.quantity
             result_dict[profession.name] = point_sum
-            
+
         result_dict["\n🌞-----За последние сутки-----🌚"] = 0
         for profession in professions:
             stmt = select(VacancyStat).where(
-                VacancyStat.profession_name == profession.name, VacancyStat.created_at > (datetime.now(MOSCOW_TZ) - timedelta(days=1))
+                VacancyStat.profession_name == profession.name,
+                VacancyStat.created_at > (datetime.now(MOSCOW_TZ) - timedelta(days=1)),
             )
             result = await session.execute(stmt)
             points = result.scalars().all()
