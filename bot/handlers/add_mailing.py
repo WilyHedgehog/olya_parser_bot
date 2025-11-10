@@ -315,6 +315,9 @@ async def process_next_step_mailing(callback: CallbackQuery, state: FSMContext):
     mailing_text = data.get("mailing_text")
     keyboard_choice = data.get("mailing_keyboard")
     
+    if file_id in ("None", "", None):
+        file_id = None
+    
     reply_markup = (
         await get_mailing_keyboard(keyboard_choice) if keyboard_choice else None
     )
@@ -358,6 +361,9 @@ async def process_confirm_mailing(callback: CallbackQuery, state: FSMContext):
     keyboard_choice = data.get("mailing_keyboard")
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
+    
+    if file_id in ("None", "", None):
+        file_id = None
     
     selected_segments = [
         name for name, data in mailing_segments.items() if data.get("selected")
