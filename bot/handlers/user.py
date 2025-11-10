@@ -155,20 +155,24 @@ async def _start_cmd_no_prof(message: Message, state: FSMContext, is_new: bool):
 
 
 @router.message(CommandStart(), ~IsNewUser(), UserHaveProfessions())
-async def start_cmd_existing_user(message: Message, state: FSMContext, session: AsyncSession):
+async def start_cmd_existing_user(
+    message: Message, state: FSMContext, session: AsyncSession
+):
     photo = FSInputFile("bot/assets/Добро пожаловать!-1.png")
     await try_delete_message_old(message, state)
 
     await try_delete_message(message)
 
     professions_list_name = await get_user_professions_list(message.from_user.id)
-    
+
     try:
         data = await state.get_data()
         user_delivery_mode = data.get("user_delivery_mode")
         await update_delivery_mode(session, message.from_user.id, user_delivery_mode)
     except Exception as e:
-        logger.error(f"Error updating delivery mode for user {message.from_user.id}: {e}")  
+        logger.error(
+            f"Error updating delivery mode for user {message.from_user.id}: {e}"
+        )
         pass
 
     reply = await message.answer_photo(
@@ -201,7 +205,7 @@ async def change_delivery_mode(
     if mode == user_mode:
         return
 
-    #if mode == "two_hours":
+    # if mode == "two_hours":
     #    await callback.answer("Режим скоро будет доступен", show_alert=True)
     #    return
 
@@ -265,7 +269,9 @@ async def confirm_choice(
         data = await state.get_data()
         user_delivery_mode = data.get("user_delivery_mode")
         if user_delivery_mode:
-            await update_delivery_mode(session, callback.from_user.id, user_delivery_mode)
+            await update_delivery_mode(
+                session, callback.from_user.id, user_delivery_mode
+            )
         else:
             pass
     except Exception as e:
@@ -527,12 +533,23 @@ async def process_promo_code(
     await try_delete_message(message)
     promo_code = message.text.strip()
 
-    text = await activate_promo(session, message.from_user.id, promo_code)
+    text, is_success = await activate_promo(session, message.from_user.id, promo_code)
     photo = FSInputFile("bot/assets/Промокод активирован!-1.png")
 
-    reply = await message.answer_photo(
-        photo=photo, caption=text, reply_markup=back_to_main_kb
-    )
+    if is_success:
+        reply = await message.answer_photo(
+            photo=photo, caption=text, reply_markup=back_to_main_kb
+        )
+        await worksheet_append_log(
+            name=message.from_user.full_name,
+            action="Промокод активирован!",
+            user_id=message.from_user.id,
+            time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
+            text=f"Аквивирован промокод: {promo_code}",
+        )
+    else:
+        reply = await message.answer(text, reply_markup=back_to_main_kb)
+
     await state.update_data(reply_id=reply.message_id)
     await state.set_state(Main.main)  # Возвращаемся в основное состояние
 
@@ -549,9 +566,7 @@ async def _start_buy_subscription(message: Message, state: FSMContext):
     caption = await get_payment_text()
     reply = await message.answer_photo(
         photo=photo,
-        caption=caption.format(
-            until_the_end_of_the_day=until_the_end_of_the_day
-        ),
+        caption=caption.format(until_the_end_of_the_day=until_the_end_of_the_day),
         reply_markup=start_payment_process_kb,
     )
     await state.update_data(reply_id=reply.message_id)
@@ -621,15 +636,16 @@ async def pay_subscription_auto(callback: CallbackQuery, state: FSMContext):
         disable_web_page_preview=True,
         reply_markup=await get_pay_subscription_kb(payment_link),
     )
-    
+
     await worksheet_append_log(
         name=callback.from_user.full_name,
         action="Создан заказ",
         user_id=callback.from_user.id,
         text=user.mail,
-        text2=chosen_plan
+        text2=chosen_plan,
+        time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
     )
-    
+
     await state.set_state(Main.main)
     await state.update_data(reply_id=reply.message_id)
 
@@ -669,15 +685,16 @@ async def pay_subscription_no_auto(callback: CallbackQuery, state: FSMContext):
         disable_web_page_preview=True,
         reply_markup=await get_pay_subscription_kb(payment_link),
     )
-    
+
     await worksheet_append_log(
         name=callback.from_user.full_name,
         action="Создан заказ",
         user_id=callback.from_user.id,
         text=user.mail,
-        text2=chosen_plan
+        text2=chosen_plan,
+        time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
     )
-    
+
     await state.set_state(Main.main)
     await state.update_data(reply_id=reply.message_id)
 

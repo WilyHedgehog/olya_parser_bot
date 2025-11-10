@@ -66,7 +66,7 @@ async def worksheet_append_row(
         )
         
         
-async def worksheet_append_log(name, action, user_id=None, time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"), text=None, text2=None):
+async def worksheet_append_log(name, action, user_id=None, time=None, text=None, text2=None):
     await asyncio.to_thread(
         worksheet_third.append_row, [user_id, time, name, action, text, text2]
     )

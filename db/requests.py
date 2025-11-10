@@ -187,7 +187,7 @@ async def activate_promo(
         logger.error(
             f"User with telegram_id {telegram_id} not found for promo activation"
         )
-        return None
+        return None, False
 
     promo_code_lower = promo_code.lower()
 
@@ -197,12 +197,12 @@ async def activate_promo(
     promo = result.scalar_one_or_none()
     if not promo:
         text = LEXICON_SUBSCRIBE["unknown_promo"]
-        return text
+        return text, False
 
     # проверка общего лимита
     if promo.usage_limit is not None and promo.used_count >= promo.usage_limit:
         text = LEXICON_SUBSCRIBE["used_limit"]
-        return text
+        return text, False
 
     # проверка: использовал ли этот юзер именно этот промокод
     stmt = select(UserPromo).where(
@@ -213,7 +213,7 @@ async def activate_promo(
     already_used = result.scalars().first()
     if already_used:
         text = LEXICON_SUBSCRIBE["used_promo"]
-        return text
+        return text, False
 
     stmt = select(UserPromo).where(UserPromo.user_id == user.telegram_id)
     result = await session.execute(stmt)
@@ -227,7 +227,7 @@ async def activate_promo(
         for user_code in promos:  
             if user_code.promo_id in [3, 5, 7]:  # если уже был активирован один из этих промокодов
                 text = LEXICON_SUBSCRIBE["vip_used_limit"]
-                return text
+                return text, False
 
     await gc_request_no_payment_link(
         email=user.mail, offer_code=promo.offer_code, offer_id=promo.offer_id
@@ -243,7 +243,7 @@ async def activate_promo(
 
     await session.commit()
     text = LEXICON_SUBSCRIBE["promo_activated"].format(promo_code=promo_code)
-    return text
+    return text, True
 
 
 async def get_promo_24_hours(session: AsyncSession, user_id: int) -> PromoCode | None:

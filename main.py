@@ -226,6 +226,7 @@ async def process_getcourse_sub(
                     text=mail,
                     user_id=user_id,
                     action=f"Получен вебхук покупки, новая дата подписки {date}",
+                    time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
                 )
                 photo = FSInputFile("bot/assets/Подписка активна-1.png")
                 await bot.send_photo(
@@ -271,6 +272,7 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
                     text=mail,
                     user_id=user_id,
                     action=f"Получен вебхук промокода, новая дата подписки {date}",
+                    time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
                 )
                 photo = FSInputFile("bot/assets/Подписка активна-1.png")
                 await bot.send_photo(
@@ -309,6 +311,7 @@ async def process_getcourse_extension(
                     text=mail,
                     user_id=user_id,
                     action=f"Получен вебхук пролонгации, новая дата подписки {date}",
+                    time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
                 )
                 photo = FSInputFile("bot/assets/Подписка активна-1.png")
                 await bot.send_photo(

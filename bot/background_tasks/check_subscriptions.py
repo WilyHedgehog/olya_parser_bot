@@ -10,8 +10,7 @@ from aiogram.types import FSInputFile
 from aiogram.fsm.storage.base import StorageKey
 from bot_setup import bot, get_bot_id
 from bot.lexicon.lexicon import LEXICON_SUBSCRIBE
-from bot.states.user import Main
-
+from google_logs.google_log import worksheet_append_log
 from db.requests import get_all_users, update_user_access, update_autopay_status
 from find_job_process.job_dispatcher import send_two_hours_vacancies
 
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 scheduler = AsyncIOScheduler(timezone=MOSCOW_TZ)
+
 
 # ------------------ Task 1: Check subscriptions ------------------ #
 async def check_subscriptions():
@@ -29,7 +29,9 @@ async def check_subscriptions():
 
     for user in users:
         try:
-            logger.info(f"Checking subscription for user {user.first_name} ({user.telegram_id})")
+            logger.info(
+                f"Checking subscription for user {user.first_name} ({user.telegram_id})"
+            )
 
             if not user.subscription_until:
                 continue
@@ -42,19 +44,30 @@ async def check_subscriptions():
             )
 
             if sub_until_msk < now:
-                logger.info(f"User {user.telegram_id} subscription expired, revoking access.")
+                logger.info(
+                    f"User {user.telegram_id} subscription expired, revoking access."
+                )
                 await update_user_access(user.telegram_id, False)
                 await update_autopay_status(user.telegram_id, False)
+                await worksheet_append_log(
+                    name=user.first_name,
+                    action="Подписка закончилась",
+                    user_id=user.telegram_id,
+                    text=user.mail,
+                    time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
+                )
 
                 photo = FSInputFile("bot/assets/Подписка закончилась-1.png")
-                key = StorageKey(bot_id=bot_id, user_id=user.telegram_id, chat_id=user.telegram_id)
-                #await dp.storage.set_state(key=key, state=Main.main)
+                key = StorageKey(
+                    bot_id=bot_id, user_id=user.telegram_id, chat_id=user.telegram_id
+                )
+                # await dp.storage.set_state(key=key, state=Main.main)
                 message = await bot.send_photo(
                     chat_id=user.telegram_id,
                     photo=photo,
-                    caption=LEXICON_SUBSCRIBE["subscription_ended"]
+                    caption=LEXICON_SUBSCRIBE["subscription_ended"],
                 )
-                #await dp.storage.update_data(key=key, data={"reply_id": message.message_id})
+                # await dp.storage.update_data(key=key, data={"reply_id": message.message_id})
                 await asyncio.sleep(0.5)
 
         except Exception as e:
