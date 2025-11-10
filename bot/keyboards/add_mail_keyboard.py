@@ -56,10 +56,11 @@ def keyboards_for_mailings():
     hello_keyboard = InlineKeyboardButton(
         text="Приветственная клавиатура", callback_data="mail_kb_1"
     )
+    builder.row(hello_keyboard)
     buy_sub_keyboard = InlineKeyboardButton(
         text="Кнока '💳 Купить подписку 💳'", callback_data="mail_kb_2"
     )
-    builder.row(hello_keyboard)
+    builder.row(buy_sub_keyboard)
     builder.row(back_to_mailing)
     return builder.as_markup()
 
