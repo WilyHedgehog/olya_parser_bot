@@ -981,7 +981,7 @@ async def admin_get_user_info(message: Message):
         await message.reply("Использование: /uinfo <user_id>")
         return
 
-    user_id = args[1]
+    user_id = int(args[1])
     try:
         chat = await bot.get_chat(user_id)
         user = await get_all_user_info(user_id)
