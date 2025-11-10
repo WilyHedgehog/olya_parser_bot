@@ -322,18 +322,18 @@ async def process_next_step_mailing(callback: CallbackQuery, state: FSMContext):
     if file_id and keyboard_choice:
         await send_photo(
             chat_id=callback.from_user.id,
-            file_id=file_id,
+            photo=file_id,
             caption=mailing_text,
             reply_markup=reply_markup,
         )
     elif file_id and not keyboard_choice:
         await send_photo(
-            chat_id=callback.from_user.id, file_id=file_id, caption=mailing_text
+            chat_id=callback.from_user.id, photo=file_id, caption=mailing_text
         )
     elif keyboard_choice:
         await send_photo(
             chat_id=callback.from_user.id,
-            file_id=file_id,
+            photo=file_id,
             caption=mailing_text,
             reply_markup=reply_markup,
         )
