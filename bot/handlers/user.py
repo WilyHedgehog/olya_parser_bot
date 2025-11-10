@@ -621,6 +621,15 @@ async def pay_subscription_auto(callback: CallbackQuery, state: FSMContext):
         disable_web_page_preview=True,
         reply_markup=await get_pay_subscription_kb(payment_link),
     )
+    
+    await worksheet_append_log(
+        name=callback.from_user.full_name,
+        action="Создан заказ",
+        user_id=callback.from_user.id,
+        text=user.mail,
+        text2=chosen_plan
+    )
+    
     await state.set_state(Main.main)
     await state.update_data(reply_id=reply.message_id)
 
@@ -660,6 +669,15 @@ async def pay_subscription_no_auto(callback: CallbackQuery, state: FSMContext):
         disable_web_page_preview=True,
         reply_markup=await get_pay_subscription_kb(payment_link),
     )
+    
+    await worksheet_append_log(
+        name=callback.from_user.full_name,
+        action="Создан заказ",
+        user_id=callback.from_user.id,
+        text=user.mail,
+        text2=chosen_plan
+    )
+    
     await state.set_state(Main.main)
     await state.update_data(reply_id=reply.message_id)
 

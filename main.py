@@ -223,7 +223,7 @@ async def process_getcourse_sub(
             try:
                 await worksheet_append_log(
                     name="Вебхук покупка",
-                    email=mail,
+                    text=mail,
                     user_id=user_id,
                     action=f"Получен вебхук покупки, новая дата подписки {date}",
                 )
@@ -268,7 +268,7 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
             try:
                 await worksheet_append_log(
                     name="Вебхук промокод",
-                    email=mail,
+                    text=mail,
                     user_id=user_id,
                     action=f"Получен вебхук промокода, новая дата подписки {date}",
                 )
@@ -306,7 +306,7 @@ async def process_getcourse_extension(
             try:
                 await worksheet_append_log(
                     name="Вебхук пролонг",
-                    email=mail,
+                    text=mail,
                     user_id=user_id,
                     action=f"Получен вебхук пролонгации, новая дата подписки {date}",
                 )
