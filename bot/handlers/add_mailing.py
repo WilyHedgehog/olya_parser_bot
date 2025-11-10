@@ -283,6 +283,9 @@ async def process_mailing_name(message: Message, state: FSMContext):
     mailing_datetime = data.get("mailing_datetime")
     mailing_segments = data.get("mailing_segments", {})
     
+    if file_id in ("None", "", None):
+        file_id = None
+    
     if isinstance(mailing_datetime, str):
         mailing_datetime = datetime.fromisoformat(mailing_datetime)
 
