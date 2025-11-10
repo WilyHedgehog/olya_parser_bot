@@ -286,7 +286,8 @@ async def set_new_days(mail: str, days: int):
         user_id = user.telegram_id
         user.three_days_free_active = "used_with"
         user.cancelled_subscription_date = None
-        text = f"{user.subscription_until:%d.%m.%Y}"
+        publick_date = user.subscription_until - timedelta(days=1)
+        text = f"{publick_date:%d.%m.%Y}"
         await session.commit()
         return user_id, text
 
@@ -948,7 +949,8 @@ async def get_user_subscription_until(telegram_id: int) -> datetime | None:
         await session.commit()
         if user:
             if user.subscription_until is not None:
-                text = f"Подписка активна до {user.subscription_until:%d.%m.%Y}"
+                public_date = user.subscription_until - timedelta(days=1)
+                text = f"Подписка активна до {public_date:%d.%m.%Y}"
                 return text
             else:
                 text = "Подписка не активна"
@@ -1226,3 +1228,12 @@ async def get_vac_points():
 
         await session.commit()
         return result_dict
+
+
+async def get_payment_text() -> str:
+    async with Sessionmaker() as session:
+        stmt = select(PricingPlan).where(PricingPlan.name == "text")
+        result = await session.execute(stmt)
+        payment_text = (result.scalars().one_or_none()).offer_code
+        await session.commit()
+        return payment_text

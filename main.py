@@ -248,7 +248,7 @@ async def process_getcourse_update(gc_date: str = "", mail: str = ""):
         logger.info(f"Parsed date: {date}")
 
         # добавляем 12 часов
-        date = date + timedelta(hours=12)
+        date = date + timedelta(hours=36)
 
         # обновляем подписку
         user_id, new_text = await set_new_days(mail=mail, days=date)

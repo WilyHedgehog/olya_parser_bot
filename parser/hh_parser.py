@@ -32,7 +32,7 @@ async def hh_parser():
             flag = prof
             formatted = (
                 f"📌 *{name}*\n"
-                f"🏢 Компание: {company}\n"
+                f"🏢 Компания: {company}\n"
                 f"💰 Зарплата: {salary_text}\n\n"
                 f"🧠 Требования: {requirement}\n"
                 f"💼 Обязанности: {responsibility}\n\n"

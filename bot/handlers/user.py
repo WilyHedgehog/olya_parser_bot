@@ -34,6 +34,7 @@ from db.requests import (
     get_promo_24_hours,
     save_support_message,
     get_user_delivery_mode,
+    get_payment_text,
 )
 
 from find_job_process.job_dispatcher import send_vacancy_from_queue
@@ -543,9 +544,10 @@ async def _start_buy_subscription(message: Message, state: FSMContext):
         .replace(hour=23, minute=59, second=59)
         .strftime("%H:%M %d.%m.%Y")
     )
+    caption = get_payment_text()
     reply = await message.answer_photo(
         photo=photo,
-        caption=LEXICON_USER["buy_subscription_prompt"].format(
+        caption=caption.format(
             until_the_end_of_the_day=until_the_end_of_the_day
         ),
         reply_markup=start_payment_process_kb,
