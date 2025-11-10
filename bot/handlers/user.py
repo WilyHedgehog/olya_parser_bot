@@ -544,7 +544,7 @@ async def _start_buy_subscription(message: Message, state: FSMContext):
         .replace(hour=23, minute=59, second=59)
         .strftime("%H:%M %d.%m.%Y")
     )
-    caption = get_payment_text()
+    caption = await get_payment_text()
     reply = await message.answer_photo(
         photo=photo,
         caption=caption.format(
