@@ -1041,7 +1041,7 @@ async def process_client_message(message: Message, state: FSMContext):
     reply_two = await bot.forward_message(chat_id=target_user_id, message_id=message.message_id, from_chat_id=message.chat.id)
     
     await message.answer(
-        "✅ Сообщение отправлено клиенту", reply_markup=after_message_keyboard(reply_one.message_id, reply_two.message_id, target_user_id)
+        "✅ Сообщение отправлено клиенту.\n", reply_markup=after_message_keyboard(reply_one.message_id, reply_two.message_id, target_user_id)
     )
 
 
@@ -1060,6 +1060,7 @@ async def process_client_message(message: Message, state: FSMContext):
     await message.answer(
         "✅ Сообщение отправлено клиенту", reply_markup=after_message_keyboard(reply_one.message_id, reply_two.message_id, target_user_id)
     )
+    await state.set_state(Admin.main)
 
 
 @router.callback_query(F.data.startswith("delmsg_"), IsAdminFilter())
@@ -1068,15 +1069,3 @@ async def delete_sended_messages(callback: CallbackQuery):
     await bot.delete_message(chat_id=callback.data.split("_")[3], message_id=callback.data.split("_")[2])
     await callback.message.edit_text("✅ Сообщение удалено", reply_markup=back_to_admin_main_kb)    
     await callback.answer()
-
-
-# @admin.callback_query(F.data == "one_more_message")
-# async def one_more_message(callback: CallbackQuery, state: FSMContext):
-#     data = await state.get_data()
-#     target_user_id = data.get("target_user_id")
-#     name = usrsdb.get_user(target_user_id)["name"]
-#     await callback.message.edit_text(
-#         f"Новое сообщение пользователю {name}\n\nВведите сообщение для отправки:",
-#         reply_markup=back_to_user_keyboard,
-#     )
-#     await callback.answer()
