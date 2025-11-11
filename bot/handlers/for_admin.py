@@ -1025,7 +1025,7 @@ async def process_client_message(message: Message, state: FSMContext):
     reply_two = await bot.copy_message(chat_id=target_user_id, message_id=message.message_id, from_chat_id=message.chat.id)
     
     await message.answer(
-        "✅ Сообщение отправлено клиенту", reply_markup=after_message_keyboard(reply_one, reply_two, target_user_id)
+        "✅ Сообщение отправлено клиенту", reply_markup=after_message_keyboard(reply_one.message_id, reply_two.message_id, target_user_id)
     )
 
 
