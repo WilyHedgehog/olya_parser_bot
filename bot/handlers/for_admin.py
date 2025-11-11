@@ -1011,6 +1011,39 @@ async def send_to_client_start(message: Message, state: FSMContext):
         reply_markup=back_to_admin_main_kb,
     )
     await state.update_data(target_user_id=user_id)
+    
+    
+@router.message(Command("forward"), IsAdminFilter())
+async def send_to_client_start(message: Message, state: FSMContext):
+    args = message.text.split()  # получаем аргументы команды
+    if len(args) < 2:
+        await message.reply("Использование: /send user_id")
+        return
+
+    user_id = int(args[1])
+    await state.set_state(Admin.forward_message)
+    await message.answer(
+        f"Отправьте сообщение для пересылки:",
+        reply_markup=back_to_admin_main_kb,
+    )
+    await state.update_data(target_user_id=user_id)
+
+
+@router.message(Admin.forward_message, IsAdminFilter())
+async def process_client_message(message: Message, state: FSMContext):
+    data = await state.get_data()
+    target_user_id = data.get("target_user_id")
+
+    reply_one = await bot.send_message(
+        chat_id=target_user_id,
+        text=f"Сообщение от администратора:",
+    )
+    reply_two = await bot.forward_message(chat_id=target_user_id, message_id=message.message_id, from_chat_id=message.chat.id)
+    
+    await message.answer(
+        "✅ Сообщение отправлено клиенту", reply_markup=after_message_keyboard(reply_one.message_id, reply_two.message_id, target_user_id)
+    )
+
 
 
 @router.message(Admin.send_message, IsAdminFilter())
