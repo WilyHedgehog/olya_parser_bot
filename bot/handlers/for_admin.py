@@ -25,6 +25,7 @@ from bot.keyboards.admin_keyboard import (
     delete_admin_keyboard,
     stopwords_pagination_keyboard,
     background_tasks_start_kb,
+    after_message_keyboard,
     back_to_choosen_prof_kb,
     back_to_proffs_kb,
     back_to_admin_main_kb
@@ -978,7 +979,7 @@ async def start_hh(message: Message):
 async def admin_get_user_info(message: Message):
     args = message.text.split()  # получаем аргументы команды
     if len(args) < 2:
-        await message.reply("Использование: /uinfo <user_id>")
+        await message.reply("Использование: /uinfo user_id")
         return
 
     user_id = int(args[1])
@@ -994,3 +995,55 @@ async def admin_get_user_info(message: Message):
             await message.reply("Пользователь не найден.")
     except Exception as e:
         logger.error("Failed to get user info: %s", e)
+        
+        
+@router.message(Command("send"), IsAdminFilter())
+async def send_to_client_start(message: Message, state: FSMContext):
+    args = message.text.split()  # получаем аргументы команды
+    if len(args) < 2:
+        await message.reply("Использование: /send user_id")
+        return
+
+    user_id = int(args[1])
+    await state.set_state(Admin.send_message)
+    await message.answer(
+        f"Введите сообщение для отправки:",
+        reply_markup=back_to_admin_main_kb,
+    )
+    await state.update_data(target_user_id=user_id)
+
+
+@router.message(Admin.send_message, IsAdminFilter())
+async def process_client_message(message: Message, state: FSMContext):
+    data = await state.get_data()
+    target_user_id = data.get("target_user_id")
+
+    reply_one = await bot.send_message(
+        chat_id=target_user_id,
+        text=f"Сообщение от администратора:",
+    )
+    reply_two = await bot.copy_message(chat_id=target_user_id, message_id=message.message_id, from_chat_id=message.chat.id)
+    
+    await message.answer(
+        "✅ Сообщение отправлено клиенту", reply_markup=after_message_keyboard(reply_one, reply_two, target_user_id)
+    )
+
+
+@router.callback_query(F.data.startswith("delmsg_"), IsAdminFilter())
+async def delete_sended_messages(callback: CallbackQuery):
+    await bot.delete_message(chat_id=callback.data.split("_")[3], message_id=callback.data.split("_")[1])
+    await bot.delete_message(chat_id=callback.data.split("_")[3], message_id=callback.data.split("_")[2])
+    await callback.message.edit_text("✅ Сообщение удалено", reply_markup=back_to_admin_main_kb)    
+    await callback.answer()
+
+
+# @admin.callback_query(F.data == "one_more_message")
+# async def one_more_message(callback: CallbackQuery, state: FSMContext):
+#     data = await state.get_data()
+#     target_user_id = data.get("target_user_id")
+#     name = usrsdb.get_user(target_user_id)["name"]
+#     await callback.message.edit_text(
+#         f"Новое сообщение пользователю {name}\n\nВведите сообщение для отправки:",
+#         reply_markup=back_to_user_keyboard,
+#     )
+#     await callback.answer()

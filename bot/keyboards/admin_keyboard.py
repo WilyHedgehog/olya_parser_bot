@@ -83,6 +83,12 @@ stats_button = InlineKeyboardButton(
 background_tasks_button = InlineKeyboardButton(
     text="🔧 Задачи в фоне 🔧", callback_data="background_tasks"
 )
+delete_admin_message = InlineKeyboardButton(
+    text="Удалить сообщение", callback_data="delete_admin_message"
+)
+one_more_message = InlineKeyboardButton(
+    text="Отправить ещё одно сообщение", callback_data="one_more_message"
+)
 
 
 
@@ -484,6 +490,12 @@ def cancel_task_kb(id: str) -> InlineKeyboardMarkup:
     )
     return builder.as_markup()
 
+def after_message_keyboard(reply_one, reply_two, target_user_id):
+    builder = InlineKeyboardBuilder()
+    builder.row(one_more_message)
+    builder.row(InlineKeyboardButton(text="Удалить отправленное", callback_data=f"delmsg_{reply_one}_{reply_two}_{target_user_id}"))
+    builder.row(back_to_admin_main)
+    return builder.as_markup()
 
 back_to_choosen_prof_kb = InlineKeyboardMarkup(inline_keyboard=[[back_to_choosen_prof]])
 

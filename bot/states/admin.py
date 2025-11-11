@@ -19,3 +19,4 @@ class Admin(StatesGroup):
     mailing_text = State()
     mailing_name = State()
     add_admin = State()
+    send_message = State()
