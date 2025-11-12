@@ -1076,6 +1076,6 @@ async def delete_sended_messages(callback: CallbackQuery):
 async def get_in_support_users(callback: CallbackQuery, session: AsyncSession):
     data = await get_all_support_users(session=session)
     await callback.message.edit_text(
-        text=data,
+        text="\n".join(data) if isinstance(data, list) else str(data),
         reply_markup=back_to_admin_main_kb
     )
