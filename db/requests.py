@@ -1278,17 +1278,18 @@ async def get_all_support_users(session: AsyncSession):
     stmt = select(User).where(User.delivery_mode == "support")
     result = await session.execute(stmt)
     users = result.scalars().all()
+
     if users:
+        data = []  # создаём список один раз до цикла
         for user in users:
-            data = []
             text = f"""
-            Имя: {user.first_name}
-            ID: {user.telegram_id}\n\n
-            """
+Имя: {user.first_name}
+ID: <code>{user.telegram_id}</code>
+
+"""
             data.append(text)
         await session.commit()
         return data
     else:
         await session.commit()
-        text = "Нет пользователей в режиме поддержки"
-        return text
+        return "Нет пользователей в режиме поддержки"
