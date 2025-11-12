@@ -30,6 +30,7 @@ async def schedule_sand_two_hours():
     await sand_two_hours_vacancy.schedule_by_cron(
         scheduled_task_id="sand_two_hours",
         cron="0 */2 * * *",
+        timezone=MOSCOW_TZ,
         source=schedule_source
     )
     logger.info("✅ Задача рассылки раз в 2 часа создана заново.")

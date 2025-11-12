@@ -89,25 +89,8 @@ def start_subscription_scheduler(interval_seconds: int = 1800):
         logger.info("Subscription check scheduler started.")
 
 
-# ------------------ Task 2: Send two hours vacancies ------------------ #
-def start_two_hours_vacancy_scheduler():
-    job_id = "two_hours_vacancy"
-
-    if not any(job.id == job_id for job in scheduler.get_jobs()):
-        scheduler.add_job(
-            send_two_hours_vacancies,  # async функция
-            trigger=IntervalTrigger(hours=2, start_date=datetime.now(MOSCOW_TZ)),
-            id=job_id,
-            coalesce=True,
-            max_instances=1,
-            misfire_grace_time=60,
-        )
-        logger.info("Two hours vacancy scheduler task added.")
-
-
 # ------------------ Start scheduler ------------------ #
 def start_all_schedulers():
     start_subscription_scheduler()
-    start_two_hours_vacancy_scheduler()
     scheduler.start()
     logger.info("All schedulers started.")
