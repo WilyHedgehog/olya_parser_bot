@@ -753,7 +753,7 @@ async def support_cmd(message: Message, state: FSMContext, session: AsyncSession
 async def support_message(message: Message, state: FSMContext, session: AsyncSession):
     await bot.send_message(
         chat_id=config.bot.support_chat_id,
-        text=f"💬 Новое сообщение в поддержку от {message.from_user.full_name}\nID пользователя: {message.from_user.id}",
+        text=f"💬 Новое сообщение в поддержку от {message.from_user.full_name}\nID пользователя: <code>{message.from_user.id}</code>",
     )
     fwd = await bot.copy_message(
         chat_id=config.bot.support_chat_id,

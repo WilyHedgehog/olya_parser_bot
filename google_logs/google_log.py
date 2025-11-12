@@ -28,6 +28,7 @@ spreadsheet = client.open("proonlinejob-bot")
 worksheet_first = spreadsheet.sheet1
 worksheet_second = spreadsheet.get_worksheet(1)
 worksheet_third = spreadsheet.get_worksheet(2)
+worksheet_fourth = spreadsheet.get_worksheet(3)
 
 
 async def worksheet_append_row(
@@ -69,4 +70,10 @@ async def worksheet_append_row(
 async def worksheet_append_log(name, action, user_id=None, time=None, text=None, text2=None):
     await asyncio.to_thread(
         worksheet_third.append_row, [user_id, time, name, action, text, text2]
+    )
+    
+    
+async def worksheet_append_error(action, name=None, user_id=None, time=None, text=None, text2=None):
+    await asyncio.to_thread(
+        worksheet_fourth.append_row, [user_id, time, name, action, text, text2]
     )

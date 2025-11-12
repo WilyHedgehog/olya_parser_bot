@@ -86,6 +86,9 @@ background_tasks_button = InlineKeyboardButton(
 delete_admin_message = InlineKeyboardButton(
     text="Удалить сообщение", callback_data="delete_admin_message"
 )
+support_users_button = InlineKeyboardButton(
+    text="Пользователи в поддержке", callback_data="in_support_users"
+)
 
 
 
@@ -109,6 +112,7 @@ def admin_keyboard(super_admin: bool) -> InlineKeyboardMarkup:
     builder.row(get_file_id_button)
     builder.row(mailing_settings_button)
     builder.row(stats_button)
+    builder.row(support_users_button)
     if super_admin:
         builder.row(add_delete_admin_button)
         builder.row(background_tasks_button)

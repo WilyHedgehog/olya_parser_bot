@@ -170,7 +170,7 @@ async def get_main_reply_kb(user_id: int) -> ReplyKeyboardMarkup:
     user = await get_user_by_telegram_id(user_id)
 
     buy_subscription_text = "💳 Купить подписку 💳"
-    get_earned_vacancies_text = "Получить накопленные вакансии"
+    get_earned_vacancies_text = "Получить накопленные за два дня вакансии"
     profeessions_settings_text = "🛠️ Настройки профессий 🛠️"
     delivery_settings_text = "📬 Настройки параметров доставки вакансий 📬"
     promo_text = "🎟️ Активировать промокод 🎟️"

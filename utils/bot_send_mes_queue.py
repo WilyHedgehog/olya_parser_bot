@@ -3,9 +3,19 @@ import logging
 import asyncio
 from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError
 from utils.bot_utils import send_message, send_photo
-from db.requests import record_vacancy_sent, get_vacancy_by_id, dublicate_check, mark_vacancies_as_sent_two_hours, mark_vacancy_as_sent_queue
+from db.requests import (
+    record_vacancy_sent,
+    get_vacancy_by_id,
+    dublicate_check,
+    mark_vacancies_as_sent_two_hours,
+    mark_vacancy_as_sent_queue,
+)
 from bot.keyboards.user_keyboard import get_need_author_kb
+from google_logs.google_log import worksheet_append_error
 from uuid import UUID
+from datetime import datetime
+from zoneinfo import ZoneInfo
+MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +24,19 @@ semaphore = asyncio.Semaphore(1)
 import re
 from html import escape
 
+
 def safe_html(text: str) -> str:
     """Экранирует любые непарные или неизвестные HTML-теги."""
-    allowed_tags = ['b', 'i', 'u', 'a', 'code', 'pre', 'blockquote', 'tg-spoiler']
+    allowed_tags = ["b", "i", "u", "a", "code", "pre", "blockquote", "tg-spoiler"]
+
     # заменяем любые угловые скобки, кроме разрешённых тегов
     def repl(match):
         tag = match.group(1)
         if tag and any(tag.startswith(t) for t in allowed_tags):
             return f"<{tag}>"
         return escape(f"<{tag}>")
-    return re.sub(r'<(/?[^>]+)>', repl, text)
+
+    return re.sub(r"<(/?[^>]+)>", repl, text)
 
 
 async def bot_send_messages_worker(js):
@@ -59,15 +72,19 @@ async def bot_send_messages_worker(js):
                         logger.info(f"📨 Отправка вакансии пользователю: {chat_id}")
                         vacancy_id = UUID(data.get("vacancy_id"))
                         reply_markup = await get_need_author_kb(str(vacancy_id))
-                        
+
                         vacancy = await get_vacancy_by_id(vacancy_id)
-                        
+
                         if not await dublicate_check(chat_id, vacancy):
                             success = True
                             await msg.ack()
-                            logger.info(f"⏭  Skip duplicate vacancy for user: {chat_id}")
+                            logger.info(
+                                f"⏭  Skip duplicate vacancy for user: {chat_id}"
+                            )
                             if flag == "two_hours":
-                                await mark_vacancies_as_sent_two_hours(chat_id, vacancy_id)
+                                await mark_vacancies_as_sent_two_hours(
+                                    chat_id, vacancy_id
+                                )
                             elif flag == "queue":
                                 await mark_vacancy_as_sent_queue(chat_id, vacancy_id)
                             continue  # Уже отправляли такую вакансию этому пользователю
@@ -76,12 +93,11 @@ async def bot_send_messages_worker(js):
                             reply_markup = data.get("reply_markup")
                         except KeyError:
                             reply_markup = None
-                    
 
                     # Отправляем сообщение
                     try:
                         clean_message = safe_html(message) if message else ""
-                        
+
                         if photo_id:
                             message = await send_photo(
                                 chat_id=chat_id,
@@ -91,7 +107,9 @@ async def bot_send_messages_worker(js):
                             )
                         else:
                             message_sent = await send_message(
-                                chat_id=chat_id, text=clean_message, reply_markup=reply_markup
+                                chat_id=chat_id,
+                                text=clean_message,
+                                reply_markup=reply_markup,
                             )
 
                         if flag in ["queue", "two_hours", "vacancy"] and message_sent:
@@ -103,8 +121,10 @@ async def bot_send_messages_worker(js):
                             if flag == "queue":
                                 await mark_vacancy_as_sent_queue(chat_id, vacancy_id)
                             elif flag == "two_hours":
-                                await mark_vacancies_as_sent_two_hours(chat_id, vacancy_id)
-                                
+                                await mark_vacancies_as_sent_two_hours(
+                                    chat_id, vacancy_id
+                                )
+
                         success = True
 
                     except TelegramRetryAfter as e:
@@ -125,6 +145,11 @@ async def bot_send_messages_worker(js):
                         # Пользователь заблокировал бота или не начал чат
                         logger.warning(
                             f"Cannot send vacancy to user: bot is blocked or user hasn't started the chat."
+                        )
+                        await worksheet_append_error(
+                            action="Пользователь заблокировал бота или не начал чат.",
+                            user_id=chat_id,
+                            time=datetime.now(MOSCOW_TZ).strftime("%d-%m-%Y %H:%M:%S"),
                         )
                         success = True  # Подтверждаем обработку сообщения, чтобы не пытаться снова
 

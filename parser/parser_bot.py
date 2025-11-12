@@ -299,7 +299,7 @@ async def on_new_message(event):
         sender = None
 
     # Пропускаем сообщения от ботов
-    if isinstance(sender, User) and sender.bot:
+    if isinstance(sender, User) and sender.bot and sender.id != 6069404137:
         return
 
     # Пропускаем системные сообщения

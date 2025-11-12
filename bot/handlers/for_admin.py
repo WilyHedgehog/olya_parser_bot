@@ -54,6 +54,7 @@ from db.requests import (
     return_vacancy_by_id,
     save_in_trash,
     get_all_user_info,
+    get_all_support_users,
 )
 from db.crud import (
     get_upcoming_mailings,
@@ -1069,3 +1070,12 @@ async def delete_sended_messages(callback: CallbackQuery):
     await bot.delete_message(chat_id=callback.data.split("_")[3], message_id=callback.data.split("_")[2])
     await callback.message.edit_text("✅ Сообщение удалено", reply_markup=back_to_admin_main_kb)    
     await callback.answer()
+    
+    
+@router.callback_query(F.data == "in_support_users", IsAdminFilter())
+async def get_in_support_users(callback: CallbackQuery, session: AsyncSession):
+    data = await get_all_support_users(session=session)
+    await callback.message.edit_text(
+        text=data,
+        reply_markup=back_to_admin_main_kb
+    )

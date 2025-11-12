@@ -1272,3 +1272,23 @@ async def get_all_user_info(telegram_id) -> dict:
         data["Приглашён пользователем с ID"] = user.from_user_id
         
         return data
+
+
+async def get_all_support_users(session: AsyncSession):
+    stmt = select(User).where(User.delivery_mode == "support")
+    result = await session.execute(stmt)
+    users = result.scalars().all()
+    if users:
+        for user in users:
+            data = []
+            text = f"""
+            Имя: {user.first_name}
+            ID: {user.telegram_id}\n\n
+            """
+            data.append(text)
+        await session.commit()
+        return data
+    else:
+        await session.commit()
+        text = "Нет пользователей в режиме поддержки"
+        return text
