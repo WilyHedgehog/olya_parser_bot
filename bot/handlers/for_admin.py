@@ -9,6 +9,7 @@ from bot.background_tasks.aps_utils import clear
 from bot.background_tasks.aps_utils import cancel_mailing_by_id
 from bot.background_tasks.delete_old_vacancy import schedule_vacancy_clear
 from bot.background_tasks.sand_two_hours_vacancy import schedule_sand_two_hours
+from bot.background_tasks.hh_parser_task import schedule_hh_parser_task
 from google_logs.google_log import worksheet_append_row
 from parser.hh_parser import hh_parser
 from bot_setup import bot
@@ -971,9 +972,15 @@ async def two_hours_send_vacancy(callback: CallbackQuery):
     await callback.answer()
     
 
-@router.message(Command("hh"), IsAdminFilter())
-async def start_hh(message: Message):
+@router.message(F.data == "start_parser_hh", IsAdminFilter())
+async def start_hh(callback: CallbackQuery):
     await hh_parser()
+    text = "Фоновая задача запущена\n\n"
+    await callback.message.edit_text(
+        text,
+        reply_markup=back_to_admin_main_kb
+    )
+    await callback.answer()
     
     
 @router.message(Command("uinfo"), IsAdminFilter())

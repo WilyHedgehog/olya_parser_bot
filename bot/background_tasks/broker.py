@@ -21,6 +21,7 @@ import bot.background_tasks.dunning
 import bot.background_tasks.delete_old_vacancy
 import bot.background_tasks.admin_mailing
 import bot.background_tasks.sand_two_hours_vacancy
+import bot.background_tasks.hh_parser_task
 
 scheduler = TaskiqScheduler(
     broker=broker,

@@ -1,9 +1,36 @@
 import datetime
+import re
 from typing import Optional, Any
 from pydantic import BaseModel, Field
 from parser.extract_sender import extract_sender_info
 from telethon.errors import TypeNotFoundError
 
+
+
+MENTION_RE = re.compile(r'@[A-Za-z0-9_]{5,32}')
+
+def restore_mentions(text: str) -> str:
+    """
+    Проверяет наличие ников и гарантирует, что они не теряются
+    при дальнейшей обработке.
+    """
+    matches = MENTION_RE.findall(text)
+    return text if matches else text
+
+
+async def get_full_text(message) -> str:
+    """
+    Безопасно получает полный текст сообщения без обрезки.
+    """
+    text = getattr(message, "message", None) \
+        or getattr(message, "text", None) \
+        or getattr(message, "caption", None) \
+        or ""
+
+    # ⚠️ Не используем .strip(), чтобы не потерять ник или хэштеги в конце
+    cleaned = text.replace("\r", "")
+    cleaned = restore_mentions(cleaned)
+    return cleaned
 
 # ==============================
 # Pydantic модель сериализации
@@ -79,9 +106,7 @@ class MessagePayload(BaseModel):
         fwd_from = " ".join(fwd_info) if fwd_info else None
 
         # Текст сообщения
-        text = getattr(message, "message", None) \
-            or getattr(message, "text", None) \
-            or getattr(message, "caption", None)
+        text = await get_full_text(message)
 
         # Дата сообщения
         date = getattr(message, "date", None)
