@@ -972,7 +972,7 @@ async def two_hours_send_vacancy(callback: CallbackQuery):
     await callback.answer()
     
 
-@router.message(F.data == "start_parser_hh", IsAdminFilter())
+@router.callback_query(F.data == "start_parser_hh", IsAdminFilter())
 async def start_hh(callback: CallbackQuery):
     await hh_parser()
     text = "Фоновая задача запущена\n\n"
