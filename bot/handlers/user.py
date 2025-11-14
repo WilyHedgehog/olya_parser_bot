@@ -496,6 +496,7 @@ async def confirm_email(
             pass
         await state.set_state(Main.main)
         if user_data.get("from_promo"):
+            logger.error(user_data.get("from_promo"))
             await activate_promo_code_from_callback(callback, state)
         else:
             await buy_subscription(callback, state)
