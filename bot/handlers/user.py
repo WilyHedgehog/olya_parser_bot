@@ -397,12 +397,11 @@ async def settings_delivery(message: Message, state: FSMContext):
 @router.message(F.text == "💳 Купить подписку 💳", Main.main, UserNoEmail())
 @router.message(F.text == "🎟️ Активировать промокод 🎟️", Main.main, UserNoEmail())
 async def add_email_prompt(message: Message, state: FSMContext):
-    if F.text == "🎟️ Активировать промокод 🎟️":
+    if message.text == "🎟️ Активировать промокод 🎟️":
         await state.update_data(from_promo=True)
-        logger.error(True)
     else:
         await state.update_data(from_promo=False)
-        logger.error(False)
+        
     await try_delete_message(message)
     await try_delete_message_old(message, state)
     reply = await message.answer(
@@ -498,7 +497,6 @@ async def confirm_email(
             pass
         await state.set_state(Main.main)
         if user_data.get("from_promo"):
-            logger.error(user_data.get("from_promo"))
             await activate_promo_code_from_callback(callback, state)
         else:
             await buy_subscription(callback, state)
