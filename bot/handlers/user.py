@@ -499,7 +499,7 @@ async def confirm_email(
         if user_data.get("from_promo"):
             await activate_promo_code_from_callback(callback, state)
         else:
-            await buy_subscription(callback, state)
+            await buy_subscription_from_callback(callback, state)
 
 
 async def _start_activate_promo(message: Message, state: FSMContext):
