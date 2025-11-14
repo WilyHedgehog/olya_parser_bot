@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from aiogram.dispatcher.event.handler import HandlerObject
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from aiogram import Bot
 import logging
 
 from db.requests import (
@@ -157,3 +158,80 @@ class UserProfessionsMiddleware(BaseMiddleware):
         await upsert_user_professions(session, user_id, all_professions)
 
         return await handler(event, data)
+
+
+# from aiogram import BaseMiddleware
+# from aiogram.types import Update, BotCommand, BotCommandScopeChatMember, User
+# from cachetools import TTLCache
+# import logging
+# from db.requests import get_user_status  # твоя функция из БД
+
+# logger = logging.getLogger(__name__)
+
+# class DynamicCommandsMiddleware(BaseMiddleware):
+#     """
+#     Middleware для динамических команд Telegram.
+#     Обновляет команды пользователя автоматически при событии.
+#     """
+
+#     def __init__(self, bot, cache_ttl: int = 3600):
+#         super().__init__()
+#         self.bot: Bot = bot
+#         self.cache = TTLCache(maxsize=5000, ttl=cache_ttl)
+
+#     async def __call__(self, handler, event: Update, data: dict):
+#         """
+#         Обрабатывает входящее событие.
+#         """
+#         # Определяем пользователя
+#         user: User = None
+#         if event.message:
+#             user = event.message.from_user
+#         elif event.callback_query:
+#             user = event.callback_query.from_user
+#         elif event.inline_query:
+#             user = event.inline_query.from_user
+
+#         if user:
+#             await self.update_commands_for_user(user.id)
+
+#         # Продолжаем выполнение хэндлера
+#         return await handler(event, data)
+
+#     async def update_commands_for_user(self, user_id: int):
+#         """
+#         Формируем и устанавливаем команды для конкретного пользователя.
+#         """
+#         # Получаем статус пользователя из БД
+#         status = await get_user_status(user_id)
+
+#         # Формируем список команд
+#         commands = [
+#             BotCommand(command="start", description="Начать"),
+#             BotCommand(command="help", description="Помощь"),
+#         ]
+
+#         if status.is_premium:
+#             commands.append(BotCommand(command="premium", description="Премиум-функции"))
+
+#         if status.is_admin:
+#             commands.extend([
+#                 BotCommand(command="admin", description="Админ-панель"),
+#                 BotCommand(command="stats", description="Статистика пользователей"),
+#             ])
+
+#         # Проверка кэша — обновляем только если команды изменились
+#         commands_repr = [(c.command, c.description) for c in commands]
+#         cached = self.cache.get(user_id)
+#         if cached == commands_repr:
+#             return
+
+#         try:
+#             await self.bot.set_my_commands(
+#                 commands=commands,
+#                 scope=BotCommandScopeChatMember(chat_id=user_id, user_id=user_id)
+#             )
+#             self.cache[user_id] = commands_repr
+#             logger.info(f"Команды обновлены для пользователя {user_id}")
+#         except Exception as e:
+#             logger.error(f"Ошибка при установке команд для пользователя {user_id}: {e}")

@@ -129,7 +129,7 @@ async def process_message(payload: MessagePayload | None = None, hh_message: str
 
 
         # 3. Проверка по хэшу в БД
-        existing = await get_vacancy_by_hash(message_hash)  # нужно реализовать
+        existing = await get_vacancy_by_hash(message_hash)
         if existing:
             logger.info(
                 f"Вакансия с хэшем {message_hash} уже существует (ID {existing.id}), пропускаем."
