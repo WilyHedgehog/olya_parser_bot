@@ -60,7 +60,7 @@ def get_hh_vacancies(prof, per_page=10):
     """Возвращает список вакансий для профессии по всей России"""
     url = "https://api.hh.ru/vacancies"
     params = {
-        "text": f"NAME:({prof})",
+        "text": f'NAME:"{prof}"',
         "area": 113,  # вся Россия
         "order_by": "publication_time",
         "per_page": per_page

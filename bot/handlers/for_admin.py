@@ -974,7 +974,7 @@ async def two_hours_send_vacancy(callback: CallbackQuery):
 
 @router.callback_query(F.data == "start_parser_hh", IsAdminFilter())
 async def start_hh(callback: CallbackQuery):
-    await hh_parser()
+    await schedule_hh_parser_task()
     text = "Фоновая задача запущена\n\n"
     await callback.message.edit_text(
         text,
@@ -1044,7 +1044,7 @@ async def process_client_message(message: Message, state: FSMContext):
 
     reply_one = await bot.send_message(
         chat_id=target_user_id,
-        text=f"Сообщение от администратора:",
+        text=f"Администратор Капибары на связи!\nТы сделал запрос на уточнение контактов в вакансии.\nЛови вакансию с ником!\n\nБудут еще вопросы, обращайся",
     )
     reply_two = await bot.forward_message(chat_id=target_user_id, message_id=message.message_id, from_chat_id=message.chat.id)
     
@@ -1061,7 +1061,7 @@ async def process_client_message(message: Message, state: FSMContext):
 
     reply_one = await bot.send_message(
         chat_id=target_user_id,
-        text=f"Сообщение от администратора:",
+        text=f"Администратор Капибары на связи!\nТы сделал запрос на уточнение контактов в вакансии.\nЛови!\n\nБудут еще вопросы, обращайся",
     )
     reply_two = await bot.copy_message(chat_id=target_user_id, message_id=message.message_id, from_chat_id=message.chat.id)
     

@@ -145,9 +145,15 @@ class FreeThreeDaysMiddleware(BaseMiddleware):
 class UserProfessionsMiddleware(BaseMiddleware):
     async def __call__(self, handler, event, data):
         session: AsyncSession = data["session"]
-        user_id = event.from_user.id
-        all_professions = [prof.id for prof in await get_all_professions()]
 
+        # Безопасно получаем пользователя
+        event_user = data.get("event_from_user")
+        if not event_user:
+            return await handler(event, data)
+
+        user_id = event_user.id
+
+        all_professions = [prof.id for prof in await get_all_professions()]
         await upsert_user_professions(session, user_id, all_professions)
 
         return await handler(event, data)
