@@ -399,8 +399,10 @@ async def settings_delivery(message: Message, state: FSMContext):
 async def add_email_prompt(message: Message, state: FSMContext):
     if F.text == "🎟️ Активировать промокод 🎟️":
         await state.update_data(from_promo=True)
+        logger.error(True)
     else:
         await state.update_data(from_promo=False)
+        logger.error(False)
     await try_delete_message(message)
     await try_delete_message_old(message, state)
     reply = await message.answer(
